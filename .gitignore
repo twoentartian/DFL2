@@ -1,7 +1,6 @@
 # Created by https://www.toptal.com/developers/gitignore/api/clion,visualstudio,visualstudiocode,clion+all
 # Edit at https://www.toptal.com/developers/gitignore?templates=clion,visualstudio,visualstudiocode,clion+all
 
-3rd/*
 dataset/MNIST/result
 dataset/MNIST/test-lmdb
 dataset/MNIST/train-lmdb
