@@ -1,0 +1,7 @@
+include_directories(.)
+add_subdirectory(DFL)
+add_subdirectory(data_injector)
+add_subdirectory(tool)
+add_subdirectory(reputation_sdk)
+add_subdirectory(simulation)
+add_subdirectory(DFL_introducer)
