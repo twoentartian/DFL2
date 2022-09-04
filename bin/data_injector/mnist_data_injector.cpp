@@ -1,3 +1,5 @@
+#define CPU_ONLY
+
 #include <chrono>
 #include <glog/logging.h>
 
