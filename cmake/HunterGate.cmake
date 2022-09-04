@@ -99,7 +99,7 @@ function(hunter_gate_internal_error)
 endfunction()
 
 function(hunter_gate_fatal_error)
-    cmake_parse_arguments(hunter "" "ERROR_PAGE" "" "${ARGV}")
+    cmake_parse_arguments(Hunter "" "ERROR_PAGE" "" "${ARGV}")
     if("${hunter_ERROR_PAGE}" STREQUAL "")
         hunter_gate_internal_error("Expected ERROR_PAGE")
     endif()
