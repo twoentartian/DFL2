@@ -1,2 +1,2 @@
 add_executable(DFL DFL.cpp)
-target_link_libraries(DFL "${OPENSSL_CRYPTO_LIBRARY}" caffe caffeproto "${GLOG_LIBRARY}" "${Protobuf_LIBRARIES}" "${snappy_LIBRARIES}" "${LevelDB_LIBRARIES}" "${LMDB_LIBRARIES}" "${OpenCV_LIBS}" "${Boost_LIBRARIES}" "${ROCKSDB_LIBRARIES}" "${LZ4_LIBRARIES}")
+target_link_libraries(DFL caffe Boost::serialization LZ4::lz4_static OpenSSL::Crypto RocksDB::rocksdb)

@@ -20,12 +20,12 @@ project(DFL2 C CXX)
 #include_directories(${CMAKE_BINARY_DIR}/3rd/caffe/include)
 
 include(hunter_add_version)
-set(HUNTER_Caffe_VERSION 0.0.2)
+set(HUNTER_Caffe_VERSION 0.0.5)
 hunter_add_version(
         PACKAGE_NAME Caffe
-        VERSION "0.0.2"
-        URL "https://github.com/twoentartian/caffe/archive/refs/tags/0.0.2.tar.gz"
-        SHA1 f174466e2b94eeae6620c112bc521e4746446552
+        VERSION "0.0.5"
+        URL "https://github.com/twoentartian/caffe/archive/refs/tags/0.0.5.tar.gz"
+        SHA1 a7f1c15416120bcd9c32873717e950290c522404
 )
 
 hunter_add_package(Caffe)
