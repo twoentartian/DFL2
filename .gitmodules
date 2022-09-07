@@ -1,0 +1,3 @@
+[submodule "3rd/caffe"]
+	path = 3rd/caffe
+	url = git@github.com:twoentartian/caffe.git

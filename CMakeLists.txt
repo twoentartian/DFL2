@@ -15,21 +15,21 @@ HunterGate(
 project(DFL2 C CXX)
 
 # Caffe cmake
-#add_subdirectory(3rd/caffe)
-#include_directories(3rd/caffe/include)
-#include_directories(${CMAKE_BINARY_DIR}/3rd/caffe/include)
+add_subdirectory(3rd/caffe)
+include_directories(3rd/caffe/include)
+include_directories(${CMAKE_BINARY_DIR}/3rd/caffe/include)
 
-include(hunter_add_version)
-set(HUNTER_Caffe_VERSION 0.0.5)
-hunter_add_version(
-        PACKAGE_NAME Caffe
-        VERSION "0.0.5"
-        URL "https://github.com/twoentartian/caffe/archive/refs/tags/0.0.5.tar.gz"
-        SHA1 a7f1c15416120bcd9c32873717e950290c522404
-)
-
-hunter_add_package(Caffe)
-find_package(Caffe CONFIG REQUIRED)
+## hunter Caffe
+#include(hunter_add_version)
+#set(HUNTER_Caffe_VERSION 0.0.5)
+#hunter_add_version(
+#        PACKAGE_NAME Caffe
+#        VERSION "0.0.5"
+#        URL "https://github.com/twoentartian/caffe/archive/refs/tags/0.0.5.tar.gz"
+#        SHA1 a7f1c15416120bcd9c32873717e950290c522404
+#)
+#hunter_add_package(Caffe)
+#find_package(Caffe CONFIG REQUIRED)
 
 # Nlohmann Json
 hunter_add_package(nlohmann_json)
@@ -43,6 +43,10 @@ include_directories(${Boost_INCLUDE_DIRS})
 # OpenSSL
 hunter_add_package(OpenSSL)
 find_package(OpenSSL REQUIRED)
+
+# glog
+hunter_add_package(glog)
+find_package(glog CONFIG REQUIRED)
 
 # RocksDB
 hunter_add_package(rocksdb)
