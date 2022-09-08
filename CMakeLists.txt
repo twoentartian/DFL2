@@ -18,9 +18,9 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
 set(DFL_LINKER_LIBS)
 
 # Caffe cmake
-add_subdirectory(${CMAKE_SOURCE_DIR}/3rd/caffe)
+add_subdirectory(3rd/caffe)
 include_directories(3rd/caffe/include)
-include_directories(${CMAKE_SOURCE_DIR}/3rd/caffe/include)
+include_directories(${CMAKE_BINARY_DIR}/3rd/caffe/include)
 include(cmake/CaffeHeader.cmake)
 list(APPEND DFL_LINKER_LIBS caffe)
 
