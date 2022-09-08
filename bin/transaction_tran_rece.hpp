@@ -468,6 +468,8 @@ public:
 			}
 			remove_list_index++;
 		}
+		
+		return output;
 	}
 	
 	std::tuple<bool, std::string> try_to_add_peer(int desired_peer_count = -1)

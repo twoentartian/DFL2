@@ -24,13 +24,13 @@ public:
 	struct record
 	{
 	public:
-		record(const std::chrono::time_point<std::chrono::high_resolution_clock>& _start, const std::chrono::time_point<std::chrono::high_resolution_clock>& _stop) : start(_start), stop(_stop)
+		record(const std::chrono::time_point<std::chrono::system_clock>& _start, const std::chrono::time_point<std::chrono::system_clock>& _stop) : start(_start), stop(_stop)
 		{
 			duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start);
 		}
 		
-		std::chrono::time_point<std::chrono::high_resolution_clock> start;
-		std::chrono::time_point<std::chrono::high_resolution_clock> stop;
+		std::chrono::time_point<std::chrono::system_clock> start;
+		std::chrono::time_point<std::chrono::system_clock> stop;
 		std::chrono::nanoseconds duration_ns;
 	};
 	
@@ -44,10 +44,10 @@ private:
 	static global_profiler_recorder* _instance;
 	std::unordered_map<std::string, std::vector<record>> _performance_record;
 	
-	using time_point = std::chrono::high_resolution_clock::time_point;
+	using time_point = std::chrono::system_clock::time_point;
 	std::string serializeTimePoint( const time_point& time, const std::string& format)
 	{
-		std::time_t tt = std::chrono::high_resolution_clock::to_time_t(time);
+		std::time_t tt = std::chrono::system_clock::to_time_t(time);
 		std::tm tm = *std::gmtime(&tt); //GMT (UTC)
 		//std::tm tm = *std::localtime(&tt); //Locale time-zone, usually UTC by default.
 		std::stringstream ss;
@@ -105,7 +105,7 @@ private:
 		output_file.close();
 	}
 	
-	void add_record(const std::string& name, const std::chrono::time_point<std::chrono::high_resolution_clock>& start, const std::chrono::time_point<std::chrono::high_resolution_clock>& stop)
+	void add_record(const std::string& name, const std::chrono::time_point<std::chrono::system_clock>& start, const std::chrono::time_point<std::chrono::system_clock>& stop)
 	{
 		if (_performance_record.find(name) == _performance_record.end())
 		{
@@ -127,19 +127,19 @@ public:
 protected:
 	void __start__()
 	{
-		start_time = std::chrono::high_resolution_clock::now();
+		start_time = std::chrono::system_clock::now();
 	}
 	
 	void __stop__()
 	{
-		auto stop_time = std::chrono::high_resolution_clock::now();
+		auto stop_time = std::chrono::system_clock::now();
 		_instance->add_record(_name, start_time, stop_time);
 	}
 
 protected:
 	static global_profiler_recorder* _instance;
 	std::string _name;
-	std::chrono::time_point<std::chrono::high_resolution_clock> start_time;
+	std::chrono::time_point<std::chrono::system_clock> start_time;
 };
 global_profiler_recorder* profiler_abs::_instance = nullptr;
 
