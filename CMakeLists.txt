@@ -51,6 +51,10 @@ else()
     include_directories(${Boost_INCLUDE_DIRS})
     list(APPEND DFL_LINKER_LIBS Boost::system Boost::filesystem Boost::serialization)
 endif ()
+if (Boost_VERSION VERSION_GREATER_EQUAL 1.76)
+    add_compile_definitions(Boost_dll_import_symbol)
+endif ()
+
 
 # OpenSSL
 find_package(OpenSSL)

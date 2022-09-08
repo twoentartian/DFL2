@@ -30,7 +30,11 @@ public:
 		boost::dll::fs::path libPath(_dll_path);
 		try
 		{
+#ifdef Boost_dll_import_symbol
 			_dll = boost::dll::import_symbol<class_type>(libPath, class_name);
+#else
+            _dll = boost::dll::import<class_type>(libPath, class_name);
+#endif
 		}
 		catch (...)
 		{
