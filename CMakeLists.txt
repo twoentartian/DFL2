@@ -7,17 +7,20 @@ option(HUNTER_BUILD_SHARED_LIBS "Value for BUILD_SHARED_LIBS for 3rd party packa
 
 include("cmake/HunterGate.cmake")
 HunterGate(
-        URL "https://github.com/cpp-pm/hunter/archive/v0.24.3.tar.gz"
-        SHA1 "10738b59e539818a01090e64c2d09896247530c7"
+        URL "https://github.com/twoentartian/hunter/archive/refs/tags/test.tar.gz"
+        SHA1 "05269beb951f506ecc0434e2efbb92e34c4d05b9"
         LOCAL
 )
 
 project(DFL2 C CXX)
 
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
+
 # Caffe cmake
 add_subdirectory(3rd/caffe)
 include_directories(3rd/caffe/include)
 include_directories(${CMAKE_BINARY_DIR}/3rd/caffe/include)
+include(cmake/CaffeHeader.cmake)
 
 ## hunter Caffe
 #include(hunter_add_version)
