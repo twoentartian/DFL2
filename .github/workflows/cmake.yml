@@ -1,4 +1,4 @@
-name: ubuntu-build-apt-dependency
+name: build-with-package-manager
 
 on:
   push:
