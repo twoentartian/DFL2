@@ -24,10 +24,10 @@ jobs:
 
     
     - name: Install dependency
-      run: sudo apt-get install autoconf automake libtool curl make g++ unzip protobuf-compiler libgoogle-glog-dev libboost-all-dev liblz4-dev librocksdb-dev libssl-dev libopenblas-dev libleveldb-dev libsnappy-dev libprotobuf-dev
+      run: sudo apt-get install autoconf automake libtool curl make g++ unzip protobuf-compiler libgoogle-glog-dev libboost-all-dev liblz4-dev librocksdb-dev libssl-dev libopenblas-dev libleveldb-dev libsnappy-dev
     
     - name: Configure CMake
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DUSE_OPENCV=OFF
 
     - name: Build DFL
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} --target DFL
