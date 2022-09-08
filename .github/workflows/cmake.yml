@@ -1,4 +1,4 @@
-name: main-branch-pm-build
+name: ubuntu-build-apt-dependency
 
 on:
   push:
