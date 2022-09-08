@@ -25,8 +25,17 @@ jobs:
     - name: Configure CMake
       run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
 
-    - name: Build
-      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+    - name: Build DFL
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} --target DFL
+    
+    - name: Build DFL introducer
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} --target DFL_introducer
+      
+    - name: Build DFL simulator
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} --target DFL_simulator_mt
+    
+    - name: Build DFL reputation dll
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} --target reputation_api_sample
 
     #- name: Test
     #  working-directory: ${{github.workspace}}/build
