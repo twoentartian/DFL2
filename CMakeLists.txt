@@ -15,12 +15,14 @@ HunterGate(
 project(DFL2 C CXX)
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
+set(DFL_LINKER_LIBS)
 
 # Caffe cmake
 add_subdirectory(3rd/caffe)
 include_directories(3rd/caffe/include)
 include_directories(${CMAKE_BINARY_DIR}/3rd/caffe/include)
 include(cmake/CaffeHeader.cmake)
+list(APPEND DFL_LINKER_LIBS caffe)
 
 ## hunter Caffe
 #include(hunter_add_version)
@@ -39,25 +41,66 @@ hunter_add_package(nlohmann_json)
 find_package(nlohmann_json CONFIG REQUIRED)
 
 # Boost
-hunter_add_package(Boost COMPONENTS system filesystem serialization)
-find_package(Boost CONFIG REQUIRED system filesystem serialization)
-include_directories(${Boost_INCLUDE_DIRS})
+find_package(Boost COMPONENTS system filesystem serialization)
+if (Boost_FOUND)
+    include_directories(${Boost_INCLUDE_DIRS})
+    list(APPEND DFL_LINKER_LIBS ${Boost_LIBRARIES})
+else()
+    hunter_add_package(Boost COMPONENTS system filesystem serialization)
+    find_package(Boost CONFIG REQUIRED system filesystem serialization)
+    include_directories(${Boost_INCLUDE_DIRS})
+    list(APPEND DFL_LINKER_LIBS Boost::system Boost::filesystem Boost::serialization)
+endif ()
 
 # OpenSSL
-hunter_add_package(OpenSSL)
-find_package(OpenSSL REQUIRED)
+find_package(OpenSSL)
+if (OPENSSL_FOUND)
+    message(STATUS "Find OpenSSL ${OPENSSL_VERSION} in system")
+    include_directories(${OPENSSL_INCLUDE_DIRS})
+    list(APPEND DFL_LINKER_LIBS ${OPENSSL_LIBRARIES})
+else()
+    message(STATUS "OpenSSL not found, use hunter")
+    hunter_add_package(OpenSSL)
+    find_package(OpenSSL REQUIRED)
+    list(APPEND DFL_LINKER_LIBS OpenSSL::Crypto)
+endif ()
 
 # glog
-hunter_add_package(glog)
-find_package(glog CONFIG REQUIRED)
+find_package(glog)
+if (glog_FOUND)
+    message(STATUS "Find glog ${glog_VERSION} in system")
+    include_directories(${glog_INCLUDE_DIRS})
+    list(APPEND DFL_LINKER_LIBS ${glog_LIBRARIES})
+else()
+    hunter_add_package(glog)
+    find_package(glog CONFIG REQUIRED)
+    list(APPEND DFL_LINKER_LIBS glog::glog)
+endif ()
 
 # RocksDB
-hunter_add_package(rocksdb)
-find_package(RocksDB CONFIG REQUIRED)
+find_package(RocksDB)
+if (RocksDB_FOUND)
+    message(STATUS "Find RocksDB in system")
+    include_directories(${ROCKSDB_INCLUDE_DIR})
+    list(APPEND DFL_LINKER_LIBS ${ROCKSDB_LIBRARIES})
+else()
+    hunter_add_package(rocksdb)
+    find_package(RocksDB CONFIG REQUIRED)
+    list(APPEND DFL_LINKER_LIBS RocksDB::rocksdb)
+endif ()
 
 # LZ4
-hunter_add_package(lz4)
-find_package(LZ4 CONFIG REQUIRED)
+find_package(LZ4)
+if (LZ4_FOUND)
+    message(STATUS "Find LZ4 in system")
+    include_directories(${LZ4_INCLUDE_DIRS})
+    list(APPEND DFL_LINKER_LIBS ${LZ4_LIBRARIES})
+else()
+    hunter_add_package(lz4)
+    find_package(LZ4 CONFIG REQUIRED)
+    list(APPEND DFL_LINKER_LIBS LZ4::lz4_static)
+endif ()
+
 
 include_directories(lib)
 
