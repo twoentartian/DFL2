@@ -17,7 +17,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - name: checkout project and submodule
+      uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
     
     - name: Install dependency
       run: sudo apt-get install autoconf automake libtool curl make g++ unzip protobuf-compiler libgoogle-glog-dev libboost-all-dev liblz4-dev librocksdb-dev libssl-dev libopenblas-dev libleveldb-dev libsnappy-dev libprotobuf-dev
