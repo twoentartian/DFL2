@@ -4,7 +4,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 option(HUNTER_BUILD_SHARED_LIBS "Value for BUILD_SHARED_LIBS for 3rd party packages" OFF)
-option(NO_OPENBLAS_AVX512 "Disable AVX512 support for OpenBLAS" ON)
+option(USE_OPENBLAS_AVX512 "Disable AVX512 support for OpenBLAS" OFF)
 
 include("cmake/HunterGate.cmake")
 HunterGate(
