@@ -1,3 +1,7 @@
+if(UNIX OR APPLE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+endif()
+
 add_library (reputation_api_sample SHARED "sample_reputation.cpp")
 target_link_libraries (reputation_api_sample ${DFL_LINKER_LIBS})
 
