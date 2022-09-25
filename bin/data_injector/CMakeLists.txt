@@ -1,2 +1,2 @@
 add_executable(data_injector_mnist mnist_data_injector.cpp)
-target_link_libraries(data_injector_mnist Boost::serialization )
+target_link_libraries(data_injector_mnist ${DFL_LINKER_LIBS})
