@@ -332,9 +332,10 @@ int main(int argc, char **argv)
 	std::filesystem::path log_path(LOG_PATH);
 	if (!std::filesystem::exists(log_path)) std::filesystem::create_directories(log_path);
 	google::SetLogDestination(google::INFO, log_path.c_str());
-	google::SetStderrLogging(google::WARNING);
-	
+	google::SetStderrLogging(google::INFO);
+
 	//load configuration
+    LOG(INFO) << "loading configuration file";
 	configuration_file config;
 	config.SetDefaultConfiguration(get_default_configuration());
 	auto ret_code = config.LoadConfiguration("./config.json");
@@ -345,8 +346,9 @@ int main(int argc, char **argv)
 		else
 			LOG(FATAL) << "configuration file error code: " << ret_code;
 	}
-	
+
 	//load reputation dll
+    LOG(INFO) << "loading reputation dll";
 	if constexpr(std::is_same_v<model_datatype, float>)
 	{
 		auto [status,msg] = reputation_dll.load(*config.get<std::string>("reputation_dll_path"), export_class_name_reputation_float);
@@ -363,15 +365,18 @@ int main(int argc, char **argv)
 	}
 	
 	//set public key and private key
+    LOG(INFO) << "loading public&private key pair";
 	int ret = init_node_key_address(config);
 	if (ret != 0) return ret;
 	
 	//start transaction generator
+    LOG(INFO) << "starting transaction generator";
 	main_transaction_generator.reset(new transaction_generator());
 	main_transaction_generator->set_key(global_var::private_key, global_var::public_key, global_var::address);
 	CHECK(main_transaction_generator->verify_key()) << "verify_key private key/ public key/ address failed";
 	
 	//start ml model
+    LOG(INFO) << "starting ML service";
 	model_train.reset(new Ml::MlCaffeModel<float, caffe::SGDSolver>());
 	model_train->load_caffe_model(*config.get<std::string>("ml_solver_proto_path"));
 	model_test.reset(new Ml::MlCaffeModel<float, caffe::SGDSolver>());
@@ -391,22 +396,27 @@ int main(int argc, char **argv)
 	global_var::estimated_transaction_per_block = *config.get<int>("blockchain_estimated_block_size");
 	
 	//start transaction_storage
+    LOG(INFO) << "starting transaction storage";
 	main_transaction_storage.reset(new transaction_storage());
 	main_transaction_storage->add_event_callback(update_model);
 	main_transaction_storage->set_event_trigger(*config.get<int>("transaction_count_per_model_update"));
 	
 	//start reputation manager
+    LOG(INFO) << "starting reputation manager";
 	main_reputation_manager.reset(new reputation_manager(*config.get<std::string>("transaction_db_path")));
 	
 	//block database
+    LOG(INFO) << "starting block database";
 	std::string blockchain_block_db_path = *config.get<std::string>("blockchain_block_db_path");
 	main_block_manager.reset(new block_manager(blockchain_block_db_path));
 	main_block_manager->set_genesis_content(model_train->get_network_structure_info());
 	
 	//start block cache and transaction storage
+    LOG(INFO) << "starting block cache and transaction storage";
 	main_transaction_storage_for_block.reset(new transaction_storage_for_block(blockchain_block_db_path));
 	
-	//start data storage
+	//start ML data storage
+    LOG(INFO) << "starting ML data storage";
 	main_dataset_storage.reset(new dataset_storage<model_datatype>(*config.get<std::string>("data_storage_db_path"), *config.get<int>("data_storage_trigger_training_size")));
 	main_dataset_storage->set_full_callback([](const std::vector<Ml::tensor_blob_like<model_datatype>> &data, const std::vector<Ml::tensor_blob_like<model_datatype>> &label)
 	                                        {
@@ -424,6 +434,7 @@ int main(int argc, char **argv)
 	main_dataset_storage->start_network_service(port, concurrency);
 	
 	//start transaction_tran_rece
+    LOG(INFO) << "starting transaction transmission and receive service";
 	{
 		main_transaction_tran_rece.reset(new transaction_tran_rece(global_var::public_key, global_var::private_key, global_var::address,
 															 main_transaction_storage_for_block, config.get_json()["network"]["use_preferred_peers_only"]));
@@ -433,13 +444,15 @@ int main(int argc, char **argv)
 		main_transaction_tran_rece->get_inactive_time() = config.get_json()["network"]["inactive_peer_second"];
 		for (auto &single_preferred_peer : preferred_peers)
 		{
-			main_transaction_tran_rece->add_preferred_peer(single_preferred_peer.get<std::string>());
+            LOG(INFO) << "add preferred peer: " << single_preferred_peer.get<std::string>();
+            main_transaction_tran_rece->add_preferred_peer(single_preferred_peer.get<std::string>());
 		}
 		main_transaction_tran_rece->set_receive_transaction_callback(receive_transaction);
 		
 		configuration_file::json introducers = config.get_json()["network"]["introducers"];
 		for (configuration_file::json& single_introducer_json : introducers)
 		{
+            LOG(INFO) << "add introducer: " << single_introducer_json["ip"].get<std::string>() << ":" << single_introducer_json["port"].get<uint16_t>();
 			main_transaction_tran_rece->add_introducer(single_introducer_json["address"].get<std::string>(),
 			                                           single_introducer_json["ip"].get<std::string>(),
 			                                           single_introducer_json["public_key"].get<std::string>(),
@@ -449,6 +462,7 @@ int main(int argc, char **argv)
 	}
 	
 	//perform reputation test
+    LOG(INFO) << "performing reputation test";
 	Ml::caffe_parameter_net<model_datatype> model = model_train->get_parameter();
 	{
 		auto [pass, info] = reputation_dll_same_reputation_test(reputation_dll, model);
@@ -463,8 +477,17 @@ int main(int argc, char **argv)
 		std_cout::println(ss.str());
 	}
 	
-	std::cout << "press any key to exit" << std::endl;
-	std::cin.get();
+	std::cout << "DFL is now running, press any key to stop it" << std::endl;
+    while (true)
+    {
+        std::cin.get();
+        std::cout << "are you sure you want to stop DFL? <y/N>:";
+        std::string user_input;
+        getline(std::cin, user_input);
+        if (user_input == "Y") break;
+        else std::cout << "continue" << std::endl;
+    }
+
 	//	std::unique_lock lock(exit_cv_lock);
 	//	exit_cv.wait(lock);
 	return 0;

@@ -60,11 +60,9 @@ public:
 	~transaction_storage_for_block()
 	{
 		LOG(INFO) << "flush block cache database";
-		std_cout::println("flush block cache database");
 		_db_block_cache->FlushWAL(true);
 		
 		LOG(INFO) << "flush verified transaction database";
-		std_cout::println("flush verified transaction database");
 		_db_verified_transactions->FlushWAL(true);
 	}
 

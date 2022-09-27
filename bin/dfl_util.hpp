@@ -73,7 +73,7 @@ namespace dfl_util
 		std_cout::println(ss_str);
 	}
 	
-	void print_info_to_log_stdcout(std::stringstream &ss)
+	void print_info_to_log_stdcout(const std::stringstream &ss)
 	{
 		auto ss_str = ss.str();
 		LOG(INFO) << ss_str;

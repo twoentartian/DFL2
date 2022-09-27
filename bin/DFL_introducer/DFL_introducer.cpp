@@ -6,9 +6,11 @@
 
 #include <glog/logging.h>
 
+#include <dfl_util.hpp>
 #include <configure_file.hpp>
 #include "DFL_introducer_default_configuration.hpp"
 #include "DFL_introducer_p2p.hpp"
+#include "DFL_introducer_CLI.hpp"
 
 constexpr char INTRODUCER_LOG_PATH[] = "./introducer_log/";
 
@@ -55,9 +57,7 @@ int main(int argc, char **argv)
 	introducer_server->add_new_peer_callback([](const peer_endpoint& peer){
 		std::stringstream info_ss;
 		info_ss << "add peer " << peer.name << " with endpoint " << peer.address <<":"<< peer.port;
-		dfl_util::print_info_to_log_stdcout(info_ss);
-		std::cout << ">> ";
-		std::cout.flush();
+        introducer_CLI_print(info_ss);
 	});
 	
 	while (true)
