@@ -1,2 +1,2 @@
-add_executable(TEST_Crypto main.cpp)
-target_link_libraries(TEST_Crypto caffe caffeproto "${GLOG_LIBRARY}" "${Protobuf_LIBRARIES}" "${snappy_LIBRARIES}" "${LevelDB_LIBRARIES}" "${LMDB_LIBRARIES}" "${OpenCV_LIBS}" "${Boost_LIBRARIES}" "${OPENSSL_CRYPTO_LIBRARY}")
+add_executable(TEST_crypto crypto_test_main.cpp)
+target_link_libraries(TEST_crypto ${DFL_LINKER_LIBS})
