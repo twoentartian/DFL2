@@ -24,7 +24,7 @@ constexpr int TEST_FREQUENCY = 100000;
 
 BOOST_AUTO_TEST_SUITE (rocksdb_test)
 
-BOOST_AUTO_TEST_CASE (introducer_logic_process)
+BOOST_AUTO_TEST_CASE (rocksdb_performance)
 {
 	rocksdb::DB* db;
 	rocksdb::Options options;
