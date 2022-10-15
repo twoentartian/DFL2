@@ -44,8 +44,6 @@ std::shared_ptr<transaction_storage_for_block> main_transaction_storage_for_bloc
 std::shared_ptr<block_manager> main_block_manager;                  //generate blocks, store blocks.
 
 dll_loader<reputation_interface<model_datatype>> reputation_dll;
-std::condition_variable exit_cv;
-std::mutex exit_cv_lock;
 
 void generate_block()
 {
@@ -328,11 +326,13 @@ void update_model(std::shared_ptr<std::vector<transaction>> transactions)
 int main(int argc, char **argv)
 {
 	//log file path
-	google::InitGoogleLogging(argv[0]);
-	std::filesystem::path log_path(LOG_PATH);
-	if (!std::filesystem::exists(log_path)) std::filesystem::create_directories(log_path);
-	google::SetLogDestination(google::INFO, log_path.c_str());
-	google::SetStderrLogging(google::INFO);
+	{
+		google::InitGoogleLogging(argv[0]);
+		std::filesystem::path log_path(LOG_PATH);
+		if (!std::filesystem::exists(log_path)) std::filesystem::create_directories(log_path);
+		google::SetLogDestination(google::INFO, log_path.c_str());
+		google::SetStderrLogging(google::INFO);
+	}
 
 	//load configuration
     LOG(INFO) << "loading configuration file";
@@ -468,27 +468,48 @@ int main(int argc, char **argv)
 		auto [pass, info] = reputation_dll_same_reputation_test(reputation_dll, model);
 		std::stringstream ss;
 		ss << "[reputation dll] [same reputation test] " << (pass?"pass":"fail") << ": " << info;
-		std_cout::println(ss.str());
+		LOG(INFO) << ss.str();
 	}
 	{
 		auto [pass, info] = reputation_dll_same_model_test(reputation_dll, model);
 		std::stringstream ss;
 		ss << "[reputation dll] [same model test] " << (pass?"pass":"fail") << ": " << info;
-		std_cout::println(ss.str());
+		LOG(INFO) << ss.str();
 	}
 	
-	std::cout << "DFL is now running, press any key to stop it" << std::endl;
-    while (true)
-    {
-        std::cin.get();
-        std::cout << "are you sure you want to stop DFL? <y/N>:";
-        std::string user_input;
-        getline(std::cin, user_input);
-        if (user_input == "Y") break;
-        else std::cout << "continue" << std::endl;
-    }
-
-	//	std::unique_lock lock(exit_cv_lock);
-	//	exit_cv.wait(lock);
+	//exit?
+	{
+		auto timeout = *config.get<int>("timeout_second");
+		std::thread exit_thread([timeout](){
+			if (timeout == 0)
+			{
+				std::cout << "auto stop timeout is disabled." << std::endl;
+				return 0;
+			}
+			std::cout << "DFL will stop after " << timeout << " seconds." << std::endl;
+			std::this_thread::sleep_for(std::chrono::seconds(timeout));
+			std::cout << "DFL automatically stops." << std::endl;
+			exit(0);
+		});
+		exit_thread.detach();
+		
+		std::cout << "DFL is now running, press any key to stop it" << std::endl;
+		while (true)
+		{
+			std::cin.get();
+			std::cout << "are you sure you want to stop DFL? <y/N>:";
+			std::ios::sync_with_stdio(false);
+			google::SetStderrLogging(google::FATAL);
+			
+			std::string user_input;
+			getline(std::cin, user_input);
+			std::ios::sync_with_stdio(true);
+			google::SetStderrLogging(google::INFO);
+			
+			if (user_input == "Y" || user_input == "y") break;
+			else std::cout << "continue" << std::endl;
+		}
+	}
+	
 	return 0;
 }
