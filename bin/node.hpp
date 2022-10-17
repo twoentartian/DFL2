@@ -1,6 +1,7 @@
 //
 // Created by jxzhang on 09-08-21. Malicious types extended by tyd on 20-09-21
 //
+#pragma once
 
 #ifndef DFL_NODE_HPP
 #define DFL_NODE_HPP
@@ -10,7 +11,7 @@
 #include <set>
 #include <vector>
 #include <unordered_map>
-#include "../../lib/ml_layer.hpp"
+#include <ml_layer.hpp>
 
 enum class dataset_mode_type
 {
@@ -53,8 +54,6 @@ public:
 			reputation_output->flush();
 			reputation_output->close();
 		}
-		std::cout << "solver " << solver.use_count() << std::endl;
-		std::cout << "reputation_output" << reputation_output.use_count() << std::endl;
 	}
 	
 	void open_reputation_file(const std::filesystem::path &output_path)
@@ -105,6 +104,19 @@ public:
 		else
 		{
 			return iter->second;
+		}
+	}
+	
+	static std::optional<node_type> get_node_type_by_str(const std::string type_str)
+	{
+		auto iter = RegisteredNodeType.find(type_str);
+		if (iter == RegisteredNodeType.end())
+		{
+			return {};
+		}
+		else
+		{
+			return {iter->second->type};
 		}
 	}
 
@@ -510,5 +522,20 @@ public:
 	}
 };
 
+
+template<typename model_datatype>
+void register_node_types()
+{
+	//register node types
+	normal_node<model_datatype>::registerNodeType();
+	observer_node<model_datatype>::registerNodeType();
+	malicious_model_poisoning_random_model_node<model_datatype>::registerNodeType();
+	malicious_model_poisoning_random_model_by_turn_node<model_datatype>::registerNodeType();
+	malicious_model_poisoning_random_model_biased_0_1_node<model_datatype>::registerNodeType();
+	malicious_duplication_attack_node<model_datatype>::registerNodeType();
+	malicious_data_poisoning_shuffle_label_node<model_datatype>::registerNodeType();
+	malicious_data_poisoning_shuffle_label_biased_1_node<model_datatype>::registerNodeType();
+	malicious_data_poisoning_random_data_node<model_datatype>::registerNodeType();
+}
 
 #endif //DFL_NODE_HPP

@@ -47,15 +47,7 @@ int main(int argc, char *argv[])
 	constexpr char config_file_path[] = "./simulator_config.json";
 	
 	//register node types
-	normal_node<model_datatype>::registerNodeType();
-	observer_node<model_datatype>::registerNodeType();
-	malicious_model_poisoning_random_model_node<model_datatype>::registerNodeType();
-	malicious_model_poisoning_random_model_by_turn_node<model_datatype>::registerNodeType();
-	malicious_model_poisoning_random_model_biased_0_1_node<model_datatype>::registerNodeType();
-	malicious_duplication_attack_node<model_datatype>::registerNodeType();
-	malicious_data_poisoning_shuffle_label_node<model_datatype>::registerNodeType();
-	malicious_data_poisoning_shuffle_label_biased_1_node<model_datatype>::registerNodeType();
-	malicious_data_poisoning_random_data_node<model_datatype>::registerNodeType();
+	register_node_types<model_datatype>();
 	
 	//create new folder
 	std::string time_str = time_util::time_to_text(time_util::get_current_utc_time());
