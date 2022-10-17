@@ -29,8 +29,8 @@ configuration_file::json get_default_simulation_configuration()
 	output["node_peer_connection_count"] = 8;
 	output["node_peer_connection_type"] = "--";
 	configuration_file::json malicious_node;
-	malicious_node["malicious_random_strategy"] = 1;
-	malicious_node["malicious_strategy_1"] = 1;
+	malicious_node["malicious_model_poisoning_random_model"] = 1;
+	malicious_node["malicious_data_poisoning_shuffle_label"] = 1;
 	output["special_node"] = malicious_node;
 	return output;
 }
