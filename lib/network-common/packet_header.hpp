@@ -56,7 +56,7 @@ namespace network
 		
 		};
 		
-		packet_header(const uint8_t* raw_byte_data)
+		explicit packet_header(const uint8_t* raw_byte_data)
 		{
 			for (int i = 0; i < packet_header::header_length; ++i)
 			{
@@ -75,7 +75,7 @@ namespace network
 			return output;
 		}
 		
-		uint16_t calculate_crc16_header()
+		[[nodiscard]] uint16_t calculate_crc16_header() const
 		{
 			boost::crc_16_type result;
 			byte_buffer buffer;
@@ -146,8 +146,11 @@ namespace network
 				}
 				else
 				{
-					//definitely new header
-					LOG(WARNING) << "[network] packet ends in advance";
+                    add_data_to_buffer(data, _remain_length);
+
+                    const uint8_t* new_packet_data = data + _remain_length;
+                    const uint32_t new_length = length - packet_header::header_length - _remain_length;
+                    receive_data(new_packet_data, new_length);
 				}
 			}
 			
@@ -159,8 +162,20 @@ namespace network
 			
 			const size_t payload_length = length - packet_header::header_length;
 			const uint8_t* payload_loc = data + packet_header::header_length;
-			add_data_to_buffer(payload_loc, payload_length);
+
+            if (length - packet_header::header_length > _remain_length)
+            {
+                const uint8_t* new_packet_data = payload_loc + _remain_length;
+                const uint32_t new_length = length - packet_header::header_length - _remain_length;
+                add_data_to_buffer(payload_loc, _remain_length);
+                receive_data(new_packet_data, new_length);
+            }
+            else
+            {
+                add_data_to_buffer(payload_loc, payload_length);
+            }
 		}
+
 		
 		void receive_data(const std::string& data)
 		{
@@ -183,7 +198,7 @@ namespace network
 		std::shared_ptr<std::string> _buffer;
 		size_t _remain_length;
 		uint16_t _current_command;
-		std::mutex _lock;
+		std::recursive_mutex _lock;
 		
 		void reset()
 		{

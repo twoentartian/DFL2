@@ -1,0 +1,2 @@
+#!/bin/sh
+sudo apt-get install autoconf automake libtool make g++ unzip protobuf-compiler libgoogle-glog-dev libboost-all-dev liblz4-dev librocksdb-dev libssl-dev libopenblas-dev libleveldb-dev libsnappy-dev libprotobuf-dev
