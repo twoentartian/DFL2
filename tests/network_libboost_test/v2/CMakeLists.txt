@@ -1,2 +1,0 @@
-add_executable(TEST_network_libboost_v2_tcp_server test_network_libboost_tcp_server.cpp)
-target_link_libraries(TEST_network_libboost_v2_tcp_server "${Boost_LIBRARIES}" -pthread)

@@ -119,13 +119,13 @@ namespace Ml{
         }
 
         //return: <data,label>
-        std::tuple<std::vector<tensor_blob_like<DType>>, std::vector<tensor_blob_like<DType>>> get_random_data(int size)
+        std::tuple<std::vector<tensor_blob_like<DType>>, std::vector<tensor_blob_like<DType>>> get_random_data(size_t size)
         {
 	        return _get_random_data(size, _data, _label);
         }
 	
 	    //return: <data,label>
-	    std::tuple<std::vector<tensor_blob_like<DType>>, std::vector<tensor_blob_like<DType>>> get_random_data_by_Label(const tensor_blob_like<DType>& arg_label, int size)
+	    std::tuple<std::vector<tensor_blob_like<DType>>, std::vector<tensor_blob_like<DType>>> get_random_data_by_Label(const tensor_blob_like<DType>& arg_label, size_t size)
 	    {
         	//does not exist key
         	const std::string key_str = arg_label.get_str();
@@ -151,7 +151,7 @@ namespace Ml{
 	
 	    //please ensure the dataset is larger than the size*100 to ensure the best randomness.
 	    //return: <data,label>
-	    std::tuple<std::vector<tensor_blob_like<DType>>, std::vector<tensor_blob_like<DType>>> get_random_non_iid_dataset(const non_iid_distribution<DType>& distribution, int size, int enlargement_factor = 100)
+	    std::tuple<std::vector<tensor_blob_like<DType>>, std::vector<tensor_blob_like<DType>>> get_random_non_iid_dataset(const non_iid_distribution<DType>& distribution, size_t size, int enlargement_factor = 100)
 	    {
         	float total_weight = 0.0;
         	auto& distribution_map = distribution.get();
@@ -183,17 +183,17 @@ namespace Ml{
         std::unordered_map<std::string, std::vector<tensor_blob_like<DType>>> _container_by_label;
 	
 	    //return: <data,label>
-	    std::tuple<std::vector<tensor_blob_like<DType>>, std::vector<tensor_blob_like<DType>>> _get_random_data(int size, const std::vector<tensor_blob_like<DType>>& data_pool, const std::vector<tensor_blob_like<DType>>& label_pool)
+	    std::tuple<std::vector<tensor_blob_like<DType>>, std::vector<tensor_blob_like<DType>>> _get_random_data(size_t size, const std::vector<tensor_blob_like<DType>>& data_pool, const std::vector<tensor_blob_like<DType>>& label_pool)
 	    {
-		    const int& total_size = data_pool.size();
+		    const size_t& total_size = data_pool.size();
 		    std::vector<tensor_blob_like<DType>> data,label;
 		    data.resize(size);label.resize(size);
 		    for (int i = 0; i < size; ++i)
 		    {
 			    std::random_device dev;
 			    std::mt19937 rng(dev());
-			    std::uniform_int_distribution<int> distribution(0,total_size-1);
-			    int dice = distribution(rng);
+			    std::uniform_int_distribution<size_t> distribution(0,total_size-1);
+                auto dice = distribution(rng);
 			    data[i] = data_pool[dice];
 			    label[i] = label_pool[dice];
 		    }

@@ -1,0 +1,2 @@
+add_executable(large_scale_DFL_deployment large_scale_DFL_deployment.cpp)
+target_link_libraries(large_scale_DFL_deployment ${DFL_LINKER_LIBS})

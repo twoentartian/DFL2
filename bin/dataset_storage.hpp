@@ -100,7 +100,6 @@ public:
 		stop_network_service();
 		
 		LOG(INFO) << "flush dataset database";
-		std_cout::println("flush dataset database");
 		_db->FlushWAL(true);
 		
 		rocksdb::Status status;

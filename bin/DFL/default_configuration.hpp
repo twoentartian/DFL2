@@ -47,5 +47,7 @@ configuration_file::json get_default_configuration()
 	
 	output["enable_profiler"] = true;
 	
+	output["timeout_second"] = 0;
+	
 	return output;
 }

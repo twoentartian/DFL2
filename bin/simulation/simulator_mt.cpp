@@ -95,7 +95,6 @@ int main(int argc, char *argv[])
 	auto ml_max_tick = *config.get<int>("ml_max_tick");
 	auto ml_train_batch_size = *config.get<int>("ml_train_batch_size");
 	auto ml_test_batch_size = *config.get<int>("ml_test_batch_size");
-	auto ml_model_weight_diff_record_interval_tick = *config.get<int>("ml_model_weight_diff_record_interval_tick");
 	
 	auto report_time_remaining_per_tick_elapsed = *config.get<int>("report_time_remaining_per_tick_elapsed");
 	

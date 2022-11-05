@@ -7,8 +7,6 @@
 
 int init_node_key_address(const configuration_file& config)
 {
-	LOG(INFO) << "checking keys and address";
-	
 	auto pubkey_str = config.get<std::string>("blockchain_public_key");
 	if (!pubkey_str)
 	{

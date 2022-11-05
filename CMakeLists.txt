@@ -17,6 +17,22 @@ project(DFL2 C CXX)
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
 set(DFL_LINKER_LIBS)
 
+# Boost
+option(USE_HUNTER_BOOST "USE the Boost library in Hunter" ON)
+if (USE_HUNTER_BOOST)
+    hunter_add_package(Boost COMPONENTS system filesystem serialization thread)
+    find_package(Boost CONFIG REQUIRED COMPONENTS system filesystem serialization thread)
+    include_directories(${Boost_INCLUDE_DIRS})
+    list(APPEND DFL_LINKER_LIBS Boost::system Boost::filesystem Boost::serialization Boost::thread)
+else()
+    find_package(Boost REQUIRED COMPONENTS system filesystem serialization thread)
+    include_directories(${Boost_INCLUDE_DIRS})
+    list(APPEND DFL_LINKER_LIBS ${Boost_LIBRARIES})
+endif ()
+if (Boost_VERSION VERSION_GREATER_EQUAL 1.76)
+    add_compile_definitions(Boost_dll_import_symbol)
+endif ()
+
 # Caffe cmake
 add_subdirectory(3rd/caffe)
 include_directories(3rd/caffe/include)
@@ -40,22 +56,6 @@ list(APPEND DFL_LINKER_LIBS caffe)
 hunter_add_package(nlohmann_json)
 find_package(nlohmann_json CONFIG REQUIRED)
 
-# Boost
-find_package(Boost COMPONENTS system filesystem serialization)
-if (Boost_FOUND)
-    include_directories(${Boost_INCLUDE_DIRS})
-    list(APPEND DFL_LINKER_LIBS ${Boost_LIBRARIES})
-else()
-    hunter_add_package(Boost COMPONENTS system filesystem serialization)
-    find_package(Boost CONFIG REQUIRED system filesystem serialization)
-    include_directories(${Boost_INCLUDE_DIRS})
-    list(APPEND DFL_LINKER_LIBS Boost::system Boost::filesystem Boost::serialization)
-endif ()
-if (Boost_VERSION VERSION_GREATER_EQUAL 1.76)
-    add_compile_definitions(Boost_dll_import_symbol)
-endif ()
-
-
 # OpenSSL
 find_package(OpenSSL)
 if (OPENSSL_FOUND)
@@ -70,8 +70,8 @@ else()
 endif ()
 
 # glog
-find_package(glog)
-if (glog_FOUND)
+find_package(GLOG)
+if (GLOG_FOUND)
     message(STATUS "Find glog ${glog_VERSION} in system")
     include_directories(${glog_INCLUDE_DIRS})
     list(APPEND DFL_LINKER_LIBS ${glog_LIBRARIES})

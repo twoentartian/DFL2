@@ -2,6 +2,12 @@
 // Created by tyd, 17-Sep-21.
 //
 
+/// how to use:
+/// First of all, you need to have a working configuration file, this tool only process nodes information.
+/// 1) ./large_scale_simulation_generator --> load generate config file to ../simulation/simulator_config.json
+/// 2) ./large_scale_simulation_generator {path} --> load generate config file to certain path
+/// ///
+
 #include <iostream>
 #include <algorithm>
 #include <random>
@@ -83,8 +89,10 @@ int main(int argc, char* argv[])
 		}
 		else
 		{
-			std::cout << "large_scale_simulation_generator [config_file_path]" << std::endl;
-			std::cout << "large_scale_simulation_generator" << std::endl;
+            std::cout <<  "how to use:" << std::endl;
+            std::cout <<  "First of all, you need to have a working configuration file, this tool only process nodes information." << std::endl;
+            std::cout <<  "1) ./large_scale_simulation_generator --> load generate config file to ../simulation/simulator_config.json" << std::endl;
+            std::cout <<  "2) ./large_scale_simulation_generator {path} --> load generate config file to certain path" << std::endl;
 			return -1;
 		}
 		

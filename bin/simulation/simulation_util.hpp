@@ -25,6 +25,7 @@ get_dataset_by_node_type(Ml::data_converter<model_datatype> &dataset, const node
 			int label_int = ml_dataset_all_possible_labels[distribution(rng)];
 			label.getData() = {model_datatype(label_int)};
 			auto[train_data_slice, train_label_slice] = dataset.get_random_data_by_Label(label, 1);
+            assert(!train_data_slice.empty() && !train_label_slice.empty());
 			train_data.insert(train_data.end(), train_data_slice.begin(), train_data_slice.end());
 			train_label.insert(train_label.end(), train_label_slice.begin(), train_label_slice.end());
 		}

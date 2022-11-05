@@ -43,7 +43,6 @@ public:
 		}
 		
 		LOG(INFO) << "flush block manager database";
-		std_cout::println("flush block manager database");
 		_db_blocks->FlushWAL(true);
 	}
 	
