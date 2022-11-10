@@ -6,19 +6,21 @@
 #include <network.hpp>
 #include <configure_file.hpp>
 #include <ml_layer.hpp>
+#include <boost_serialization_wrapper.hpp>
+
+#include "../env.hpp"
 
 #include "data_generator.hpp"
-#include "boost_serialization_wrapper.hpp"
 
 configuration_file::json get_default_configuration()
 {
 	configuration_file::json output;
 	output["dataset_path"] = "../../../dataset/MNIST/t10k-images.idx3-ubyte";
 	output["dataset_label_path"] = "../../../dataset/MNIST/t10k-labels.idx1-ubyte";
-	output["inject_interval_ms"] = "1000"; //ms
-	output["inject_amount"] = "8";
+	output["inject_interval_ms"] = 1000; //ms
+	output["inject_amount"] = 8;
 	output["ip_address"] = "127.0.0.1";
-	output["ip_port"] = "8040";
+	output["ip_port"] = 8040;
 
     output["dataset_mode"] = "iid"; //default - randomly choose from dataset, iid - randomly choose from iid labels, non-iid - choose higher frequency labels for specific label
     configuration_file::json node_non_iid = configuration_file::json::object();
@@ -53,7 +55,7 @@ int main(int argc, char **argv)
     //load configuration
     configuration_file config;
     config.SetDefaultConfiguration(get_default_configuration());
-    auto return_code = config.LoadConfiguration("./data_injector_config.json");
+    auto return_code = config.LoadConfiguration(CONFIG_FILE_NAME::DFL_DATA_INJECTOR);
     if(return_code < configuration_file::NoError)
     {
         if (return_code == configuration_file::FileFormatError)
@@ -109,12 +111,12 @@ int main(int argc, char **argv)
 		auto ip_opt = config.get<std::string>("ip_address");
 		if (ip_opt) ip = *ip_opt;
 		else LOG(FATAL) << "no ip address in config file";
-		auto port_opt = config.get<std::string>("ip_port");
+		auto port_opt = config.get<uint16_t>("ip_port");
 		if (port_opt)
 		{
 			try
 			{
-				port = std::stoi(*port_opt);
+				port = *port_opt;
 			}
 			catch (...)
 			{
@@ -126,20 +128,20 @@ int main(int argc, char **argv)
 	
 	//set injection
 	{
-		auto inject_interval_opt = config.get<std::string>("inject_interval_ms");
+		auto inject_interval_opt = config.get<size_t>("inject_interval_ms");
 		try
 		{
-			if (inject_interval_opt) inject_interval = std::chrono::milliseconds(std::stoi(*inject_interval_opt));
+			if (inject_interval_opt) inject_interval = std::chrono::milliseconds(*inject_interval_opt);
 			else LOG(FATAL) << "no inject interval in config file";
 		}
 		catch (...)
 		{
 			LOG(FATAL) << "invalid inject interval";
 		}
-		auto inject_amount_opt = config.get<std::string>("inject_amount");
+		auto inject_amount_opt = config.get<size_t>("inject_amount");
 		try
 		{
-			if (inject_amount_opt) inject_amount = std::stoi(*inject_amount_opt);
+			if (inject_amount_opt) inject_amount = *inject_amount_opt;
 			else LOG(FATAL) << "no inject amount in config file";
 		}
 		catch (...)

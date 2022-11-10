@@ -29,6 +29,7 @@
 #include "./default_simulation_config.hpp"
 #include "./node.hpp"
 #include "./simulation_service.hpp"
+#include "./simulation_config_format.hpp"
 
 /** assumptions in this simulator:
  *  (1) no transaction transmission time
@@ -257,18 +258,13 @@ int main(int argc, char *argv[])
 	 * 1--2: add 2 as the peer of 1 and 1 as the peer of 2.
 	 */
 	{
-		const std::string fully_connect = "fully_connect";
-		const std::string average_degree = "average_degree-";
-		const std::string unidirectional_term = "->";
-		const std::string bilateral_term = "--";
-		
 		auto node_topology_json = config_json["node_topology"];
 		for (auto &topology_item : node_topology_json)
 		{
 			const std::string topology_item_str = topology_item.get<std::string>();
-			auto average_degree_loc = topology_item_str.find(average_degree);
-			auto unidirectional_loc = topology_item_str.find(unidirectional_term);
-			auto bilateral_loc = topology_item_str.find(bilateral_term);
+			auto average_degree_loc = topology_item_str.find(simulation_config_format::average_degree);
+			auto unidirectional_loc = topology_item_str.find(simulation_config_format::unidirectional_term);
+			auto bilateral_loc = topology_item_str.find(simulation_config_format::bilateral_term);
 			
 			auto check_duplicate_peer = [](const node<model_datatype> &target_node, const std::string &peer_name) -> bool
 			{
@@ -278,7 +274,7 @@ int main(int argc, char *argv[])
 					return true;
 			};
 			
-			if (topology_item_str == fully_connect)
+			if (topology_item_str == simulation_config_format::fully_connect)
 			{
 				LOG(INFO) << "network topology is fully connect";
 				
@@ -296,7 +292,7 @@ int main(int argc, char *argv[])
 			}
 			else if (average_degree_loc != std::string::npos)
 			{
-				std::string degree_str = topology_item_str.substr(average_degree_loc + average_degree.length());
+				std::string degree_str = topology_item_str.substr(average_degree_loc + simulation_config_format::average_degree.length());
 				int degree = std::stoi(degree_str);
 				LOG(INFO) << "network topology is average degree: " << degree;
 				LOG_IF(FATAL, degree > node_container.size() - 1) << "degree > node_count - 1, impossible to reach such large degree";
@@ -331,7 +327,7 @@ int main(int argc, char *argv[])
 			else if (unidirectional_loc != std::string::npos)
 			{
 				std::string lhs_node_str = topology_item_str.substr(0, unidirectional_loc);
-				std::string rhs_node_str = topology_item_str.substr(unidirectional_loc + unidirectional_term.length());
+				std::string rhs_node_str = topology_item_str.substr(unidirectional_loc + simulation_config_format::unidirectional_term.length());
 				LOG(INFO) << "network topology: unidirectional connect " << lhs_node_str << " to " << rhs_node_str;
 				auto lhs_node_iter = node_container.find(lhs_node_str);
 				auto rhs_node_iter = node_container.find(rhs_node_str);
@@ -351,7 +347,7 @@ int main(int argc, char *argv[])
 			else if (bilateral_loc != std::string::npos)
 			{
 				std::string lhs_node_str = topology_item_str.substr(0, bilateral_loc);
-				std::string rhs_node_str = topology_item_str.substr(bilateral_loc + unidirectional_term.length());
+				std::string rhs_node_str = topology_item_str.substr(bilateral_loc + simulation_config_format::unidirectional_term.length());
 				LOG(INFO) << "network topology: bilateral connect " << lhs_node_str << " with " << rhs_node_str;
 				auto lhs_node_iter = node_container.find(lhs_node_str);
 				auto rhs_node_iter = node_container.find(rhs_node_str);

@@ -18,7 +18,8 @@ enum class dataset_mode_type
 	unknown,
 	default_dataset,
 	iid_dataset,
-	non_iid_dataset
+	non_iid_dataset,
+	
 };
 
 enum node_type
@@ -524,7 +525,7 @@ public:
 
 
 template<typename model_datatype>
-void register_node_types()
+static void register_node_types()
 {
 	//register node types
 	normal_node<model_datatype>::registerNodeType();

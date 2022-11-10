@@ -7,12 +7,14 @@ option(HUNTER_BUILD_SHARED_LIBS "Value for BUILD_SHARED_LIBS for 3rd party packa
 
 include("cmake/HunterGate.cmake")
 HunterGate(
-        URL "https://github.com/twoentartian/hunter/archive/refs/tags/test.tar.gz"
-        SHA1 "05269beb951f506ecc0434e2efbb92e34c4d05b9"
+        URL "https://github.com/cpp-pm/hunter/archive/v0.24.8.tar.gz"
+        SHA1 "ca7838dded9a1811b04ffd56175f629e0af82d3d"
         LOCAL
 )
 
 project(DFL2 C CXX)
+
+include("cmake/CompileTimeContent.cmake")
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
 set(DFL_LINKER_LIBS)

@@ -12,7 +12,7 @@
 #include "DFL_introducer_p2p.hpp"
 #include "DFL_introducer_CLI.hpp"
 
-constexpr char INTRODUCER_LOG_PATH[] = "./introducer_log/";
+constexpr char DEPLOY_LOG_PATH[] = "./introducer_log/";
 
 std::shared_ptr<introducer_p2p> introducer_server;
 
@@ -20,7 +20,7 @@ int main(int argc, char **argv)
 {
 	//log file path
 	google::InitGoogleLogging(argv[0]);
-	std::filesystem::path log_path(INTRODUCER_LOG_PATH);
+	std::filesystem::path log_path(DEPLOY_LOG_PATH);
 	if (!std::filesystem::exists(log_path)) std::filesystem::create_directories(log_path);
 	google::SetLogDestination(google::INFO, log_path.c_str());
 	google::SetStderrLogging(google::WARNING);

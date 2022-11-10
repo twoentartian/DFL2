@@ -26,6 +26,7 @@
 #include "../transaction_storage_for_block.hpp"
 #include "../block_manager.hpp"
 #include "../reputation_dll_test.hpp"
+#include "../env.hpp"
 #include "default_configuration.hpp"
 
 constexpr char LOG_PATH[] = "./log/";
@@ -338,7 +339,7 @@ int main(int argc, char **argv)
     LOG(INFO) << "loading configuration file";
 	configuration_file config;
 	config.SetDefaultConfiguration(get_default_configuration());
-	auto ret_code = config.LoadConfiguration("./config.json");
+	auto ret_code = config.LoadConfiguration(CONFIG_FILE_NAME::DFL_EXE);
 	if(ret_code < configuration_file::NoError)
 	{
 		if (ret_code == configuration_file::FileFormatError)
