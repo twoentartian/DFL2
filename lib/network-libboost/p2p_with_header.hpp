@@ -80,6 +80,7 @@ namespace network
 					                        LOG(INFO) << boost::format("[p2p] connection to %1%:%2% close") % ip % port;
 			                        });
 			client->connect(ip, port);
+			
 			//wait for reply
 			{
 				std::unique_lock<std::mutex> lk(m);
@@ -93,7 +94,7 @@ namespace network
 			}
 		}
 		
-		void start_service(uint16_t port, int worker) override
+		start_service_status start_service(uint16_t port, int worker) override
 		{
 			_server.SetAcceptHandler([this](const std::string &ip, uint16_t port, std::shared_ptr<simple::tcp_session> session)
 			                         {
@@ -129,11 +130,14 @@ namespace network
 			
 			auto ret_code = _server.Start(port, worker);
 			CHECK_EQ(ret_code, Success) << "[p2p] error to start server at port: " << port << ", message: " << std::to_string(ret_code);
+			if (ret_code == Success) return success;
+			else if (ret_code == PortOccupied) return port_not_available;
+			else return unknown_error;
 		}
 		
-		void start_service(uint16_t port) override
+		start_service_status start_service(uint16_t port) override
 		{
-			start_service(port, 2);
+			return start_service(port, 2);
 		}
 		
 		void stop_service() override

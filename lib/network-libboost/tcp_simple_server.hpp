@@ -40,7 +40,11 @@ namespace network::simple
 		~tcp_session()
 		{
 			Disconnect();
-			delete[] _buffer;
+			if (_buffer)
+			{
+				delete[] _buffer;
+				_buffer = nullptr;
+			}
 		}
 		
 		tcp_status write(const char *data, uint32_t length)

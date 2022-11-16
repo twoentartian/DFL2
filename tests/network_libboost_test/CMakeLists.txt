@@ -1,2 +1,5 @@
 add_executable(TEST_boost_network test_boost_network.cpp)
 target_link_libraries(TEST_boost_network ${DFL_LINKER_LIBS})
+
+add_executable(TEST_boost_network_p2p test_network_libboost_p2p.cpp)
+target_link_libraries(TEST_boost_network_p2p ${DFL_LINKER_LIBS})

@@ -32,7 +32,6 @@ namespace network
 			send_packet_status p2p_status = send_packet_not_specified;
 			
 			std::shared_ptr<simple::tcp_client> client = simple::tcp_client::CreateClient();
-			client->connect(ip, port);
 			client->SetConnectHandler([&ip, &port, &data, &size, &cv, &p2p_status, this](tcp_status status, std::shared_ptr<simple::tcp_client> client)
 			                          {
 				                          if (status == tcp_status::Success)
@@ -77,6 +76,7 @@ namespace network
 				                        if (_enable_log)
 					                        LOG(INFO) << boost::format("[p2p] connection to %1%:%2% close") % ip % port;
 			                        });
+			client->connect(ip, port);
 			
 			//wait for reply
 			{
@@ -91,7 +91,7 @@ namespace network
 			}
 		}
 		
-		void start_service(uint16_t port, int worker) override
+		start_service_status start_service(uint16_t port, int worker) override
 		{
 			_server.SetAcceptHandler([this](const std::string &ip, uint16_t port, std::shared_ptr<simple::tcp_session> session)
 			                         {
@@ -109,7 +109,6 @@ namespace network
 					                                 auto reply = _callback(data, length, session_receive->ip());
 					                                 try
 					                                 {
-					                                 	
 						                                 session_receive->write(reply.data(), reply.size());
 					                                 }
 					                                 catch (...)
@@ -127,11 +126,14 @@ namespace network
 			
 			auto ret_code = _server.Start(port, worker);
 			CHECK_EQ(ret_code, Success) << "[p2p] error to start server at port: " << port << ", message: " << std::to_string(ret_code);
+			if (ret_code == Success) return success;
+			else if (ret_code == PortOccupied) return port_not_available;
+			else return unknown_error;
 		}
 		
-		void start_service(uint16_t port) override
+		start_service_status start_service(uint16_t port) override
 		{
-			start_service(port, 2);
+			return start_service(port, 2);
 		}
 		
 		void stop_service() override
@@ -139,7 +141,7 @@ namespace network
 			_server.Stop();
 		}
 		
-		void set_receive_callback(receive_callback callback = nullptr) override
+		void set_receive_callback(receive_callback callback) override
 		{
 			_callback = callback;
 		}

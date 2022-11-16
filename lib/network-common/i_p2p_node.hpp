@@ -4,6 +4,7 @@
 #include <tuple>
 #include <exception.hpp>
 
+
 namespace network
 {
 	class i_p2p_node
@@ -20,12 +21,21 @@ namespace network
 			send_packet_status_size
 		};
 		
-		static constexpr char const* send_packet_status_message[send_packet_status_size] = {
+		static constexpr char const *send_packet_status_message[send_packet_status_size] = {
 				"not specified",
 				"success",
 				"connection fail",
 				"write fail",
 				"no reply"
+		};
+		
+		enum start_service_status
+		{
+			success,
+			port_not_available,
+			
+			unknown_error,
+			start_service_status_size
 		};
 		
 		enum address_type
@@ -37,16 +47,16 @@ namespace network
 			address_type_size
 		};
 		
-		using send_callback = std::function<void(send_packet_status, const char* data, int length)>;
-		using receive_callback = std::function<std::string(const char* data, size_t length, std::string ip)>;
+		using send_callback = std::function<void(send_packet_status, const char *data, int length)>;
+		using receive_callback = std::function<std::string(const char *data, size_t length, std::string ip)>;
 		
-		virtual void send(const std::string &ip, uint16_t port, address_type type, const char* data, size_t size, send_callback callback) = 0;
+		virtual void send(const std::string &ip, uint16_t port, address_type type, const char *data, size_t size, send_callback callback) = 0;
 		
-		virtual void send(const std::string& ip, uint16_t port, address_type type, const uint8_t* data, size_t size, send_callback callback) = 0;
+		virtual void send(const std::string &ip, uint16_t port, address_type type, const uint8_t *data, size_t size, send_callback callback) = 0;
 		
-		virtual void start_service(uint16_t port) = 0;
+		virtual start_service_status start_service(uint16_t port) = 0;
 		
-		virtual void start_service(uint16_t port, int worker)
+		virtual start_service_status start_service(uint16_t port, int worker)
 		{
 			THROW_NOT_IMPLEMENTED;
 		}

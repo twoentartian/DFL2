@@ -28,6 +28,15 @@ namespace network
 				"no reply"
 		};
 		
+		enum start_service_status
+		{
+			success,
+			port_not_available,
+			
+			unknown_error,
+			start_service_status_size
+		};
+		
 		enum address_type
 		{
 			not_specified = 0,
@@ -44,9 +53,9 @@ namespace network
 		
 		virtual void send(const std::string &ip, uint16_t port, i_p2p_node_with_header::address_type type, header::COMMAND_TYPE command, const uint8_t *data, size_t size, send_callback callback) = 0;
 		
-		virtual void start_service(uint16_t port) = 0;
+		virtual start_service_status start_service(uint16_t port) = 0;
 		
-		virtual void start_service(uint16_t port, int worker)
+		virtual start_service_status start_service(uint16_t port, int worker)
 		{
 			THROW_NOT_IMPLEMENTED;
 		}
