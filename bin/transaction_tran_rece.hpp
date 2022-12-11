@@ -233,6 +233,9 @@ public:
 		
 		for (auto&& peer: peers_copy)
 		{
+			//is this node an introducer?
+			if (peer.second.type == peer_endpoint::peer_type::peer_type_introducer) continue;
+			
 			using namespace network;
 			_p2p.send(peer.second.address, peer.second.port, i_p2p_node_with_header::ipv4, command::transaction, trans_binary_str.data(), trans_binary_str.length(), [trans_hash, peer](i_p2p_node_with_header::send_packet_status status, header::COMMAND_TYPE received_command, const char* data, int length){
 				std::stringstream ss;

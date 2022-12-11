@@ -334,6 +334,7 @@ int main(int argc, char **argv)
 		google::SetLogDestination(google::INFO, log_path.c_str());
 		google::SetStderrLogging(google::INFO);
 	}
+	dfl_util::glog_stderr_level = google::INFO;
 
 	//load configuration
     LOG(INFO) << "loading configuration file";

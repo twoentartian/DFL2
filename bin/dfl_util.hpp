@@ -1,11 +1,15 @@
 #pragma once
 
 #include <sstream>
+#include <glog/logging.h>
+
 #include <crypto.hpp>
 #include "std_output.hpp"
 
 namespace dfl_util
 {
+	static int glog_stderr_level = google::INFO;
+	
 	bool verify_private_public_key(const crypto::hex_data &private_key, const crypto::hex_data &public_key)
 	{
 		//check private key and public key
@@ -70,13 +74,19 @@ namespace dfl_util
 	{
 		auto ss_str = ss.str();
 		LOG(WARNING) << ss_str;
-		std_cout::println(ss_str);
+		if (glog_stderr_level > google::WARNING)
+		{
+			std_cout::println(ss_str);
+		}
 	}
 	
 	void print_info_to_log_stdcout(const std::stringstream &ss)
 	{
 		auto ss_str = ss.str();
 		LOG(INFO) << ss_str;
-		std_cout::println(ss_str);
+		if (glog_stderr_level > google::INFO)
+		{
+			std_cout::println(ss_str);
+		}
 	}
 }

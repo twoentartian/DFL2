@@ -79,8 +79,8 @@ public:
 			delete _db;
 		}
 		
-		_column_families.push_back(rocksdb::ColumnFamilyDescriptor(rocksdb::kDefaultColumnFamilyName, rocksdb::ColumnFamilyOptions()));
-		_column_families.push_back(rocksdb::ColumnFamilyDescriptor(DB_CF_EPOCH, rocksdb::ColumnFamilyOptions()));
+		_column_families.emplace_back(rocksdb::kDefaultColumnFamilyName, rocksdb::ColumnFamilyOptions());
+		_column_families.emplace_back(DB_CF_EPOCH, rocksdb::ColumnFamilyOptions());
 		status = rocksdb::DB::Open(options, _db_path, _column_families, &_column_family_handles, &_db);
 		CHECK(status.ok()) << "[dataset_storage] failed to open rocksdb for data_storage";
 		

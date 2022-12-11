@@ -180,7 +180,7 @@ public:
 		output["dataset_mode"] = generate_dataset_mode_type();
 		
 		output["ip_address"] = "127.0.0.1";
-		output["ip_port"] = port;
+		output["ip_port"] = data_storage_service_port;
 		output["inject_amount"] = data_injector_inject_amount;
 		output["inject_interval_ms"] = static_cast<int>((data_injector_inject_interval_tick * static_cast<float>(data_injector_inject_interval_scale_ms_to_tick)));
 		

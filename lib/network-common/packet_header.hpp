@@ -129,7 +129,7 @@ namespace network
 				}
 				else
 				{
-					LOG(WARNING) << "[network] receive an packet header with wrong crc";
+					LOG(WARNING) << "[network] receive a packet header with wrong crc";
 					return;
 				}
 			}
