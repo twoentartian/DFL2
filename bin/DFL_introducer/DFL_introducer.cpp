@@ -54,12 +54,18 @@ int main(int argc, char **argv)
 	}
 	
 	introducer_server.reset(new introducer_p2p(blockchain_public_key, blockchain_private_key, blockchain_address));
-	introducer_server->start_listen(port);
 	introducer_server->add_new_peer_callback([](const peer_endpoint& peer){
 		std::stringstream info_ss;
 		info_ss << "add peer " << peer.name << " with endpoint " << peer.address <<":"<< peer.port;
         introducer_CLI_print(info_ss);
 	});
+    introducer_server->set_expire_second(*config.get<size_t>("peer_expire_second"));
+    introducer_server->add_peer_expire_callback([](const peer_endpoint& peer){
+        std::stringstream info_ss;
+        info_ss << "peer " << peer.name << " expires";
+        introducer_CLI_print(info_ss);
+    });
+    introducer_server->start_listen(port);
 	
 	while (true)
 	{
