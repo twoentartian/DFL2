@@ -50,7 +50,7 @@ std::tuple<bool, std::string> check_config(const configuration_file& config_json
     const std::vector<std::string> path_check = {"path_exe_DFL", "path_exe_injector", "path_exe_introducer", "path_dll_reputation", "path_mnist_dataset_label", "path_mnist_dataset_data"};
 
     for (auto&& item: path_check) {
-        auto exe_path_opt = config_json.get<std::string>("path_exe_DFL");
+        auto exe_path_opt = config_json.get<std::string>(item);
         if (!exe_path_opt) return {false, "configuration {" + item + "} is empty"};
         std::filesystem::path exe_path(*exe_path_opt);
         if (!std::filesystem::exists(exe_path))
