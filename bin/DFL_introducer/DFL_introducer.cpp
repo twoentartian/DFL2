@@ -23,7 +23,8 @@ int main(int argc, char **argv)
 	std::filesystem::path log_path(DEPLOY_LOG_PATH);
 	if (!std::filesystem::exists(log_path)) std::filesystem::create_directories(log_path);
 	google::SetLogDestination(google::INFO, log_path.c_str());
-	google::SetStderrLogging(google::WARNING);
+	google::SetStderrLogging(google::ERROR);
+    dfl_util::glog_stderr_level = google::ERROR;
 	
 	//load configuration
 	configuration_file config;
@@ -65,7 +66,7 @@ int main(int argc, char **argv)
 		std::string user_input;
 		std::cout << ">> ";
 		std::getline(std::cin, user_input);
-		if (user_input == "q")
+		if (user_input == "q" || user_input == "quit")
 		{
 			std::cout << "quitting" << std::endl;
 			break;

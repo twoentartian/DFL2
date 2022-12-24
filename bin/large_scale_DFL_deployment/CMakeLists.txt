@@ -3,3 +3,4 @@ make_includable(lenet_train_memory.prototxt generated/lenet_train_memory.prototx
 
 add_executable(large_scale_DFL_deployment large_scale_DFL_deployment.cpp)
 target_link_libraries(large_scale_DFL_deployment ${DFL_LINKER_LIBS})
+add_dependencies(large_scale_DFL_deployment DFL DFL_introducer DFL_simulator_mt)

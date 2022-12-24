@@ -21,3 +21,5 @@ target_link_libraries (reputation_001 ${DFL_LINKER_LIBS})
 
 add_library (reputation_005 SHARED "reputation_005.cpp")
 target_link_libraries (reputation_005 ${DFL_LINKER_LIBS})
+
+add_custom_target(DFL_reputations DEPENDS reputation_api_sample reputation_FedAvg reputation_HalfFedAvg reputation_ML_hcluster reputation_001 reputation_005)
