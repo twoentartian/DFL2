@@ -18,6 +18,7 @@
 #include "transaction_storage_for_block.hpp"
 #include "introducer_data.hpp"
 #include "dfl_util.hpp"
+#include "env.hpp"
 
 class transaction_tran_rece
 {
@@ -381,20 +382,31 @@ public:
 						{
 							if (peer.type != peer_endpoint::peer_type_introducer) continue;
 							
-							_p2p.send(peer.address, peer.port, i_p2p_node_with_header::ipv4, command::register_as_peer, message_str.data(), message_str.length(), [this](i_p2p_node_with_header::send_packet_status status, network::header::COMMAND_TYPE command_received, const char* data, int length) {
+							_p2p.send(peer.address, peer.port, i_p2p_node_with_header::ipv4, command::register_as_peer, message_str.data(), message_str.length(), [this, name](i_p2p_node_with_header::send_packet_status status, network::header::COMMAND_TYPE command_received, const char* data, int length) {
 								if (status != i_p2p_node_with_header::send_packet_success)
 								{
-									LOG(WARNING) << "[transaction trans] register as peer does not success, status: " << i_p2p_node_with_header::send_packet_status_message[status];
+									LOG(WARNING) << "[transaction trans] register as peer on " << name << " does not success, status: " << i_p2p_node_with_header::send_packet_status_message[status];
 									return;
 								}
 								
 								if (command_received == command::acknowledge)
 								{
-									//do nothing because we know they have put us on the peer list
+                                    std::string msg(data, length);
+                                    if (msg == DFL_MESSAGE::PEER_REGISTER_ALREADY_EXIST)
+                                    {
+                                        //do nothing because we know they have put us on the peer list
+                                        return;
+                                    }
+                                    if (msg == DFL_MESSAGE::PEER_REGISTER_NEW_PEER)
+                                    {
+                                        LOG(INFO) << "[transaction trans] register as peer on " << name << " successfully";
+                                        return;
+                                    }
+                                    
 								}
 								else
 								{
-									LOG(WARNING) << "[transaction trans] WARNING, register as peer but does not return acknowledge, return command: " << command_received << "-" << std::string(data, length);
+									LOG(WARNING) << "[transaction trans] WARNING, register as peer on " << name << " but does not return acknowledge, return command: " << command_received << "-" << std::string(data, length);
 									return;
 								}
 							});

@@ -13,6 +13,7 @@
 #include "../command_allocation.hpp"
 #include "../global_types.hpp"
 #include "../dfl_util.hpp"
+#include "../env.hpp"
 
 class introducer_p2p
 {
@@ -83,9 +84,7 @@ public:
                                           }
                 
                                           //verify signature
-                                          if (!dfl_util::verify_signature(register_request.node_pubkey,
-                                                                          register_request.signature,
-                                                                          register_request.hash))
+                                          if (!dfl_util::verify_signature(register_request.node_pubkey, register_request.signature, register_request.hash))
                                           {
                                               LOG(WARNING) << "verify signature failed";
                                               return {command::acknowledge_but_not_accepted, "cannot verify signature"};
@@ -99,8 +98,7 @@ public:
                                           }
                 
                                           //verify node public key and address
-                                          if (!dfl_util::verify_address_public_key(register_request.address,
-                                                                                   register_request.node_pubkey))
+                                          if (!dfl_util::verify_address_public_key(register_request.address,register_request.node_pubkey))
                                           {
                                               LOG(WARNING) << "verify node public key failed";
                                               return {command::acknowledge_but_not_accepted,
@@ -108,16 +106,14 @@ public:
                                           }
                 
                                           //add to peer list
-                                          auto [state, msg] = add_peer(register_request.address,
-                                                                       register_request.node_pubkey, ip,
-                                                                       register_request.port);
+                                          auto [state, msg] = add_peer(register_request.address,register_request.node_pubkey, ip, register_request.port);
                                           if (!state)
                                           {
                                               LOG(WARNING) << "cannot add peer: " << msg;
                                               return {command::acknowledge_but_not_accepted, "cannot add peer: " + msg};
                                           }
                 
-                                          return {command::acknowledge, ""};
+                                          return {command::acknowledge, msg};
                                       }
                                       else if (command == command::request_peer_info)
                                       {
@@ -226,8 +222,7 @@ public:
     }
     
     //name: hash{public key}, address: network address.
-    std::tuple<bool, std::string>
-    add_peer(const std::string &name, const std::string &public_key, const std::string &address, uint16_t port)
+    std::tuple<bool, std::string> add_peer(const std::string &name, const std::string &public_key, const std::string &address, uint16_t port)
     {
         auto iter = _peers.find(name);
         if (iter != _peers.end())
@@ -241,7 +236,7 @@ public:
             {
                 //peer is already registered
                 iter->second.last_seen_time = std::chrono::system_clock::now();
-                return {true, "already exist"};
+                return {true, DFL_MESSAGE::PEER_REGISTER_ALREADY_EXIST};
             }
         }
         
@@ -257,7 +252,7 @@ public:
             cb(temp);
         }
         
-        return {true, ""};
+        return {true, DFL_MESSAGE::PEER_REGISTER_NEW_PEER};
     }
     
     void add_new_peer_callback(const new_peer_callback &cb)
