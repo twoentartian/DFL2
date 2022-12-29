@@ -24,7 +24,7 @@ namespace network
 		static constexpr char const *send_packet_status_message[send_packet_status_size] = {
 				"not specified",
 				"success",
-				"connection fail",
+				"connection failure",
 				"write fail",
 				"no reply"
 		};

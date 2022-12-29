@@ -118,6 +118,7 @@ public:
 	//injector
 	int data_injector_inject_amount{};
 	int data_injector_inject_interval_scale_ms_to_tick{};
+    int data_injector_inject_interval_variance{};
 	float data_injector_inject_interval_tick{};
 	
 public:
@@ -182,7 +183,8 @@ public:
 		output["ip_address"] = "127.0.0.1";
 		output["ip_port"] = data_storage_service_port;
 		output["inject_amount"] = data_injector_inject_amount;
-		output["inject_interval_ms"] = static_cast<int>((data_injector_inject_interval_tick * static_cast<float>(data_injector_inject_interval_scale_ms_to_tick)));
+        size_t inject_interval_ms = static_cast<int>((data_injector_inject_interval_tick * static_cast<float>(data_injector_inject_interval_scale_ms_to_tick)));
+		output["inject_interval_ms"] = std::to_string(inject_interval_ms - data_injector_inject_interval_variance) + "-" + std::to_string(inject_interval_ms + data_injector_inject_interval_variance);
 		
 		configuration_file::json node_non_iid = configuration_file::json::object();
 		for (const auto& single_non_iid_item: special_non_iid_distribution)
@@ -250,16 +252,12 @@ private:
 		{
 			case dataset_mode_type::unknown:
 				return "unknown";
-				break;
 			case dataset_mode_type::default_dataset:
 				return "default";
-				break;
 			case dataset_mode_type::iid_dataset:
 				return "iid";
-				break;
 			case dataset_mode_type::non_iid_dataset:
 				return "non-iid";
-				break;
 		}
 		throw std::logic_error("unreachable");
 	}
@@ -367,6 +365,7 @@ int main(int argc, char **argv)
 			//inject interval
 			std::vector<int> interval_ticks = single_node["training_interval_tick"].get<std::vector<int>>();
 			temp.data_injector_inject_interval_tick = std::accumulate(interval_ticks.begin(), interval_ticks.end(), 0.0f) / interval_ticks.size();
+            temp.data_injector_inject_interval_variance = *deployment_config.get<int>("data_injector_inject_interval_variance");
 			
 			//dataset mode
 			{

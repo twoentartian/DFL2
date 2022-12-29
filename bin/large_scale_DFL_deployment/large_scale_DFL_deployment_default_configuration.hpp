@@ -19,6 +19,7 @@ configuration_file::json get_default_DFL_deployment_configuration()
 	output["path_mnist_dataset_data"] = "../../../dataset/MNIST/train-images.idx3-ubyte";
 	output["data_injector_inject_amount"] = 8;
 	output["data_injector_inject_interval_scale_ms_to_tick"] = 100;
+    output["data_injector_inject_interval_variance"] = 500;
 	
 	output["port_start"] = 10000;
 	output["port_end"] = 60000;

@@ -1,4 +1,4 @@
 add_executable(DFL_simulator_mt simulator_mt.cpp)
 target_link_libraries(DFL_simulator_mt ${DFL_LINKER_LIBS})
 
-add_dependencies(DFL_simulator_mt DFL_reputations)
+add_dependencies(DFL_simulator_mt DFL_reputations large_scale_simulation_generator)

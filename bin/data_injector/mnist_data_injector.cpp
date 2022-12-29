@@ -1,6 +1,9 @@
 #define CPU_ONLY
 
 #include <chrono>
+#include <regex>
+#include <random>
+
 #include <glog/logging.h>
 
 #include <network.hpp>
@@ -17,10 +20,11 @@ configuration_file::json get_default_configuration()
 	configuration_file::json output;
 	output["dataset_path"] = "../../../dataset/MNIST/t10k-images.idx3-ubyte";
 	output["dataset_label_path"] = "../../../dataset/MNIST/t10k-labels.idx1-ubyte";
-	output["inject_interval_ms"] = 1000; //ms
+	output["inject_interval_ms"] = "1000-2000"; //ms
 	output["inject_amount"] = 8;
 	output["ip_address"] = "127.0.0.1";
 	output["ip_port"] = 8040;
+    output["timeout_second"] = 0;
 
     output["dataset_mode"] = "iid"; //default - randomly choose from dataset, iid - randomly choose from iid labels, non-iid - choose higher frequency labels for specific label
     configuration_file::json node_non_iid = configuration_file::json::object();
@@ -47,7 +51,7 @@ int main(int argc, char **argv)
 	std::string ip;
 	uint16_t port;
 	std::string dataset_path, label_dataset_path;
-	std::chrono::milliseconds inject_interval;
+	size_t inject_interval_min, inject_interval_max;
 	size_t inject_amount;
     dataset_mode dataset_label_mode;
     std::unordered_map<int, std::tuple<float, float>> dataset_label_distribution;
@@ -128,15 +132,39 @@ int main(int argc, char **argv)
 	
 	//set injection
 	{
-		auto inject_interval_opt = config.get<size_t>("inject_interval_ms");
+		auto inject_interval_opt = config.get<std::string>("inject_interval_ms");
 		try
 		{
-			if (inject_interval_opt) inject_interval = std::chrono::milliseconds(*inject_interval_opt);
+            if (inject_interval_opt)
+            {
+                auto inject_interval = *inject_interval_opt;
+                std::regex rx(R"((\d+)-(\d+))");
+                std::smatch match;
+                if (std::regex_search(inject_interval, match, rx))
+                {
+                    size_t inject_interval_a = std::stoul(match.str(1));
+                    size_t inject_interval_b = std::stoul(match.str(2));
+                    if (inject_interval_a > inject_interval_b)
+                    {
+                        inject_interval_max = inject_interval_a;
+                        inject_interval_min = inject_interval_b;
+                    }
+                    else
+                    {
+                        inject_interval_max = inject_interval_b;
+                        inject_interval_min = inject_interval_a;
+                    }
+                }
+                else
+                {
+                    LOG(FATAL) << "wrong inject interval format";
+                }
+            }
 			else LOG(FATAL) << "no inject interval in config file";
 		}
 		catch (...)
 		{
-			LOG(FATAL) << "invalid inject interval";
+			LOG(FATAL) << "error in processing inject interval";
 		}
 		auto inject_amount_opt = config.get<size_t>("inject_amount");
 		try
@@ -155,16 +183,18 @@ int main(int argc, char **argv)
 	Ml::data_converter<DType> dataset;
 	dataset.load_dataset_mnist(dataset_path, label_dataset_path);
 	LOG(INFO) << "loading dataset - done";
-	
+ 
+ 
 	network::p2p client;
 	bool _running = true;
+    
 	std::thread worker_thread([&](){
-		auto loop_start_time = std::chrono::system_clock::now();
-		int count = 0;
+        std::random_device rd;
+        std::mt19937 rng(rd());
+        std::uniform_int_distribution<std::mt19937::result_type> inject_time_dist(inject_interval_min, inject_interval_max);
 		while (_running)
 		{
-			count++;
-
+            auto loop_start_time = std::chrono::system_clock::now();
             Ml::tensor_blob_like<DType> label;
             label.getShape() = {1};
             std::tuple<std::vector<Ml::tensor_blob_like<DType>>, std::vector<Ml::tensor_blob_like<DType>>> inject_data;
@@ -247,14 +277,34 @@ int main(int argc, char **argv)
 					LOG(INFO) << "Inject fail: " << network::i_p2p_node::send_packet_status_message[status];
 				}
 			});
-			std::this_thread::sleep_until(loop_start_time + inject_interval * count);
+			std::this_thread::sleep_until(loop_start_time + std::chrono::milliseconds(inject_time_dist(rng)));
 		}
 	});
 	printf("press any key to stop\n");
+    
+    //timeout?
+    auto timeout = *config.get<int>("timeout_second");
+    auto exit_func = [&_running, &worker_thread](){
+        _running = false;
+        worker_thread.join();
+        exit(0);
+    };
+    
+    std::thread exit_thread([timeout, exit_func](){
+        if (timeout == 0)
+        {
+            std::cout << "Introducer auto-stop timeout is disabled." << std::endl;
+            return 0;
+        }
+        std::cout << "Introducer will stop after " << timeout << " seconds." << std::endl;
+        std::this_thread::sleep_for(std::chrono::seconds(timeout));
+        std::cout << "Introducer automatically stops." << std::endl;
+        exit_func();
+    });
+    exit_thread.detach();
+    
 	std::cin.get();
 	printf("stopping ...\n");
-	_running = false;
-	worker_thread.join();
-	return 0;
+    exit_func();
 }
 
