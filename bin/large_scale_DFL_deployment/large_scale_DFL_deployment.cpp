@@ -232,6 +232,7 @@ public:
 		ml_test_batch_size = *json.get<int>("ml_test_batch_size");
 		timeout_second = *json.get<int>("timeout_second");
 		inactive_peer_second = *json.get<int>("network_inactive_peer_second");
+        use_preferred_peers_only = *json.get<bool>("network_use_preferred_peers_only");
 		maximum_peer = *json.get<int>("network_maximum_peer");
 		
 		blockchain_estimated_block_size = *json.get<int>("blockchain_estimated_block_size");
@@ -523,7 +524,7 @@ int main(int argc, char **argv)
 			LOG_IF(FATAL, lhs_node_iter == node_deploy_info_container.end()) << lhs_node_str << " is not found in nodes, raw topology: " << topology_item_str;
 			LOG_IF(FATAL, rhs_node_iter == node_deploy_info_container.end()) << rhs_node_str << " is not found in nodes, raw topology: " << topology_item_str;
 			
-			if (*std::find(lhs_node_iter->second.preferred_peers.begin(), lhs_node_iter->second.preferred_peers.end(), rhs_node_str) == rhs_node_str)// connection already exists
+			if (std::find(lhs_node_iter->second.preferred_peers.begin(), lhs_node_iter->second.preferred_peers.end(), rhs_node_str) != lhs_node_iter->second.preferred_peers.end())// connection already exists
 			{
 				LOG(WARNING) << rhs_node_str << " is already a peer of " << lhs_node_str;
 			}
@@ -533,7 +534,7 @@ int main(int argc, char **argv)
 				lhs_node_iter->second.preferred_peers.push_back(rhs_connected_node.blockchain_address);
 			}
 			
-			if (*std::find(rhs_node_iter->second.preferred_peers.begin(), rhs_node_iter->second.preferred_peers.end(), lhs_node_str) == lhs_node_str)// connection already exists
+			if (std::find(rhs_node_iter->second.preferred_peers.begin(), rhs_node_iter->second.preferred_peers.end(), lhs_node_str) != rhs_node_iter->second.preferred_peers.end())// connection already exists
 			{
 				LOG(WARNING) << lhs_node_str << " is already a peer of " << rhs_node_str;
 			}

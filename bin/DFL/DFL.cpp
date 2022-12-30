@@ -438,10 +438,10 @@ int main(int argc, char **argv)
 	//start transaction_tran_rece
     LOG(INFO) << "starting transaction transmission and receive service";
 	{
-		main_transaction_tran_rece.reset(new transaction_tran_rece(global_var::public_key, global_var::private_key, global_var::address,
-															 main_transaction_storage_for_block, config.get_json()["network"]["use_preferred_peers_only"]));
+		main_transaction_tran_rece.reset(new transaction_tran_rece(global_var::public_key, global_var::private_key, global_var::address, main_transaction_storage_for_block,
+                                                                   config.get_json()["network"]["use_preferred_peers_only"]));
 		main_transaction_tran_rece->start_listen(config.get_json()["network"]["port"]);
-		auto preferred_peers = config.get_json()["network"]["peers"];
+		auto preferred_peers = config.get_json()["network"]["preferred_peers"];
 		main_transaction_tran_rece->get_maximum_peer() = config.get_json()["network"]["maximum_peer"];
 		main_transaction_tran_rece->get_inactive_time() = config.get_json()["network"]["inactive_peer_second"];
 		for (auto &single_preferred_peer : preferred_peers)

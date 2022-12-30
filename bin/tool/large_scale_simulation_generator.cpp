@@ -15,6 +15,8 @@
 #include <glog/logging.h>
 #include <configure_file.hpp>
 
+#include "../simulation/simulation_config_format.hpp"
+
 configuration_file::json get_default_simulation_configuration()
 {
 	configuration_file::json output;
@@ -168,34 +170,36 @@ int main(int argc, char* argv[])
 				}
 			}
 		}
-		
-		auto& node_topology_json = config_json["node_topology"];
-		node_topology_json.clear();
-		for (int i = 0; i < node_count; ++i)
-		{
-			std::cout << std::to_string(i) << node_peer_connection_type << "{";
-			if (node_peer_connection_type == "--")
-			{
-				for (int j = 0; j < node_peer_connection_count/2; ++j)
-				{
-					std::cout << std::to_string(node_connections[i][j]) << ", ";
-					node_topology_json.push_back(std::to_string(i) + node_peer_connection_type + std::to_string(node_connections[i][j]));
-				}
-			}
-			else
-			{
-				for (int j = 0; j < node_peer_connection_count; ++j)
-				{
-					std::cout << std::to_string(node_connections[i][j]) << ", ";
-					node_topology_json.push_back(std::to_string(i) + node_peer_connection_type + std::to_string(node_connections[i][j]));
-				}
-			}
-			std::cout << "}" << std::endl;
-
-		}
+        
+        auto &node_topology_json = config_json["node_topology"];
+        node_topology_json.clear();
+        for (int i = 0; i < node_count; ++i)
+        {
+            std::cout << std::to_string(i) << node_peer_connection_type << "{";
+            if (node_peer_connection_type == simulation_config_format::bilateral_term)
+            {
+                for (int j = 0; j < node_peer_connection_count / 2; ++j)
+                {
+                    std::cout << std::to_string(node_connections[i][j]) << ", ";
+                    node_topology_json.push_back(std::to_string(i) + node_peer_connection_type + std::to_string(node_connections[i][j]));
+                }
+            }
+            else if (node_peer_connection_type == simulation_config_format::unidirectional_term)
+            {
+                for (int j = 0; j < node_peer_connection_count; ++j)
+                {
+                    std::cout << std::to_string(node_connections[i][j]) << ", ";
+                    node_topology_json.push_back(std::to_string(i) + node_peer_connection_type + std::to_string(node_connections[i][j]));
+                }
+            }
+            else
+            {
+                LOG(FATAL) << "unknown topology symbol";
+            }
+            std::cout << "}" << std::endl;
+        }
 		
 		config_json["ml_delayed_test_accuracy"] = false;
-		
 		config.write_back();
 	}
 	

@@ -79,8 +79,7 @@ public:
                                           catch (...)
                                           {
                                               LOG(WARNING) << "cannot parse packet data";
-                                              return {command::acknowledge_but_not_accepted,
-                                                      "cannot parse packet data"};
+                                              return {command::acknowledge_but_not_accepted,"cannot parse packet data"};
                                           }
                 
                                           //verify signature
@@ -101,18 +100,20 @@ public:
                                           if (!dfl_util::verify_address_public_key(register_request.address,register_request.node_pubkey))
                                           {
                                               LOG(WARNING) << "verify node public key failed";
-                                              return {command::acknowledge_but_not_accepted,
-                                                      "cannot verify node public key / address"};
+                                              return {command::acknowledge_but_not_accepted,"cannot verify node public key / address"};
                                           }
-                
+    
                                           //add to peer list
-                                          auto [state, msg] = add_peer(register_request.address,register_request.node_pubkey, ip, register_request.port);
+                                          auto [state, msg] = add_peer(register_request.address, register_request.node_pubkey, ip, register_request.port);
                                           if (!state)
                                           {
                                               LOG(WARNING) << "cannot add peer: " << msg;
                                               return {command::acknowledge_but_not_accepted, "cannot add peer: " + msg};
                                           }
-                
+                                          if (msg == DFL_MESSAGE::PEER_REGISTER_ALREADY_EXIST)
+                                          {
+                                              return {command::acknowledge_but_not_effective, msg};
+                                          }
                                           return {command::acknowledge, msg};
                                       }
                                       else if (command == command::request_peer_info)
@@ -123,25 +124,21 @@ public:
                                           request_peer_info_data peer_request;
                                           try
                                           {
-                                              peer_request = deserialize_wrap<boost::archive::binary_iarchive, request_peer_info_data>(
-                                                      ss);
+                                              peer_request = deserialize_wrap<boost::archive::binary_iarchive, request_peer_info_data>(ss);
                                           }
                                           catch (...)
                                           {
                                               LOG(WARNING) << "cannot parse packet data";
-                                              return {command::acknowledge_but_not_accepted,
-                                                      "cannot parse packet data"};
+                                              return {command::acknowledge_but_not_accepted,"cannot parse packet data"};
                                           }
                 
                                           if (peer_request.requester_address != peer_request.generator_address)
                                           {
-                                              return {command::acknowledge_but_not_accepted,
-                                                      "invalid requester and generator address"};
+                                              return {command::acknowledge_but_not_accepted,"invalid requester and generator address"};
                                           }
                 
                                           //verify signature
-                                          if (!dfl_util::verify_signature(peer_request.node_pubkey,
-                                                                          peer_request.signature, peer_request.hash))
+                                          if (!dfl_util::verify_signature(peer_request.node_pubkey, peer_request.signature, peer_request.hash))
                                           {
                                               LOG(WARNING) << "verify signature failed";
                                               return {command::acknowledge_but_not_accepted, "cannot verify signature"};
@@ -155,12 +152,10 @@ public:
                                           }
                 
                                           //verify node public key and address
-                                          if (!dfl_util::verify_address_public_key(peer_request.generator_address,
-                                                                                   peer_request.node_pubkey))
+                                          if (!dfl_util::verify_address_public_key(peer_request.generator_address,peer_request.node_pubkey))
                                           {
                                               LOG(WARNING) << "verify node public key failed";
-                                              return {command::acknowledge_but_not_accepted,
-                                                      "cannot verify node public key / address"};
+                                              return {command::acknowledge_but_not_accepted,"cannot verify node public key / address"};
                                           }
                 
                                           //add peer
@@ -178,19 +173,16 @@ public:
                                           {
                                               std::random_device rd;
                                               std::mt19937 g(rd());
-                                              std::shuffle(peer_request.peers_info.begin(),
-                                                           peer_request.peers_info.end(), g);
+                                              std::shuffle(peer_request.peers_info.begin(),peer_request.peers_info.end(), g);
                                           }
                 
                                           peer_request.generator_address = _address.getTextStr_lowercase();
                                           peer_request.node_pubkey = _public_key.getTextStr_lowercase();
-                                          peer_request.hash = crypto::sha256_digest(
-                                                  peer_request).getTextStr_lowercase();
+                                          peer_request.hash = crypto::sha256_digest(peer_request).getTextStr_lowercase();
                                           auto sig_hex = crypto::ecdsa_openssl::sign(peer_request.hash, _private_key);
                                           peer_request.signature = sig_hex.getTextStr_lowercase();
                 
-                                          std::string reply = serialize_wrap<boost::archive::binary_oarchive>(
-                                                  peer_request).str();
+                                          std::string reply = serialize_wrap<boost::archive::binary_oarchive>(peer_request).str();
                 
                                           return {command::reply_peer_info, reply};
                                       }
@@ -224,6 +216,8 @@ public:
     //name: hash{public key}, address: network address.
     std::tuple<bool, std::string> add_peer(const std::string &name, const std::string &public_key, const std::string &address, uint16_t port)
     {
+        if (!dfl_util::verify_address_public_key(name, public_key)) return {false, "wrong public key and name (address) pair"};
+        
         auto iter = _peers.find(name);
         if (iter != _peers.end())
         {

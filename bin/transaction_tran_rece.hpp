@@ -19,6 +19,7 @@
 #include "introducer_data.hpp"
 #include "dfl_util.hpp"
 #include "env.hpp"
+#include "util.hpp"
 
 class transaction_tran_rece
 {
@@ -207,8 +208,11 @@ public:
 					LOG(WARNING) << "cannot add peer, message:" << msg;
 					return {command::acknowledge_but_not_accepted, "cannot add peer, message:" + msg};
 				}
-				
-				return {command::acknowledge, ""};
+                if (msg == DFL_MESSAGE::PEER_REGISTER_ALREADY_EXIST)
+                {
+                    return {command::acknowledge_but_not_effective, msg};
+                }
+                return {command::acknowledge, msg};
 			}
 			
 			else
@@ -321,14 +325,29 @@ public:
 	std::tuple<bool, std::string> add_peer(const std::string& name, const std::string& public_key, const std::string& address, uint16_t port)
 	{
 		if (!dfl_util::verify_address_public_key(name, public_key)) return {false, "wrong public key and name (address) pair"};
-		
+        
+        auto iter = _peers.find(name);
+        if (iter != _peers.end())
+        {
+            bool skip = true;
+            auto peer = iter->second;
+            if (public_key != peer.public_key) skip = false;
+            if (address != peer.address) skip = false;
+            if (port != peer.port) skip = false;
+            if (skip)
+            {
+                //peer is already registered
+                return {true, DFL_MESSAGE::PEER_REGISTER_ALREADY_EXIST};
+            }
+        }
+        
 		peer_endpoint temp(name, public_key, address, port, peer_endpoint::peer_type_normal_node);
 		{
 			std::lock_guard guard(_peers_lock);
 			_peers.emplace(name, temp);
 		}
 		
-		return {true, ""};
+		return {true, DFL_MESSAGE::PEER_REGISTER_NEW_PEER};
 	}
 	
 	std::tuple<bool, std::string> add_preferred_peer(const std::string& name)
@@ -388,9 +407,9 @@ public:
 									LOG(WARNING) << "[transaction trans] register as peer on " << name << " does not success, status: " << i_p2p_node_with_header::send_packet_status_message[status];
 									return;
 								}
-								
-								if (command_received == command::acknowledge)
-								{
+                                
+                                if (command_received == command::acknowledge)
+                                {
                                     std::string msg(data, length);
                                     if (msg == DFL_MESSAGE::PEER_REGISTER_ALREADY_EXIST)
                                     {
@@ -402,13 +421,16 @@ public:
                                         LOG(INFO) << "[transaction trans] register as peer on " << name << " successfully";
                                         return;
                                     }
-                                    
-								}
-								else
-								{
-									LOG(WARNING) << "[transaction trans] WARNING, register as peer on " << name << " but does not return acknowledge, return command: " << command_received << "-" << std::string(data, length);
-									return;
-								}
+                                }
+                                else if (command_received == command::acknowledge_but_not_effective)
+                                {
+                                    //do nothing because we know they have put us on the peer list
+                                }
+                                else
+                                {
+                                    LOG(WARNING) << "[transaction trans] WARNING, register as peer on " << name << " but does not return acknowledge, return command: " << command_received << "-" << std::string(data, length);
+                                    return;
+                                }
 							});
 						}
 					}
@@ -429,7 +451,19 @@ public:
 							_active_peers.erase(removal_peer);
 						}
 					}
-					
+                    
+                    //request new peers
+                    int peer_to_add = 0;
+                    if (_use_preferred_peer_only)
+                        peer_to_add = static_cast<int>(static_cast<int>(_preferred_peers.size()) - _active_peers.size());
+                    else //use _maximum_peer
+                        peer_to_add = static_cast<int>(static_cast<int>(_maximum_peer) - _active_peers.size());
+                    if (peer_to_add > 0)
+                    {
+                        auto [status, msg] = try_to_add_peer(peer_to_add);
+                        LOG_IF(WARNING, !status) << msg;
+                    }
+                    
 					bool exit = false;
 					for (int i = 0; i < 10; ++i)
 					{
@@ -444,7 +478,6 @@ public:
 					{
 						break;
 					}
-					
 				}
 			}));
 		}
@@ -471,9 +504,9 @@ public:
 			}
 			else
 			{
-				if (_peers.size() == 0)
+				if (_peers.empty())
 					return output;
-				index_to_remove = _peers.size() - 1;
+				index_to_remove = std::to_string(_peers.size() - 1);
 				auto remove_item = std::make_tuple(index_to_remove, _peers[index_to_remove]);
 				if (_peers.erase(index_to_remove) == 1)
 				{
@@ -489,7 +522,7 @@ public:
 	
 	std::tuple<bool, std::string> try_to_add_peer(int desired_peer_count = -1)
 	{
-		if (desired_peer_count == -1) desired_peer_count = _maximum_peer;
+		if (desired_peer_count == -1) desired_peer_count = (int)_maximum_peer;
 		if (desired_peer_count < 0) return {false, "invalid peer count"};
 		
 		std::unordered_map<std::string, peer_endpoint> peers_copy;
@@ -563,29 +596,50 @@ public:
 					for (auto& single_peer_info : received_peers.peers_info)
 					{
 						crypto::hex_data single_peer_name_hex(single_peer_info.name);
-						if (single_peer_name_hex == _address) // myself
+						if (single_peer_name_hex == _address) // myself, ignore
 						{
 							continue;
 						}
+                        if (_use_preferred_peer_only && !_preferred_peers.contains(single_peer_info.name)) // this peer is not on the preferred list
+                        {
+                            continue;
+                        }
 						
 						//send register as peer request
 						_p2p.send(single_peer_info.address, single_peer_info.port, i_p2p_node_with_header::ipv4, command::register_as_peer, message_str.data(), message_str.length(), [this, single_peer_info](i_p2p_node_with_header::send_packet_status status, header::COMMAND_TYPE command_received, const char* data, int length) {
-							if (status != i_p2p_node_with_header::send_packet_success)
-							{
-								LOG(WARNING) << "[transaction trans] register as peer does not success, status: " << i_p2p_node_with_header::send_packet_status_message[status];
-								return;
-							}
-							
-							if (command_received == command::acknowledge)
-							{
-								//add the peer to the active list
-								_active_peers[single_peer_info.name] = time_util::get_current_utc_time();
-							}
-							else
-							{
-								LOG(WARNING) << "[transaction trans] WARNING, register as peer but does not return acknowledge, return command: " << command_received << "-" << std::string(data, length);
-								return;
-							}
+                            if (status != i_p2p_node_with_header::send_packet_success)
+                            {
+                                LOG(WARNING) << "[transaction trans] register as peer on " << single_peer_info.name << " does not success, status: " << i_p2p_node_with_header::send_packet_status_message[status];
+                                return;
+                            }
+                            
+                            if (command_received == command::acknowledge)
+                            {
+                                //add the peer to the active list
+                                _active_peers[single_peer_info.name] = time_util::get_current_utc_time();
+                                
+                                std::string msg(data, length);
+                                if (msg == DFL_MESSAGE::PEER_REGISTER_ALREADY_EXIST)
+                                {
+                                    //do nothing because we know they have put us on the peer list
+                                    return;
+                                }
+                                if (msg == DFL_MESSAGE::PEER_REGISTER_NEW_PEER)
+                                {
+                                    LOG(INFO) << "[transaction trans] register as peer on " << single_peer_info.name << " successfully";
+                                    return;
+                                }
+                                return;
+                            }
+                            else if (command_received == command::acknowledge_but_not_effective)
+                            {
+                                //do nothing because we know they have put us on the peer list
+                            }
+                            else
+                            {
+                                LOG(WARNING) << "[transaction trans] register as peer but does not return acknowledge, return command: " << command_received << "-" << std::string(data, length);
+                                return;
+                            }
 						});
 					}
 				}
@@ -623,12 +677,13 @@ public:
 	GENERATE_GET(_maximum_peer, get_maximum_peer);
 	GENERATE_GET(_use_preferred_peer_only, get_use_preferred_peer_only);
 	GENERATE_GET(_inactive_time_seconds, get_inactive_time);
+    GENERATE_READ(_preferred_peers, read_preferred_peers);
 private:
 	crypto::hex_data _address;
 	crypto::hex_data _public_key;
 	crypto::hex_data _private_key;
 	
-	size_t _maximum_peer;
+	size_t _maximum_peer{};
 	bool _use_preferred_peer_only;
 	std::unordered_set<std::string> _preferred_peers;
 	
@@ -641,7 +696,7 @@ private:
 	std::shared_ptr<transaction_storage_for_block> _main_transaction_storage_for_block;
 	
 	std::unordered_map<std::string, uint64_t> _active_peers;
-	uint64_t _inactive_time_seconds;
+	uint64_t _inactive_time_seconds{};
 	
 	std::shared_ptr<std::thread> _registerAndKeeperThread;
 	bool _running;
