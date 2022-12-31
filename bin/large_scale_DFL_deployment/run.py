@@ -28,7 +28,11 @@ if __name__ == "__main__":
     for single_node in summary["nodes"]:
         working_dir = os.path.join(os.curdir, single_node["folder"])
         with open(os.path.join(working_dir, "node_log.txt"), "w") as log:
-            proc = subprocess.Popen(["./DFL"], cwd=working_dir, stdout=log, stderr=log, stdin=subprocess.PIPE, shell=True)
+            dfl_env = os.environ.copy()
+            dfl_env["OPENBLAS_NUM_THREADS"] = "1"
+            dfl_env["GOTO_NUM_THREADS"] = "1"
+            dfl_env["OMP_NUM_THREADS"] = "1"
+            proc = subprocess.Popen(["./DFL"], cwd=working_dir, stdout=log, stderr=log, stdin=subprocess.PIPE, shell=True, env=dfl_env)
             all_procs_cannot_be_killed.append(proc)
         print("starting DFL node: " + single_node["name"])
     # input("press Enter to start data injectors...")
