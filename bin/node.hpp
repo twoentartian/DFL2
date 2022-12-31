@@ -22,6 +22,36 @@ enum class dataset_mode_type
 	
 };
 
+namespace std
+{
+    inline std::ostream& operator << (std::ostream& os, const dataset_mode_type& x)
+    {
+        switch (x)
+        {
+            case dataset_mode_type::unknown:
+                os << "unknown";
+                break;
+            case dataset_mode_type::default_dataset:
+                os << "default_dataset";
+                break;
+            case dataset_mode_type::iid_dataset:
+                os << "iid_dataset";
+                break;
+            case dataset_mode_type::non_iid_dataset:
+                os << "non_iid_dataset";
+                break;
+        }
+        return os;
+    }
+    
+    inline std::string to_string(const dataset_mode_type& x)
+    {
+        std::ostringstream ss;
+        ss << x;
+        return ss.str();
+    }
+}
+
 enum node_type
 {
 	unknown_node_type = 0,

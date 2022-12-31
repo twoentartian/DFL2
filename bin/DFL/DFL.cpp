@@ -1,4 +1,5 @@
 #include <thread>
+#include <csignal>
 
 #include <glog/logging.h>
 
@@ -60,15 +61,15 @@ void generate_block()
 		std::stringstream ss;
 		ss << "no transactions are confirmed, cannot generate block";
 		LOG(INFO) << ss.str();
-		std_cout::println(ss.str());
+		std_cout::println("[DFL] " +ss.str());
 		return;
 	}
 	else
 	{
 		std::stringstream ss;
-		ss << "block transaction size: " << cached_transactions_with_receipt.size();
+		ss << "block transaction size: " << cached_transactions_with_receipt.size() << ", ready to generate block";
 		LOG(INFO) << ss.str();
-		std_cout::println(ss.str());
+		std_cout::println("[DFL] " +ss.str());
 	}
 	
 	auto generated_block = *main_block_manager->generate_block(cached_transactions_with_receipt);
@@ -94,7 +95,7 @@ void generate_block()
 	std::stringstream ss;
 	ss << "generating block - done, transaction count: " << final_block.content.transaction_container.size() << " confirmation count: " << confirmations.size() << " height: " << final_block.height;
 	LOG(INFO) << ss.str();
-	std_cout::println(ss.str());
+	std_cout::println("[DFL] " +ss.str());
 }
 
 void generate_transaction(const std::vector<Ml::tensor_blob_like<model_datatype>> &data, const std::vector<Ml::tensor_blob_like<model_datatype>> &label)
@@ -326,6 +327,17 @@ void update_model(std::shared_ptr<std::vector<transaction>> transactions)
 
 int main(int argc, char **argv)
 {
+    //signal handler
+    {
+        auto sig_handler = [](int signum)
+        {
+            exit(0);
+        };
+        signal(SIGTERM, sig_handler);
+        signal(SIGINT, sig_handler);
+    }
+
+    
 	//log file path
 	{
 		google::InitGoogleLogging(argv[0]);
@@ -423,7 +435,6 @@ int main(int argc, char **argv)
 	main_dataset_storage->set_full_callback([](const std::vector<Ml::tensor_blob_like<model_datatype>> &data, const std::vector<Ml::tensor_blob_like<model_datatype>> &label)
 	                                        {
 		                                        LOG(INFO) << "plenty data, start training";
-		                                        std_cout::println("[DFL] plenty data, start training");
 		                                        std::thread generate_transaction_thread([&data, &label]()
 		                                                                                {
 			                                                                                generate_transaction(data, label);
@@ -460,24 +471,26 @@ int main(int argc, char **argv)
 			                                           single_introducer_json["public_key"].get<std::string>(),
 			                                           single_introducer_json["port"].get<uint16_t>());
 		}
-		
 	}
 	
 	//perform reputation test
-    LOG(INFO) << "performing reputation test";
-	Ml::caffe_parameter_net<model_datatype> model = model_train->get_parameter();
-	{
-		auto [pass, info] = reputation_dll_same_reputation_test(reputation_dll, model);
-		std::stringstream ss;
-		ss << "[reputation dll] [same reputation test] " << (pass?"pass":"fail") << ": " << info;
-		LOG(INFO) << ss.str();
-	}
-	{
-		auto [pass, info] = reputation_dll_same_model_test(reputation_dll, model);
-		std::stringstream ss;
-		ss << "[reputation dll] [same model test] " << (pass?"pass":"fail") << ": " << info;
-		LOG(INFO) << ss.str();
-	}
+    if (*config.get<bool>("enable_reputation_test"))
+    {
+        LOG(INFO) << "performing reputation test";
+        Ml::caffe_parameter_net<model_datatype> model = model_train->get_parameter();
+        {
+            auto [pass, info] = reputation_dll_same_reputation_test(reputation_dll, model);
+            std::stringstream ss;
+            ss << "[reputation dll] [same reputation test] " << (pass ? "pass" : "fail") << ": " << info;
+            LOG(INFO) << ss.str();
+        }
+        {
+            auto [pass, info] = reputation_dll_same_model_test(reputation_dll, model);
+            std::stringstream ss;
+            ss << "[reputation dll] [same model test] " << (pass ? "pass" : "fail") << ": " << info;
+            LOG(INFO) << ss.str();
+        }
+    }
 	
 	//exit?
 	{
@@ -485,21 +498,22 @@ int main(int argc, char **argv)
 		std::thread exit_thread([timeout](){
 			if (timeout == 0)
 			{
-				std::cout << "auto stop timeout is disabled." << std::endl;
+                LOG(INFO) << "auto stop timeout is disabled.";
 				return 0;
 			}
-			std::cout << "DFL will stop after " << timeout << " seconds." << std::endl;
+            LOG(INFO) << "DFL will stop after " << timeout << " seconds.";
 			std::this_thread::sleep_for(std::chrono::seconds(timeout));
-			std::cout << "DFL automatically stops." << std::endl;
+            LOG(INFO) << "DFL automatically stops.";
 			exit(0);
 		});
 		exit_thread.detach();
-		
-		std::cout << "DFL is now running, press any key to stop it" << std::endl;
+        
+        std::cout << "DFL is now running, press any key to stop it" << std::endl;
+        
 		while (true)
 		{
 			std::cin.get();
-			std::cout << "are you sure you want to stop DFL? <y/N>:";
+            std::cout << "are you sure you want to stop DFL? <y/N>:";
 			std::ios::sync_with_stdio(false);
 			google::SetStderrLogging(google::FATAL);
 			
@@ -510,6 +524,7 @@ int main(int argc, char **argv)
 			
 			if (user_input == "Y" || user_input == "y") break;
 			else std::cout << "continue" << std::endl;
+   
 		}
 	}
 	

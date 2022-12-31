@@ -45,8 +45,8 @@ configuration_file::json get_default_configuration()
 	output["reputation_dll_path"] = "../reputation_sdk/sample/libreputation_api_sample.so";
 	output["reputation_dll_datatype"] = "float";
 	
-	output["enable_profiler"] = true;
-	
+	output["enable_profiler"] = false;
+    output["enable_reputation_test"] = false;
 	output["timeout_second"] = 0;
 	
 	return output;

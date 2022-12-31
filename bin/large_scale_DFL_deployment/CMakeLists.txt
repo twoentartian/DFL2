@@ -1,5 +1,6 @@
-make_includable(lenet_solver_memory.prototxt generated/lenet_solver_memory.prototxt)
-make_includable(lenet_train_memory.prototxt generated/lenet_train_memory.prototxt)
+make_includable(lenet_solver_memory.prototxt generated/lenet_solver_memory.prototxt.generated)
+make_includable(lenet_train_memory.prototxt generated/lenet_train_memory.prototxt.generated)
+make_includable(run.py generated/run.py.generated)
 
 add_executable(large_scale_DFL_deployment large_scale_DFL_deployment.cpp)
 target_link_libraries(large_scale_DFL_deployment ${DFL_LINKER_LIBS})

@@ -340,6 +340,11 @@ namespace network::simple
 		{
 			return _end_point->port();
 		}
+        
+        bool is_running() const
+        {
+            return !_io_service->stopped();
+        }
 		
 	protected:
 		std::vector<std::thread> _acceptor_thread_container;
@@ -401,13 +406,8 @@ namespace network::simple
 				{
 					handler(remote_ip, remote_port, clientSession);
 				}
-				
 				clientSession->start();
 			}
 		}
-		
-		
 	};
-	
-	
 }

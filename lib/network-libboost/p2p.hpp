@@ -14,7 +14,7 @@ namespace network
 	class p2p : public i_p2p_node
 	{
 	public:
-		p2p(bool enable_log = false) : _service_running(false), _enable_log(enable_log)
+		p2p(bool enable_log = false) : _enable_log(enable_log)
 		{
 		
 		}
@@ -150,12 +150,16 @@ namespace network
 		{
 			return _server.read_port();
 		}
+        
+        bool is_running() const
+        {
+            return _server.is_running();
+        }
 	
 	private:
 		const bool _enable_log;
 		simple::tcp_server _server;
 		std::mutex _client_mutex;
-		bool _service_running;
 		receive_callback _callback;
 	};
 	

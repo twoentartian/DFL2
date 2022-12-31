@@ -38,7 +38,7 @@ public:
 	{
 		while (_current_generated_block)
 		{
-			std_cout::println("a block is currently under generating, hash:" + _current_generated_block->final_hash + ", please wait until it finishes");
+			LOG(INFO) << "a block is currently under generating, hash:" << _current_generated_block->final_hash << ", please wait until it finishes";
 			std::this_thread::sleep_for(std::chrono::seconds(5));
 		}
 		

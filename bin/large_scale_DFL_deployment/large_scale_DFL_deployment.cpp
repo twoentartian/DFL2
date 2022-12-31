@@ -21,6 +21,10 @@
 #include "compile_time_content.hpp"
 
 constexpr char DEPLOY_LOG_PATH[] = "./DFL_deployment_log/";
+constexpr char DEPLOY_INTRODUCER_NAME_PREFIX[] = "introducer-";
+constexpr char DEPLOY_NODE_NAME_PREFIX[] = "node-";
+constexpr int INTRODUCER_NAME_HASH_LENGTH = 8;
+
 
 class introducer_node
 {
@@ -601,7 +605,7 @@ int main(int argc, char **argv)
 	}
 	for (const auto& single_introducer_node : introducer_nodes)
 	{
-		std::filesystem::path current_node_output_path = output_path / ("introducer-" + single_introducer_node.blockchain_address.substr(0, 8));
+		std::filesystem::path current_node_output_path = output_path / (DEPLOY_INTRODUCER_NAME_PREFIX + single_introducer_node.blockchain_address.substr(0, INTRODUCER_NAME_HASH_LENGTH));
 		if (!std::filesystem::exists(current_node_output_path)) std::filesystem::create_directories(current_node_output_path);
 		
 		std::filesystem::copy_file(dfl_introducer_path, current_node_output_path / dfl_introducer_path.filename());
@@ -623,7 +627,7 @@ int main(int argc, char **argv)
 	{
 		LOG(INFO) << "generating node: " << node_name;
 		
-		std::filesystem::path current_node_output_path = output_path / node_name;
+		std::filesystem::path current_node_output_path = output_path / (DEPLOY_NODE_NAME_PREFIX + node_name);
 		if (!std::filesystem::exists(current_node_output_path)) std::filesystem::create_directories(current_node_output_path);
 		
 		//copy DFL executable files
@@ -640,13 +644,17 @@ int main(int argc, char **argv)
 			std::filesystem::path temp(node_target.dataset_path);
 			std::filesystem::copy_file(temp, current_node_output_path / temp.filename());
 		}
-		
-		std::ofstream lenet_solver(current_node_output_path/compile_time_content::lenet_solver_memory_name);
-		lenet_solver << compile_time_content::lenet_solver_memory_content;
-		lenet_solver.close();
-		std::ofstream lenet_model(current_node_output_path/compile_time_content::lenet_train_memory_name);
-		lenet_model << compile_time_content::lenet_train_memory;
-		lenet_model.close();
+        
+        {
+            std::ofstream lenet_solver(current_node_output_path / compile_time_content::lenet_solver_memory_name);
+            lenet_solver << compile_time_content::lenet_solver_memory_content;
+            lenet_solver.close();
+        }
+        {
+            std::ofstream lenet_model(current_node_output_path / compile_time_content::lenet_train_memory_name);
+            lenet_model << compile_time_content::lenet_train_memory_content;
+            lenet_model.close();
+        }
 		
 		{
 			configuration_file dfl_config_file;
@@ -660,11 +668,61 @@ int main(int argc, char **argv)
 			auto status = dfl_data_injector_config_file.LoadConfiguration(current_node_output_path/CONFIG_FILE_NAME::DFL_DATA_INJECTOR);
 			LOG_IF(FATAL, status!= configuration_file::FileNotFoundAndGenerateOne) << "logic error";
 		}
-		
-		
 	}
 	
-	
-	
+	//generate summary
+    {
+        configuration_file::json summary;
+        {
+            configuration_file::json summary_introducers = configuration_file::json::array();
+            for (const auto& single_introducer_node : introducer_nodes)
+            {
+                configuration_file::json introducer_node;
+                introducer_node["folder"] = DEPLOY_INTRODUCER_NAME_PREFIX + single_introducer_node.blockchain_address.substr(0, INTRODUCER_NAME_HASH_LENGTH);
+                introducer_node["name"] = single_introducer_node.blockchain_address.substr(0, INTRODUCER_NAME_HASH_LENGTH);
+                introducer_node["ip"] = single_introducer_node.ip;
+                introducer_node["port"] = single_introducer_node.port;
+                introducer_node["blockchain_address"] = single_introducer_node.blockchain_address;
+                introducer_node["blockchain_public_key"] = single_introducer_node.blockchain_public_key;
+                introducer_node["blockchain_private_key"] = single_introducer_node.blockchain_private_key;
+                summary_introducers.push_back(introducer_node);
+            }
+            summary["introducers"] = summary_introducers;
+        }
+        {
+            configuration_file::json summary_nodes = configuration_file::json::array();
+            for (const auto& [node_name, node_target] : node_deploy_info_container)
+            {
+                configuration_file::json node;
+                node["folder"] = DEPLOY_NODE_NAME_PREFIX + node_target.name;
+                node["name"] = node_target.name;
+                node["port"] = node_target.port;
+                node["blockchain_address"] = node_target.blockchain_address;
+                node["blockchain_public_key"] = node_target.blockchain_public_key;
+                node["blockchain_private_key"] = node_target.blockchain_private_key;
+                node["dataset_mode"] = std::to_string(node_target.dataset_mode);
+                node["data_injector_inject_interval_tick"] = node_target.data_injector_inject_interval_tick;
+                node["data_injector_inject_amount"] = node_target.data_injector_inject_amount;
+                node["use_preferred_peers_only"] = node_target.use_preferred_peers_only;
+                node["preferred_peers"] = node_target.preferred_peers;
+                node["maximum_peer"] = node_target.maximum_peer;
+                summary_nodes.push_back(node);
+            }
+            summary["nodes"] = summary_nodes;
+        }
+        
+        std::ofstream summary_file(output_path / "summary.json", std::ios::binary);
+        LOG_IF(WARNING, !summary_file.good()) << "cannot create summary file";
+        summary_file << summary.dump(2);
+        summary_file.close();
+    }
+    
+    //generate run.py
+    {
+        std::ofstream run_py(output_path / compile_time_content::run_py_name);
+        run_py << compile_time_content::run_py_content;
+        run_py.close();
+    }
+    
     return 0;
 }

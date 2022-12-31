@@ -123,7 +123,6 @@ public:
 		_p2p_server.set_receive_callback([this](const char* data, int size, std::string ip) -> std::string {
 			return network_receive_callback(data, size);
 		});
-		
 	}
 	
 	void stop_network_service()
@@ -301,6 +300,12 @@ private:
 	
 	std::string network_receive_callback(const char* data, int size)
 	{
+        if (!this->_p2p_server.is_running())
+        {
+            LOG(WARNING) << "[dataset_storage] network layer broken, the last data packet is discard";
+            return "possible broken network layer";
+        }
+        
 		std::string data_str(data, size);
 		std::tuple<std::vector<Ml::tensor_blob_like<DType>>, std::vector<Ml::tensor_blob_like<DType>>> received_dataset;
 		try
