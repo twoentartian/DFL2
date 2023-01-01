@@ -187,8 +187,8 @@ void receive_transaction(const transaction& trans)
 	if (exist)
 	{
 		//duplicate transaction
-		LOG(INFO) << "duplicate transaction with hash " << trans.hash_sha256;
-		std_cout::println("duplicate transaction with hash " + trans.hash_sha256);
+		//LOG(INFO) << "duplicate transaction with hash " << trans.hash_sha256;
+		//std_cout::println("duplicate transaction with hash " + trans.hash_sha256);
 		return;
 	}
 	
