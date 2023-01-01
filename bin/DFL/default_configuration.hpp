@@ -48,6 +48,9 @@ configuration_file::json get_default_configuration()
 	output["enable_profiler"] = false;
     output["enable_reputation_test"] = false;
 	output["timeout_second"] = 0;
+    
+    output["transaction_ttl"] = 1;
+    output["transaction_expire_time"] = 120;
 	
 	return output;
 }

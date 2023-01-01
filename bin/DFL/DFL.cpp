@@ -387,6 +387,9 @@ int main(int argc, char **argv)
     LOG(INFO) << "starting transaction generator";
 	main_transaction_generator.reset(new transaction_generator());
 	main_transaction_generator->set_key(global_var::private_key, global_var::public_key, global_var::address);
+    main_transaction_generator->get_ttl() = *config.get<int>("transaction_ttl");
+    main_transaction_generator->get_expire_time() = *config.get<int>("transaction_expire_time");
+    
 	CHECK(main_transaction_generator->verify_key()) << "verify_key private key/ public key/ address failed";
 	
 	//start ml model

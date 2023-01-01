@@ -291,14 +291,17 @@ public:
 		return true;
 	}
 	
-	transaction generate(const std::string& parameter, const std::string& accuracy)
+	transaction generate(const std::string& parameter, const std::string& accuracy, uint8_t ttl=-1, size_t expire_time=-1)
 	{
+        if (ttl == uint8_t(-1)) ttl = _ttl;
+        if (expire_time == size_t(-1)) expire_time = _expire_time;
+        
 		transaction output;
 		output.content.creator = self_node_info;
 		output.content.accuracy = accuracy;
 		output.content.creation_time = time_util::get_current_utc_time();
-		output.content.expire_time = output.content.creation_time + 60;
-		output.content.ttl = 10;
+		output.content.expire_time = output.content.creation_time + expire_time;
+		output.content.ttl = ttl;
 		output.content.model_data = parameter;
 		
 		//hash
@@ -357,12 +360,17 @@ public:
 		
 		return {append_receipt_status::success, {receipt}};
 	}
-
+    
+    GENERATE_GET(_ttl, get_ttl);
+    GENERATE_GET(_expire_time, get_expire_time);
+    
 private:
 	node_info self_node_info;
 	crypto::hex_data _private_key;
 	crypto::hex_data _public_key;
 	crypto::hex_data _address;
+    uint8_t _ttl;
+    uint32_t _expire_time;
 };
 
 class transaction_helper
