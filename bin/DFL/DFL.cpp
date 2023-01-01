@@ -164,7 +164,7 @@ void receive_transaction(const transaction& trans)
 	if (global_var::enable_profiler)
 		profiler_p.reset(new profiler_auto("receive_transaction"));
 	
-	static duplicate_checker<std::string> transaction_duplicate_checker(3600);
+	static duplicate_checker<std::string> transaction_duplicate_checker(120);
 	
 	//verify transaction
 	auto [status, message] = verify_transaction(trans);
@@ -192,7 +192,7 @@ void receive_transaction(const transaction& trans)
 		return;
 	}
 	
-	//new transaction
+	//this is a new transaction
 	transaction_duplicate_checker.add(trans.hash_sha256);
 	LOG(INFO) << "receive transaction with hash " << trans.hash_sha256;
 	std_cout::println("receive transaction with hash " + trans.hash_sha256);
