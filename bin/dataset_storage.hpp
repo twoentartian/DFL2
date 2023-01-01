@@ -305,26 +305,24 @@ private:
             LOG(WARNING) << "[dataset_storage] network layer broken, the last data packet is discard";
             return "possible broken network layer";
         }
-        
 		std::string data_str(data, size);
-		std::tuple<std::vector<Ml::tensor_blob_like<DType>>, std::vector<Ml::tensor_blob_like<DType>>> received_dataset;
 		try
 		{
-			received_dataset = deserialize_wrap<boost::archive::binary_iarchive, std::tuple<std::vector<Ml::tensor_blob_like<DType>>, std::vector<Ml::tensor_blob_like<DType>>>>(data_str);
+			auto received_dataset = deserialize_wrap<boost::archive::binary_iarchive, std::tuple<std::vector<Ml::tensor_blob_like<DType>>, std::vector<Ml::tensor_blob_like<DType>>>>(data_str);
+            auto& [dataset_data, dataset_label] = received_dataset;
+            if (dataset_data.size() != dataset_label.size())
+            {
+                LOG(WARNING) << "[dataset_storage] network: received a corrupted dataset";
+                return "corrupted data";
+            }
+            add_data(dataset_data, dataset_label);
 		}
 		catch (...)
 		{
 			LOG(WARNING) << "[dataset_storage] network: received a corrupted dataset";
 			return "corrupted data";
 		}
-		auto& [dataset_data,dataset_label] = received_dataset;
-		if (dataset_data.size() != dataset_label.size())
-		{
-			LOG(WARNING) << "[dataset_storage] network: received a corrupted dataset";
-			return "corrupted data";
-		}
-		add_data(dataset_data, dataset_label);
-		return "success";
+        return "success";
 	}
 	
 	void update_labels_in_db()
