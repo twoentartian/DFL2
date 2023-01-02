@@ -33,7 +33,7 @@ if __name__ == "__main__":
             dfl_env["GOTO_NUM_THREADS"] = "1"
             dfl_env["OMP_NUM_THREADS"] = "1"
             proc = subprocess.Popen(["./DFL"], cwd=working_dir, stdout=log, stderr=log, stdin=subprocess.PIPE, shell=True, env=dfl_env)
-            all_procs_cannot_be_killed.append(proc)
+            all_procs_cannot_be_killed.append((single_node["name"], proc))
         print("starting DFL node: " + single_node["name"])
     # input("press Enter to start data injectors...")
 
@@ -48,12 +48,23 @@ if __name__ == "__main__":
     # input("press Enter to wait for DFL nodes exit...")
 
     # wait for exit
-    for i in all_procs_cannot_be_killed:
-        i.wait()
+    node_exits = set()
+    while True:
+        all_exit = True
+        for (name, proc) in all_procs_cannot_be_killed:
+            try:
+                proc.wait(1)
+                if name not in node_exits:
+                    node_exits.add(name)
+                    print("[WARNING] node " + name + " exits")
+            except subprocess.TimeoutExpired:
+                all_exit = False
+                continue
+        if all_exit:
+            break
 
     # kill procs
     print("killing introducer and data injectors")
     for i in all_procs_can_be_killed:
         print("killing " + str(i.pid))
         i.send_signal(signal.SIGINT)
-
