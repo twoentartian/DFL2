@@ -21,10 +21,12 @@ public:
 			rocksdb::Options options;
 			rocksdb::Status status;
 			options.create_if_missing = true;
-			options.IncreaseParallelism();
+//			options.IncreaseParallelism();
 			options.OptimizeLevelStyleCompaction();
+            options.max_total_wal_size = 10 * 1024 * 1024; //10MB, https://github.com/facebook/rocksdb/blob/master/include/rocksdb/options.h#L477
 			
 			rocksdb::BlockBasedTableOptions table_options;
+            table_options.block_cache = rocksdb::NewLRUCache(100 * 1024 * 1024); //https://github.com/EighteenZi/rocksdb_wiki/blob/master/Memory-usage-in-RocksDB.md
 			table_options.filter_policy.reset(rocksdb::NewBloomFilterPolicy(10));
 			options.table_factory.reset(rocksdb::NewBlockBasedTableFactory(table_options));
 			status = rocksdb::DB::Open(options, _db_path_block.string(), &_db_blocks);
@@ -185,7 +187,9 @@ public:
 		
 		//clear current block
 		_current_generated_block.reset();
-		
+        
+        _db_blocks->FlushWAL(true); //reduce memory consumption
+        
 		return std::move(output);
 	}
 	
@@ -210,6 +214,8 @@ private:
 		_height++;
 		
 		_previous_block_hash = blk.final_hash;
+        
+        _db_blocks->FlushWAL(true); //reduce memory consumption
 	}
 	
 	/**
@@ -229,6 +235,7 @@ private:
 			if (target_height > _height) _height = target_height;
 		}
 		if (!empty) _height++;
+        delete it;
 	}
 	
 	/**

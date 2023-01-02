@@ -12,7 +12,7 @@ public:
 	static constexpr char sub_dir_for_block_cache[] = "cache";
 	static constexpr char sub_dir_for_verified_transactions[] = "verified";
 	
-	transaction_storage_for_block(const std::string &db_path)
+	transaction_storage_for_block(const std::string &db_path, bool bypass_db = false)
 	{
 		_block_cache_size = 0;
 		_db_path_sub_block_cache.assign(std::filesystem::path(db_path) / sub_dir_for_block_cache);
@@ -23,11 +23,13 @@ public:
 			rocksdb::Options options;
 			rocksdb::Status status;
 			options.create_if_missing = true;
-			options.IncreaseParallelism();
+//			options.IncreaseParallelism();
 			options.OptimizeLevelStyleCompaction();
+            options.max_total_wal_size = 10 * 1024 * 1024; //10MB, https://github.com/facebook/rocksdb/blob/master/include/rocksdb/options.h#L477
 			
 			rocksdb::BlockBasedTableOptions table_options;
 			table_options.filter_policy.reset(rocksdb::NewBloomFilterPolicy(10));
+            table_options.block_cache = rocksdb::NewLRUCache(100 * 1024 * 1024); //https://github.com/EighteenZi/rocksdb_wiki/blob/master/Memory-usage-in-RocksDB.md
 			options.table_factory.reset(rocksdb::NewBlockBasedTableFactory(table_options));
 			status = rocksdb::DB::Open(options, _db_path_sub_verified_transactions.string(), &_db_verified_transactions);
 			CHECK(status.ok()) << "[transaction_storage_for_block] failed to open rocksdb for _db_verified_transactions";
@@ -40,9 +42,11 @@ public:
 			options.create_if_missing = true;
 			options.IncreaseParallelism();
 			options.OptimizeLevelStyleCompaction();
+            options.max_total_wal_size = 10 * 1024 * 1024; //10MB, https://github.com/facebook/rocksdb/blob/master/include/rocksdb/options.h#L477
 			
 			rocksdb::BlockBasedTableOptions table_options;
 			table_options.filter_policy.reset(rocksdb::NewBloomFilterPolicy(10));
+            table_options.block_cache = rocksdb::NewLRUCache(100 * 1024 * 1024); //https://github.com/EighteenZi/rocksdb_wiki/blob/master/Memory-usage-in-RocksDB.md
 			options.table_factory.reset(rocksdb::NewBlockBasedTableFactory(table_options));
 			status = rocksdb::DB::Open(options, _db_path_sub_block_cache.string(), &_db_block_cache);
 			CHECK(status.ok()) << "[transaction_storage_for_block] failed to open rocksdb for _db_block_cache";
@@ -54,7 +58,7 @@ public:
 			_block_cache_size++;
 		}
 		LOG_IF(ERROR, !it->status().ok()) << "error to retrieve the block cache database";
-		
+		delete it;
 	}
 	
 	~transaction_storage_for_block()
@@ -195,6 +199,7 @@ public:
 				all_transaction_key_data.push_back(it->key().ToString());
 			}
 			assert(it->status().ok());
+            delete it;
 			transactions_str.reserve(all_transaction_key_data.size());
 			for (auto& single_transaction_key: all_transaction_key_data)
 			{
@@ -234,7 +239,9 @@ public:
 		}, transactions_str.size(), transactions_str.data());
 		
 		_block_cache_size = 0;
-		
+        
+        _db_block_cache->FlushWAL(true); //reduce memory consumption
+        
 		return output;
 	}
 #pragma endregion
@@ -248,7 +255,7 @@ private:
 		std::string receipt_hash;
 		transaction_receipt receipt;
 		
-		void to_byte_buffer(byte_buffer& target) const
+		void to_byte_buffer(byte_buffer& target) const override
 		{
 			target.add(hash_sha256);
 			target.add(signature);
@@ -256,7 +263,7 @@ private:
 			receipt.to_byte_buffer(target);
 		}
 		
-		i_json_serialization::json to_json() const
+		[[nodiscard]] i_json_serialization::json to_json() const override
 		{
 			i_json_serialization::json output;
 			output["hash_sha256"] = hash_sha256;
@@ -267,7 +274,7 @@ private:
 			return output;
 		}
 		
-		void from_json(const i_json_serialization::json& json_target)
+		void from_json(const i_json_serialization::json& json_target) override
 		{
 			hash_sha256 = json_target["hash_sha256"];
 			signature = json_target["signature"];

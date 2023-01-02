@@ -61,10 +61,12 @@ public:
 		rocksdb::Options options;
 		rocksdb::Status status;
 		options.create_if_missing = true;
-		options.IncreaseParallelism();
+//		options.IncreaseParallelism();
 		options.OptimizeLevelStyleCompaction();
+        options.max_total_wal_size = 1*1024*1024; //10MB, https://github.com/facebook/rocksdb/blob/master/include/rocksdb/options.h#L477
 		
 		rocksdb::BlockBasedTableOptions table_options;
+        table_options.block_cache = rocksdb::NewLRUCache(100 * 1024 * 1024); //https://github.com/EighteenZi/rocksdb_wiki/blob/master/Memory-usage-in-RocksDB.md
 		table_options.filter_policy.reset(rocksdb::NewBloomFilterPolicy(10));
 		options.table_factory.reset(rocksdb::NewBlockBasedTableFactory(table_options));
 		if (!std::filesystem::exists(_db_path))
@@ -290,7 +292,7 @@ private:
 
 	std::unordered_map<std::string, int> _counter_by_label;
 	int _reserved_in_memory_size;
-	std::vector<Ml::tensor_blob_like<DType>> _reserved_data;
+	std::vector<Ml::tensor_blob_like<DType>> _reserved_data; //_reserved_data is the latest data from p2p server
 	std::vector<Ml::tensor_blob_like<DType>> _reserved_label;
 	int _reserved_write_loc;
 	
@@ -381,6 +383,8 @@ private:
 			{
 				_full_reserved_space_callback(_reserved_data,_reserved_label);
 			}
+            
+            _db->FlushWAL(true); //reduce memory consumption
 		}
 	}
 };
