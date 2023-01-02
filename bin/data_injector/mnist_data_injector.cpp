@@ -300,6 +300,7 @@ int main(int argc, char **argv)
         std::this_thread::sleep_for(std::chrono::seconds(timeout));
         std::cout << "Introducer automatically stops." << std::endl;
         exit_func();
+        return 0;
     });
     exit_thread.detach();
     
