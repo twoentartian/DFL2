@@ -724,5 +724,12 @@ int main(int argc, char **argv)
         run_py.close();
     }
     
+    //generate analyze_result.py
+    {
+        std::ofstream analyze_result_py(output_path / compile_time_content::analyze_result_py_name);
+        analyze_result_py << compile_time_content::analyze_result_py_content;
+        analyze_result_py.close();
+    }
+    
     return 0;
 }

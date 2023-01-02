@@ -16,4 +16,9 @@ namespace compile_time_content
 	const char* run_py_content =
 #include "generated/run.py.generated"
 ;
+
+    const char *analyze_result_py_name = "analyze_result.py";
+    const char *analyze_result_py_content =
+#include "generated/analyze_result.py.generated"
+;
 }

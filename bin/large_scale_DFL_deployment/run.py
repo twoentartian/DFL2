@@ -2,7 +2,7 @@ import os
 import json
 import signal
 import subprocess
-import time
+import datetime
 
 if __name__ == "__main__":
     all_procs_can_be_killed = []
@@ -56,7 +56,7 @@ if __name__ == "__main__":
                 proc.wait(1)
                 if name not in node_exits:
                     node_exits.add(name)
-                    print("[WARNING] node " + name + " exits")
+                    print("[WARNING] node " + name + " exits at " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             except subprocess.TimeoutExpired:
                 all_exit = False
                 continue
