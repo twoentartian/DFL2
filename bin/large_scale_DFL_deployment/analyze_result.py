@@ -53,7 +53,7 @@ if __name__ == "__main__":
         data = file.read()
         summary = json.loads(data)
 
-    df = pandas.DataFrame(columns=["elapsed", "time", "start_time", "node", "accuracy"])
+    df = pandas.DataFrame(columns=["event_type", "elapsed", "time", "start_time", "node", "accuracy"])
     # nodes
     for single_node in summary["nodes"]:
         print("checking node: " + single_node["name"])
@@ -90,7 +90,7 @@ if __name__ == "__main__":
 
             has_accuracy, accuracy = get_accuracy(str(single_line))
             if has_accuracy:
-                df.loc[len(df.index)] = [time.total_seconds(), time_raw.strftime("%H:%M:%S"), start_time, single_node["name"], accuracy]
+                df.loc[len(df.index)] = ["report_accuracy", time.total_seconds(), time_raw.strftime("%H:%M:%S"), start_time, single_node["name"], accuracy]
 
     # unify start time
     first_start_time = df.min(axis='rows')["start_time"]
@@ -109,7 +109,7 @@ if __name__ == "__main__":
     df_for_each_node = {}
     node_names = df["node"].value_counts().index
     for node_name in node_names:
-        df_for_each_node[node_name] = df.loc[df.node == node_name]
+        df_for_each_node[node_name] = df.loc[df.node == node_name & df.event_type == "report_accuracy"]
 
     fig = plt.figure()
     axs = fig.add_subplot(111)
