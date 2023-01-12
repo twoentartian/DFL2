@@ -219,7 +219,14 @@ namespace network::simple
 				{
 					_client_thread_container.emplace_back([this]()
 					                                      {
-						                                      _io_service->run();
+						                                      try
+						                                      {
+							                                      _io_service->run();
+						                                      }
+						                                      catch (...)
+						                                      {
+							
+						                                      }
 					                                      });
 				}
 			}
