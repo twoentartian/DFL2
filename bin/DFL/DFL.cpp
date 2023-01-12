@@ -33,17 +33,45 @@
 constexpr char LOG_PATH[] = "./log/";
 using model_datatype = float;
 
-std::shared_ptr<Ml::MlCaffeModel<model_datatype, caffe::SGDSolver>> model_train;
-std::shared_ptr<Ml::MlCaffeModel<model_datatype, caffe::SGDSolver>> model_test;
+
 std::mutex training_lock;
 
-std::shared_ptr<dataset_storage<model_datatype>> main_dataset_storage;  //store machine learning dataset
-std::shared_ptr<transaction_generator> main_transaction_generator;  //generate transactions, receipts
-std::shared_ptr<transaction_tran_rece> main_transaction_tran_rece;  //send/receive transactions/blocks
-std::shared_ptr<transaction_storage> main_transaction_storage;      //store transactions for machine learning
-std::shared_ptr<reputation_manager> main_reputation_manager;        //manage reputation
-std::shared_ptr<transaction_storage_for_block> main_transaction_storage_for_block;  //store verified transactions and block cache
-std::shared_ptr<block_manager> main_block_manager;                  //generate blocks, store blocks.
+std::shared_ptr<Ml::MlCaffeModel<model_datatype, caffe::SGDSolver>> model_train;
+std::shared_ptr<Ml::MlCaffeModel<model_datatype, caffe::SGDSolver>> model_test;
+
+class global_container
+{
+public:
+	std::shared_ptr<dataset_storage<model_datatype>> main_dataset_storage;  //store machine learning dataset
+	std::shared_ptr<transaction_generator> main_transaction_generator;  //generate transactions, receipts
+	std::shared_ptr<transaction_tran_rece> main_transaction_tran_rece;  //send/receive transactions/blocks
+	std::shared_ptr<transaction_storage> main_transaction_storage;      //store transactions for machine learning
+	std::shared_ptr<reputation_manager> main_reputation_manager;        //manage reputation
+	std::shared_ptr<transaction_storage_for_block> main_transaction_storage_for_block;  //store verified transactions and block cache
+	std::shared_ptr<block_manager> main_block_manager;                  //generate blocks, store blocks.
+	
+	static global_container* get()
+	{
+		return _instance;
+	}
+	
+	void create()
+	{
+		if (_instance == nullptr)
+		{
+			_instance = new global_container();
+		}
+	}
+	
+	void clear()
+	{
+		delete _instance;
+	}
+	
+private:
+	static global_container* _instance;
+};
+global_container* global_container::_instance;
 
 dll_loader<reputation_interface<model_datatype>> reputation_dll;
 
@@ -55,7 +83,7 @@ void generate_block()
 	
 	LOG(INFO) << "generating block";
 	std_cout::println("[DFL] generating block");
-	auto cached_transactions_with_receipt = main_transaction_storage_for_block->dump_block_cache(std::ceil(float(main_transaction_tran_rece->get_peers().size()) / 2));//we need to collect at least over 50% confirmations to generate a block
+	auto cached_transactions_with_receipt = global_container::get()->main_transaction_storage_for_block->dump_block_cache(std::ceil(float(global_container::get()->main_transaction_tran_rece->get_peers().size()) / 2));//we need to collect at least over 50% confirmations to generate a block
 	if (cached_transactions_with_receipt.empty())
 	{
 		std::stringstream ss;
@@ -72,25 +100,25 @@ void generate_block()
 		std_cout::println("[DFL] " +ss.str());
 	}
 	
-	auto generated_block = *main_block_manager->generate_block(cached_transactions_with_receipt);
+	auto generated_block = *global_container::get()->main_block_manager->generate_block(cached_transactions_with_receipt);
 	
 	std::vector<block_confirmation> confirmations;
 	{
 		if (global_var::enable_profiler)
 		{
 			profiler_auto profiler_confirm("generate_block/gather_confirmation");
-			confirmations = main_transaction_tran_rece->broadcast_block_and_receive_confirmation(generated_block);
+			confirmations = global_container::get()->main_transaction_tran_rece->broadcast_block_and_receive_confirmation(generated_block);
 		}
 		else
 		{
-			confirmations = main_transaction_tran_rece->broadcast_block_and_receive_confirmation(generated_block);
+			confirmations = global_container::get()->main_transaction_tran_rece->broadcast_block_and_receive_confirmation(generated_block);
 		}
 	}
 	for (auto& confirmation: confirmations)
 	{
-		main_block_manager->append_block_confirmation(confirmation);
+		global_container::get()->main_block_manager->append_block_confirmation(confirmation);
 	}
-	auto final_block = main_block_manager->store_finalized_block();
+	auto final_block = global_container::get()->main_block_manager->store_finalized_block();
 	
 	std::stringstream ss;
 	ss << "generating block - done, transaction count: " << final_block.content.transaction_container.size() << " confirmation count: " << confirmations.size() << " height: " << final_block.height;
@@ -110,7 +138,7 @@ void generate_transaction(const std::vector<Ml::tensor_blob_like<model_datatype>
 		std::lock_guard guard(training_lock);
 		net_before = model_train->get_parameter();
 		model_train->train(data, label, false);
-		auto[test_dataset_data, test_dataset_label] = main_dataset_storage->get_random_data(global_var::ml_test_batch_size);
+		auto[test_dataset_data, test_dataset_label] = global_container::get()->main_dataset_storage->get_random_data(global_var::ml_test_batch_size);
 		{
 			std::shared_ptr<profiler_auto> profiler_p;
 			if (global_var::enable_profiler)
@@ -136,10 +164,10 @@ void generate_transaction(const std::vector<Ml::tensor_blob_like<model_datatype>
 		LOG(WARNING) << "unknown ml_model_stream_type";
 	}
 	
-	transaction trans = main_transaction_generator->generate(parameter_str, std::to_string(accuracy));
+	transaction trans = global_container::get()->main_transaction_generator->generate(parameter_str, std::to_string(accuracy));
 	
-	main_transaction_storage_for_block->add_to_block_cache(trans);
-	if (main_transaction_storage_for_block->block_cache_size() >= global_var::estimated_transaction_per_block)
+	global_container::get()->main_transaction_storage_for_block->add_to_block_cache(trans);
+	if (global_container::get()->main_transaction_storage_for_block->block_cache_size() >= global_var::estimated_transaction_per_block)
 	{
 		std::shared_ptr<profiler_auto> profiler_triggered_generating_block;
 		if (global_var::enable_profiler)
@@ -152,7 +180,7 @@ void generate_transaction(const std::vector<Ml::tensor_blob_like<model_datatype>
 	std::shared_ptr<profiler_auto> profiler_broadcast;
 	if (global_var::enable_profiler)
 		profiler_broadcast.reset(new profiler_auto("generate_transaction/broadcast_transaction"));
-	main_transaction_tran_rece->broadcast_transaction(trans);
+	global_container::get()->main_transaction_tran_rece->broadcast_transaction(trans);
 	
 	//record transaction
 	//transaction_helper::save_to_file(trans, "./trans.json");
@@ -178,7 +206,7 @@ void receive_transaction(const transaction& trans)
 	if (trans.content.creator.node_address == global_var::address.getTextStr_lowercase())
 	{
 		//yes, this is my transaction
-		main_transaction_storage_for_block->add_to_block_cache(trans);
+		global_container::get()->main_transaction_storage_for_block->add_to_block_cache(trans);
 		return;
 	}
 	
@@ -205,7 +233,7 @@ void receive_transaction(const transaction& trans)
 			profiler_calculate_accuracy.reset(new profiler_auto("receive_transaction/calculate_accuracy"));
 		
 		auto [model_parameter, model_type] = Ml::model_interpreter<model_datatype>::parse_model_stream(trans.content.model_data);
-		auto[test_dataset_data, test_dataset_label] = main_dataset_storage->get_random_data(global_var::ml_test_batch_size);
+		auto[test_dataset_data, test_dataset_label] = global_container::get()->main_dataset_storage->get_random_data(global_var::ml_test_batch_size);
 		if (test_dataset_data.empty())
 		{
 			LOG(ERROR) << "empty dataset db, cannot perform accuracy test";
@@ -233,19 +261,19 @@ void receive_transaction(const transaction& trans)
 	
 	//append receipt
 	transaction new_transaction = trans;
-	auto [receipt_status,receipt] = main_transaction_generator->append_receipt(new_transaction, std::to_string(accuracy));
+	auto [receipt_status,receipt] = global_container::get()->main_transaction_generator->append_receipt(new_transaction, std::to_string(accuracy));
 	if (receipt_status == transaction_generator::append_receipt_status::success)
 	{
 		//add to the verified transaction
-		main_transaction_storage_for_block->add_verified_transaction(trans, *receipt);
+		global_container::get()->main_transaction_storage_for_block->add_verified_transaction(trans, *receipt);
 		
 		//add the new transaction and broadcast
-		main_transaction_storage->add(new_transaction);
+		global_container::get()->main_transaction_storage->add(new_transaction);
 		
 		std::shared_ptr<profiler_auto> profiler_broadcast_new_transaction;
 		if (global_var::enable_profiler)
 			profiler_broadcast_new_transaction.reset(new profiler_auto("receive_transaction/broadcast_generated_transaction"));
-		main_transaction_tran_rece->broadcast_transaction(new_transaction);
+		global_container::get()->main_transaction_tran_rece->broadcast_transaction(new_transaction);
 	}
 }
 
@@ -268,7 +296,7 @@ void update_model(std::shared_ptr<std::vector<transaction>> transactions)
 		reputation_map[(*transactions)[i].content.creator.node_address] = 0;
 	}
 	
-	main_reputation_manager->get_reputation_map(reputation_map);
+	global_container::get()->main_reputation_manager->get_reputation_map(reputation_map);
 	LOG(INFO) << "start updating model - retrieving reputation - done";
 	
 	Ml::caffe_parameter_net<model_datatype> parameter = model_train->get_parameter();
@@ -278,7 +306,7 @@ void update_model(std::shared_ptr<std::vector<transaction>> transactions)
 		std::shared_ptr<profiler_auto> profiler_calculate_self_accuracy;
 		if (global_var::enable_profiler)
 			profiler_calculate_self_accuracy.reset(new profiler_auto("update_model/calculate_self_accuracy"));
-		auto[test_dataset_data, test_dataset_label] = main_dataset_storage->get_random_data(global_var::ml_test_batch_size);
+		auto[test_dataset_data, test_dataset_label] = global_container::get()->main_dataset_storage->get_random_data(global_var::ml_test_batch_size);
 		self_accuracy = model_train->evaluation(test_dataset_data, test_dataset_label);
 	}
 	
@@ -308,7 +336,7 @@ void update_model(std::shared_ptr<std::vector<transaction>> transactions)
 	
 	reputation_dll.get()->update_model(parameter, self_accuracy, received_models, reputation_map);
 	model_train->set_parameter(parameter);
-	main_reputation_manager->update_reputation(reputation_map);
+	global_container::get()->main_reputation_manager->update_reputation(reputation_map);
 	
 	//display reputation and accuracy.
 	std_cout::println("[[DEBUG]] REPUTATION:");
@@ -327,10 +355,13 @@ void update_model(std::shared_ptr<std::vector<transaction>> transactions)
 
 int main(int argc, char **argv)
 {
+	global_container::get()->create();
+	
     //signal handler
     {
         auto sig_handler = [](int signum)
         {
+	        global_container::get()->clear();
             exit(0);
         };
         signal(SIGTERM, sig_handler);
@@ -385,12 +416,12 @@ int main(int argc, char **argv)
 	
 	//start transaction generator
     LOG(INFO) << "starting transaction generator";
-	main_transaction_generator.reset(new transaction_generator());
-	main_transaction_generator->set_key(global_var::private_key, global_var::public_key, global_var::address);
-    main_transaction_generator->get_ttl() = *config.get<int>("transaction_ttl");
-    main_transaction_generator->get_expire_time() = *config.get<int>("transaction_expire_time");
+	global_container::get()->main_transaction_generator.reset(new transaction_generator());
+	global_container::get()->main_transaction_generator->set_key(global_var::private_key, global_var::public_key, global_var::address);
+	global_container::get()->main_transaction_generator->get_ttl() = *config.get<int>("transaction_ttl");
+	global_container::get()->main_transaction_generator->get_expire_time() = *config.get<int>("transaction_expire_time");
     
-	CHECK(main_transaction_generator->verify_key()) << "verify_key private key/ public key/ address failed";
+	CHECK(global_container::get()->main_transaction_generator->verify_key()) << "verify_key private key/ public key/ address failed";
 	
 	//start ml model
     LOG(INFO) << "starting ML service";
@@ -414,28 +445,28 @@ int main(int argc, char **argv)
 	
 	//start transaction_storage
     LOG(INFO) << "starting transaction storage";
-	main_transaction_storage.reset(new transaction_storage());
-	main_transaction_storage->add_event_callback(update_model);
-	main_transaction_storage->set_event_trigger(*config.get<int>("transaction_count_per_model_update"));
+	global_container::get()->main_transaction_storage.reset(new transaction_storage());
+	global_container::get()->main_transaction_storage->add_event_callback(update_model);
+	global_container::get()->main_transaction_storage->set_event_trigger(*config.get<int>("transaction_count_per_model_update"));
 	
 	//start reputation manager
     LOG(INFO) << "starting reputation manager";
-	main_reputation_manager.reset(new reputation_manager(*config.get<std::string>("transaction_db_path")));
+	global_container::get()->main_reputation_manager.reset(new reputation_manager(*config.get<std::string>("transaction_db_path")));
 	
 	//block database
     LOG(INFO) << "starting block database";
 	std::string blockchain_block_db_path = *config.get<std::string>("blockchain_block_db_path");
-	main_block_manager.reset(new block_manager(blockchain_block_db_path));
-	main_block_manager->set_genesis_content(model_train->get_network_structure_info());
+	global_container::get()->main_block_manager.reset(new block_manager(blockchain_block_db_path));
+	global_container::get()->main_block_manager->set_genesis_content(model_train->get_network_structure_info());
 	
 	//start block cache and transaction storage
     LOG(INFO) << "starting block cache and transaction storage";
-	main_transaction_storage_for_block.reset(new transaction_storage_for_block(blockchain_block_db_path));
+	global_container::get()->main_transaction_storage_for_block.reset(new transaction_storage_for_block(blockchain_block_db_path));
 	
 	//start ML data storage
     LOG(INFO) << "starting ML data storage";
-	main_dataset_storage.reset(new dataset_storage<model_datatype>(*config.get<std::string>("data_storage_db_path"), *config.get<int>("data_storage_trigger_training_size")));
-	main_dataset_storage->set_full_callback([](const std::vector<Ml::tensor_blob_like<model_datatype>> &data, const std::vector<Ml::tensor_blob_like<model_datatype>> &label)
+	global_container::get()->main_dataset_storage.reset(new dataset_storage<model_datatype>(*config.get<std::string>("data_storage_db_path"), *config.get<int>("data_storage_trigger_training_size")));
+	global_container::get()->main_dataset_storage->set_full_callback([](const std::vector<Ml::tensor_blob_like<model_datatype>> &data, const std::vector<Ml::tensor_blob_like<model_datatype>> &label)
 	                                        {
 		                                        LOG(INFO) << "plenty data, start training";
 		                                        std::thread generate_transaction_thread([&data, &label]()
@@ -447,29 +478,30 @@ int main(int argc, char **argv)
 	uint16_t port = *config.get<uint16_t>("data_storage_service_port");
 	size_t concurrency = *config.get<size_t>("data_storage_service_concurrency");
 	LOG(INFO) << "starting network service for data storage, port: " << port << ", concurrency: " << concurrency;
-	main_dataset_storage->start_network_service(port, concurrency);
+	global_container::get()->main_dataset_storage->start_network_service(port, concurrency);
 	
 	//start transaction_tran_rece
     LOG(INFO) << "starting transaction transmission and receive service";
 	{
-		main_transaction_tran_rece.reset(new transaction_tran_rece(global_var::public_key, global_var::private_key, global_var::address, main_transaction_storage_for_block,
-                                                                   config.get_json()["network"]["use_preferred_peers_only"]));
-		main_transaction_tran_rece->start_listen(config.get_json()["network"]["port"]);
+		global_container::get()->main_transaction_tran_rece.reset(new transaction_tran_rece(global_var::public_key, global_var::private_key, global_var::address,
+																							global_container::get()->main_transaction_storage_for_block,
+																							config.get_json()["network"]["use_preferred_peers_only"]));
+		global_container::get()->main_transaction_tran_rece->start_listen(config.get_json()["network"]["port"]);
 		auto preferred_peers = config.get_json()["network"]["preferred_peers"];
-		main_transaction_tran_rece->get_maximum_peer() = config.get_json()["network"]["maximum_peer"];
-		main_transaction_tran_rece->get_inactive_time() = config.get_json()["network"]["inactive_peer_second"];
+		global_container::get()->main_transaction_tran_rece->get_maximum_peer() = config.get_json()["network"]["maximum_peer"];
+		global_container::get()->main_transaction_tran_rece->get_inactive_time() = config.get_json()["network"]["inactive_peer_second"];
 		for (auto &single_preferred_peer : preferred_peers)
 		{
             LOG(INFO) << "add preferred peer: " << single_preferred_peer.get<std::string>();
-            main_transaction_tran_rece->add_preferred_peer(single_preferred_peer.get<std::string>());
+			global_container::get()->main_transaction_tran_rece->add_preferred_peer(single_preferred_peer.get<std::string>());
 		}
-		main_transaction_tran_rece->set_receive_transaction_callback(receive_transaction);
+		global_container::get()->main_transaction_tran_rece->set_receive_transaction_callback(receive_transaction);
 		
 		configuration_file::json introducers = config.get_json()["network"]["introducers"];
 		for (configuration_file::json& single_introducer_json : introducers)
 		{
             LOG(INFO) << "add introducer: " << single_introducer_json["ip"].get<std::string>() << ":" << single_introducer_json["port"].get<uint16_t>();
-			main_transaction_tran_rece->add_introducer(single_introducer_json["address"].get<std::string>(),
+			global_container::get()->main_transaction_tran_rece->add_introducer(single_introducer_json["address"].get<std::string>(),
 			                                           single_introducer_json["ip"].get<std::string>(),
 			                                           single_introducer_json["public_key"].get<std::string>(),
 			                                           single_introducer_json["port"].get<uint16_t>());
@@ -530,6 +562,8 @@ int main(int argc, char **argv)
    
 		}
 	}
+	
+	global_container::get()->clear();
 	
 	return 0;
 }
