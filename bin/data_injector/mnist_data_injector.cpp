@@ -1,5 +1,3 @@
-#define CPU_ONLY
-
 #include <chrono>
 #include <regex>
 #include <random>

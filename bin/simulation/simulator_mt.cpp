@@ -2,8 +2,6 @@
 // Originally created by tyd, the malicious part is by jxzhang on 09-08-21.
 //
 
-#define CPU_ONLY
-
 #include <thread>
 #include <unordered_map>
 #include <fstream>
