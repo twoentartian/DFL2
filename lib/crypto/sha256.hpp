@@ -190,9 +190,28 @@ namespace crypto
 #if USE_OPENSSL
 		hex_data digest_openssl(const std::string& message) override
 		{
+			return digest_openssl((uint8_t*)message.data(), message.size());
+		}
+		
+		hex_data digest_openssl(const uint8_t* data, size_t size)
+		{
 			std::string hash;
 			hash.resize(DIGEST_SIZE);
-			SHA256((const unsigned char *)message.c_str(), message.size(), (unsigned char *)hash.c_str());
+			SHA256((const unsigned char *)data, size, (unsigned char *)hash.c_str());
+			hex_data output(hash.c_str(), DIGEST_SIZE);
+			return output;
+		}
+		
+		static hex_data digest_openssl_s(const std::string& message)
+		{
+			return digest_openssl_s((uint8_t*)message.data(), message.size());
+		}
+		
+		static hex_data digest_openssl_s(const uint8_t* data, size_t size)
+		{
+			std::string hash;
+			hash.resize(DIGEST_SIZE);
+			SHA256((const unsigned char *)data, size, (unsigned char *)hash.c_str());
 			hex_data output(hash.c_str(), DIGEST_SIZE);
 			return output;
 		}
@@ -204,7 +223,11 @@ namespace crypto
 	{
 		byte_buffer buffer;
 		target.to_byte_buffer(buffer);
+#if USE_OPENSSL
+		hex_data output = sha256::digest_openssl_s(buffer.data(), buffer.size());
+#else
 		hex_data output = sha256::digest_s(buffer.data(), buffer.size());
+#endif
 		return output;
 	}
 	
