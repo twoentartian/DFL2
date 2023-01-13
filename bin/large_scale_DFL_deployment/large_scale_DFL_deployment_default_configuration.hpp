@@ -5,6 +5,7 @@
 #include <filesystem>
 
 #include <configure_file.hpp>
+#include <os_info.hpp>
 
 configuration_file::json get_default_DFL_deployment_configuration()
 {
@@ -13,7 +14,20 @@ configuration_file::json get_default_DFL_deployment_configuration()
     output["path_exe_DFL"] = "../DFL/DFL";
     output["path_exe_injector"] = "../data_injector/data_injector_mnist";
     output["path_exe_introducer"] = "../DFL_introducer/DFL_introducer";
-    output["path_dll_reputation"] = "../reputation_sdk/sample/libreputation_api_sample.so";
+	
+	if (os_info::get_os_type() == os_info::os_type::linux)
+	{
+		output["path_dll_reputation"] = "../reputation_sdk/sample/libreputation_api_sample.so";
+	}
+	else if (os_info::get_os_type() == os_info::os_type::apple)
+	{
+		output["path_dll_reputation"] = "../reputation_sdk/sample/libreputation_api_sample.dylib";
+	}
+	else
+	{
+		LOG(FATAL) << "OS type not supported";
+	}
+ 
 	
 	output["path_mnist_dataset_label"] = "../../../dataset/MNIST/train-labels.idx1-ubyte";
 	output["path_mnist_dataset_data"] = "../../../dataset/MNIST/train-images.idx3-ubyte";

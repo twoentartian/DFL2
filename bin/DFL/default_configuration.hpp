@@ -2,6 +2,7 @@
 
 #include <tuple>
 #include <configure_file.hpp>
+#include <os_info.hpp>
 #include "global_types.hpp"
 
 configuration_file::json get_default_configuration()
@@ -38,11 +39,24 @@ configuration_file::json get_default_configuration()
 	introducer["port"] = 5666;
 	introducer["address"] = "94c4ccdec72c2955f46fc1e1de9d5db0a6a4664f5085cd90149d392cc3fef803";
 	introducer["public_key"] = "0712335841163e55f1540189fd9ec800343b34877ff72d0646f5c3e5fd2f990846df32dc4617a4efceffe46329e3f48b0078a6e1ddc5a69c51bf2dbe4242bcba25";
-	output["network"]["introducers"] = {introducer};
+	output["network"]["introducers"] = configuration_file::json::array({introducer});
 	
 	output["transaction_count_per_model_update"] = 10;
 	output["transaction_db_path"] = "./transaction_db";
-	output["reputation_dll_path"] = "../reputation_sdk/sample/libreputation_api_sample.so";
+	
+	if (os_info::get_os_type() == os_info::os_type::linux)
+	{
+		output["reputation_dll_path"] = "../reputation_sdk/sample/libreputation_api_sample.so";
+	}
+	else if (os_info::get_os_type() == os_info::os_type::apple)
+	{
+		output["reputation_dll_path"] = "../reputation_sdk/sample/libreputation_api_sample.dylib";
+	}
+	else
+	{
+		LOG(FATAL) << "OS type not supported";
+	}
+	
 	output["reputation_dll_datatype"] = "float";
 	
 	output["enable_profiler"] = false;

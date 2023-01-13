@@ -2,6 +2,7 @@
 
 #include <tuple>
 #include <configure_file.hpp>
+#include <os_info.hpp>
 #include "global_types.hpp"
 
 configuration_file::json get_default_simulation_configuration()
@@ -21,7 +22,19 @@ configuration_file::json get_default_simulation_configuration()
 	output["ml_test_batch_size"] = 100;
 	output["ml_non_iid_normal_weight"] = configuration_file::json::array({10.0, 15.0});
 	output["ml_dataset_all_possible_labels"] = configuration_file::json::array({0,1,2,3,4,5,6,7,8,9});
-	output["ml_reputation_dll_path"] = "../reputation_sdk/sample/libreputation_api_sample.so";
+	
+	if (os_info::get_os_type() == os_info::os_type::linux)
+	{
+		output["ml_reputation_dll_path"] = "../reputation_sdk/sample/libreputation_api_sample.so";
+	}
+	else if (os_info::get_os_type() == os_info::os_type::apple)
+	{
+		output["ml_reputation_dll_path"] = "../reputation_sdk/sample/libreputation_api_sample.dylib";
+	}
+	else
+	{
+		LOG(FATAL) << "OS type not supported";
+	}
 	
 	configuration_file::json node;
 	configuration_file::json node_non_iid = configuration_file::json::object();

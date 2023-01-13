@@ -264,7 +264,7 @@ private:
 			case dataset_mode_type::non_iid_dataset:
 				return "non-iid";
 		}
-		throw std::logic_error("unreachable");
+		LOG(FATAL) << "unreachable code";
 	}
 };
 
