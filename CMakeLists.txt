@@ -19,8 +19,10 @@ include("cmake/CompileTimeContent.cmake")
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
 set(DFL_LINKER_LIBS)
 
-# Boost
 option(USE_HUNTER_BOOST "USE the Boost library in Hunter" ON)
+option(USE_ROCKSDB "USE RocksDB to store block/transactions" ON)
+
+# Boost
 if (USE_HUNTER_BOOST)
     hunter_add_package(Boost COMPONENTS system filesystem serialization thread)
     find_package(Boost CONFIG REQUIRED COMPONENTS system filesystem serialization thread)
@@ -84,15 +86,20 @@ else()
 endif ()
 
 # RocksDB
-find_package(RocksDB)
-if (RocksDB_FOUND)
-    message(STATUS "Find RocksDB in system")
-    include_directories(${ROCKSDB_INCLUDE_DIR})
-    list(APPEND DFL_LINKER_LIBS ${ROCKSDB_LIBRARIES})
+if (USE_ROCKSDB)
+    add_compile_definitions(USE_ROCKSDB=1)
+    find_package(RocksDB)
+    if (RocksDB_FOUND)
+        message(STATUS "Find RocksDB in system")
+        include_directories(${ROCKSDB_INCLUDE_DIR})
+        list(APPEND DFL_LINKER_LIBS ${ROCKSDB_LIBRARIES})
+    else()
+        hunter_add_package(rocksdb)
+        find_package(RocksDB CONFIG REQUIRED)
+        list(APPEND DFL_LINKER_LIBS RocksDB::rocksdb)
+    endif ()
 else()
-    hunter_add_package(rocksdb)
-    find_package(RocksDB CONFIG REQUIRED)
-    list(APPEND DFL_LINKER_LIBS RocksDB::rocksdb)
+    add_compile_definitions(USE_ROCKSDB=0)
 endif ()
 
 # LZ4

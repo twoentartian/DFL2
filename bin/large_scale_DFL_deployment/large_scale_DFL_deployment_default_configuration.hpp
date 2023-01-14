@@ -48,7 +48,6 @@ configuration_file::json get_default_DFL_deployment_configuration()
 	
 	output["blockchain_estimated_block_size"] = 10;
 	output["data_storage_trigger_training_size"] = 64;
-	output["transaction_count_per_model_update"] = 10;
 	output["enable_profiler"] = false;
 	output["network_inactive_peer_second"] = 60;
 	output["network_use_preferred_peers_only"] = false;

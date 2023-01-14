@@ -14,6 +14,8 @@
 #include <duplicate_checker.hpp>
 #include <performance_profiler.hpp>
 
+#define USE_ROCKSDB 0
+
 #include "../transaction.hpp"
 #include "../global_var.hpp"
 #include "../init_system.hpp"
@@ -500,7 +502,7 @@ int main(int argc, char **argv)
 		configuration_file::json introducers = config.get_json()["network"]["introducers"];
 		for (configuration_file::json& single_introducer_json : introducers)
 		{
-            LOG(INFO) << "add introducer: " << single_introducer_json["ip"].get<std::string>() << ":" << single_introducer_json["port"].get<uint16_t>();
+            LOG(INFO) << "add introducer: " << single_introducer_json["ip"].get<std::string>() << ":" << single_introducer_json["port"].get<uint16_t>() << "(" << single_introducer_json["address"].get<std::string>() << ")";
 			global_container::get()->main_transaction_tran_rece->add_introducer(single_introducer_json["address"].get<std::string>(),
 			                                           single_introducer_json["ip"].get<std::string>(),
 			                                           single_introducer_json["public_key"].get<std::string>(),

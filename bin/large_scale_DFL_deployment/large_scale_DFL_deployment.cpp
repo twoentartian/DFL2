@@ -105,7 +105,6 @@ public:
 	int timeout_second{};
 	int transaction_count_per_model_update{};
 	bool enable_profiler{};
-	int buffer_size{};
 	std::string name;
 	dataset_mode_type dataset_mode;
 	node_type node_malicious_type;
@@ -241,7 +240,6 @@ public:
 		
 		blockchain_estimated_block_size = *json.get<int>("blockchain_estimated_block_size");
 		data_storage_trigger_training_size = *json.get<int>("data_storage_trigger_training_size");
-		transaction_count_per_model_update = *json.get<int>("transaction_count_per_model_update");
 		enable_profiler = *json.get<bool>("enable_profiler");
 		ml_model_stream_compressed_filter_limit = *json.get<float>("ml_model_stream_compressed_filter_limit");
 		ml_model_stream_type = *json.get<std::string>("ml_model_stream_type");
@@ -365,12 +363,12 @@ int main(int argc, char **argv)
 			node_deploy_info temp;
 			temp.set_default_values();
 			temp.name = node_name;
-			temp.buffer_size = single_node["buffer_size"];
 			
-			//inject interval
+			//inject interval & model update
 			std::vector<int> interval_ticks = single_node["training_interval_tick"].get<std::vector<int>>();
 			temp.data_injector_inject_interval_tick = std::accumulate(interval_ticks.begin(), interval_ticks.end(), 0.0f) / interval_ticks.size();
             temp.data_injector_inject_interval_variance = *deployment_config.get<int>("data_injector_inject_interval_variance");
+			temp.transaction_count_per_model_update = single_node["buffer_size"];
 			
 			//dataset mode
 			{
