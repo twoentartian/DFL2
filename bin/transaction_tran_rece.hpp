@@ -397,14 +397,15 @@ public:
 						std::string message_str = serialize_wrap<boost::archive::binary_oarchive>(message).str();
 						
 						using network::i_p2p_node_with_header;
-						for (auto& [name, peer] : peers_copy)
+						for (auto& [peer_name, peer] : peers_copy)
 						{
 							if (peer.type != peer_endpoint::peer_type_introducer) continue;
 							
-							_p2p.send(peer.address, peer.port, i_p2p_node_with_header::ipv4, command::register_as_peer, message_str.data(), message_str.length(), [this, name](i_p2p_node_with_header::send_packet_status status, network::header::COMMAND_TYPE command_received, const char* data, int length) {
+							std::string peer_name_copy(peer_name);
+							_p2p.send(peer.address, peer.port, i_p2p_node_with_header::ipv4, command::register_as_peer, message_str.data(), message_str.length(), [this, peer_name_copy](i_p2p_node_with_header::send_packet_status status, network::header::COMMAND_TYPE command_received, const char* data, int length) {
 								if (status != i_p2p_node_with_header::send_packet_success)
 								{
-									LOG(WARNING) << "[transaction trans] register as peer on " << name << " does not success, status: " << i_p2p_node_with_header::send_packet_status_message[status];
+									LOG(WARNING) << "[transaction trans] register as peer on " << peer_name_copy << " does not success, status: " << i_p2p_node_with_header::send_packet_status_message[status];
 									return;
 								}
                                 
@@ -418,7 +419,7 @@ public:
                                     }
                                     if (msg == DFL_MESSAGE::PEER_REGISTER_NEW_PEER)
                                     {
-                                        LOG(INFO) << "[transaction trans] register as peer on " << name << " successfully";
+                                        LOG(INFO) << "[transaction trans] register as peer on " << peer_name_copy << " successfully";
                                         return;
                                     }
                                 }
@@ -428,7 +429,7 @@ public:
                                 }
                                 else
                                 {
-                                    LOG(WARNING) << "[transaction trans] WARNING, register as peer on " << name << " but does not return acknowledge, return command: " << command_received << "-" << std::string(data, length);
+                                    LOG(WARNING) << "[transaction trans] WARNING, register as peer on " << peer_name_copy << " but does not return acknowledge, return command: " << command_received << "-" << std::string(data, length);
                                     return;
                                 }
 							});
