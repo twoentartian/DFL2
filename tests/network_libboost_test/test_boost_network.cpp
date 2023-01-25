@@ -12,7 +12,7 @@ BOOST_AUTO_TEST_SUITE (boost_network_test)
 		constexpr int PORT = 1500;
 		constexpr uint32_t dataLength = 10 * 1024;
 		
-		std::atomic_int accept_counter = 0, ping_pong_counter = 0, clients_connect_counter = 0, clients_connect_fail_counter = 0;
+		std::atomic_int accept_counter = 0, ping_pong_counter = 0, clients_send_counter = 0, clients_send_fail_counter = 0;
 		
 		std::recursive_mutex cout_lock;
 		simple::tcp_server_with_header server;
@@ -29,11 +29,11 @@ BOOST_AUTO_TEST_SUITE (boost_network_test)
 		server.SetSessionReceiveHandler_with_header([&cout_lock, &ping_pong_counter](header::COMMAND_TYPE command, std::shared_ptr<std::string> data, std::shared_ptr<simple::tcp_session_with_header> session_receive)
 		                                            {
 			                                            ping_pong_counter++;
-			                                            if (ENABLE_COUT)
-			                                            {
-				                                            std::lock_guard<std::recursive_mutex> temp_lock_guard(cout_lock);
-				                                            std::cout << "[server] receive (ok) length " << data->length() << std::endl;
-			                                            }
+//			                                            if (ENABLE_COUT)
+//			                                            {
+//				                                            std::lock_guard<std::recursive_mutex> temp_lock_guard(cout_lock);
+//				                                            std::cout << "[server] receive (ok) length " << data->length() << std::endl;
+//			                                            }
 			                                            session_receive->write_with_header(0, data->data(), data->length());
 		                                            });
 		server.SetSessionCloseHandler([&](std::shared_ptr<simple::tcp_session> session_close)
@@ -45,24 +45,23 @@ BOOST_AUTO_TEST_SUITE (boost_network_test)
 			                              }
 		                              });
 		
-		auto ret_code = server.Start(PORT, 6);
+		auto ret_code = server.Start(PORT, 10);
 		std::cout << "server: " << std::to_string(ret_code) << std::endl;
 		
 		// tcp_client
 		const int NumberOfClient = 1000;
 		std::shared_ptr<simple::tcp_client_with_header> clients[NumberOfClient];
-		int client_counts[NumberOfClient];
+		int client_ping_pong_counts[NumberOfClient];
 		
 		for (size_t i = 0; i < NumberOfClient; i++)
 		{
 			clients[i] = simple::tcp_client_with_header::CreateClient();
-			client_counts[i] = 0;
+			client_ping_pong_counts[i] = 0;
 		}
 		
 		for (size_t i = 0; i < NumberOfClient; i++)
 		{
-			clients[i]->connect("127.0.0.1", PORT);
-			clients[i]->SetConnectHandler([&clients_connect_counter, &clients_connect_fail_counter](tcp_status status, std::shared_ptr<simple::tcp_client> client)
+			clients[i]->SetConnectHandler([&clients_send_counter, &clients_send_fail_counter, &cout_lock](tcp_status status, std::shared_ptr<simple::tcp_client> client)
 			                              {
 //				                              BOOST_CHECK(status == tcp_status::Success);
 				                              auto *data = new uint8_t[dataLength];
@@ -73,24 +72,28 @@ BOOST_AUTO_TEST_SUITE (boost_network_test)
 				                              auto send_status = std::static_pointer_cast<simple::tcp_client_with_header>(client)->write_with_header(1, data, dataLength);
 				                              if (send_status == network::Success)
 				                              {
-					                              clients_connect_counter++;
+					                              clients_send_counter++;
 				                              }
 				                              else
 				                              {
-					                              clients_connect_fail_counter++;
+					                              clients_send_fail_counter++;
+					                              {
+						                              std::lock_guard<std::recursive_mutex> temp_lock_guard(cout_lock);
+						                              std::cout << "[client] error in sending, error code: " << send_status << std::endl;
+												  }
 				                              }
 				
 				                              delete[] data;
 			                              });
 			
-			clients[i]->SetReceiveHandler_with_header([&cout_lock, i, &client_counts](header::COMMAND_TYPE command, std::shared_ptr<std::string> data, std::shared_ptr<simple::tcp_client_with_header> client)
+			clients[i]->SetReceiveHandler_with_header([&cout_lock, i, &client_ping_pong_counts](header::COMMAND_TYPE command, std::shared_ptr<std::string> data, std::shared_ptr<simple::tcp_client_with_header> client)
 			                                          {
 				                                          if (ENABLE_COUT)
 				                                          {
 					                                          std::lock_guard<std::recursive_mutex> temp_lock_guard(cout_lock);
-					                                          std::cout << "[client] receive (ok) length " << data->length() << " count: " << client_counts[i] << std::endl;
+					                                          std::cout << "[client] receive (ok) length " << data->length() << " count: " << client_ping_pong_counts[i] << std::endl;
 				                                          }
-				                                          client_counts[i]++;
+				                                          client_ping_pong_counts[i]++;
 														  client->write_with_header(1, data->data(), data->length());
 			                                          });
 			
@@ -103,6 +106,12 @@ BOOST_AUTO_TEST_SUITE (boost_network_test)
 					                                      << std::endl;//NEVER Delete this line, because when you delete it, the application will crash when close because the compiler will ignore this lambda and cause empty implementation exception.
 				                            }
 			                            });
+			auto status = clients[i]->connect("127.0.0.1", PORT);
+			if (status != Success)
+			{
+				std::lock_guard<std::recursive_mutex> temp_lock_guard(cout_lock);
+				std::cout << "[client] error in connecting, error code: " << status << std::endl;
+			}
 		}
 		
 		std::this_thread::sleep_for(std::chrono::seconds(3));
@@ -114,9 +123,9 @@ BOOST_AUTO_TEST_SUITE (boost_network_test)
 		}
 		
 		BOOST_TEST(accept_counter == NumberOfClient, "accept_counter = " << accept_counter);
-		BOOST_TEST(clients_connect_counter == NumberOfClient, "clients_connect_counter = " << clients_connect_counter);
+		BOOST_TEST(clients_send_counter == NumberOfClient, "clients_send_counter = " << clients_send_counter);
 		BOOST_TEST(ping_pong_counter > ping_pong_previous, "server/client ping pong test. end: " << ping_pong_counter << "  previous:" << ping_pong_previous);
-		BOOST_TEST(clients_connect_fail_counter == 0, "clients_connect_fail_counter = " << clients_connect_fail_counter);
+		BOOST_TEST(clients_send_fail_counter == 0, "clients_send_fail_counter = " << clients_send_fail_counter);
 		
 		std::this_thread::sleep_for(std::chrono::milliseconds(500));
 		server.Stop();

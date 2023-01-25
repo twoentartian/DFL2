@@ -259,18 +259,22 @@ namespace network::simple
 				return;
 			}
 			
+			//determine connect_status
+			network::tcp_status connect_status = Success;
+			if (ec.failed())
+			{
+				connect_status = ConnectionFailed;
+			}
+			else if (!(*socket).is_open()) connect_status = ConnectionFailed;
+			
+			//connection callback
 			for (auto &&single_connect_handler : _connectHandlers)
 			{
-				if (ec.failed())
-				{
-					single_connect_handler(ConnectionFailed, self);
-				}
-				else
-				{
-					single_connect_handler(Success, self);
-				}
+				single_connect_handler(connect_status, self);
 			}
-			if (ec.failed())
+			
+			//exit?
+			if (connect_status != Success)
 			{
 				_connected = false;
 				return;
