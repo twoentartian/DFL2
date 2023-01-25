@@ -14,8 +14,10 @@
 class transaction_storage_for_block
 {
 public:
+#if USE_ROCKSDB
 	static constexpr char sub_dir_for_block_cache[] = "cache";
 	static constexpr char sub_dir_for_verified_transactions[] = "verified";
+#endif
 	
 	transaction_storage_for_block(const std::string &db_path)
 	{
