@@ -302,8 +302,8 @@ int main(int argc, char *argv[])
 					node_name_list.push_back(node_name);
 				}
 				
-				std::random_device dev;
-				std::mt19937 rng(dev());
+				static std::random_device dev;
+				static std::mt19937 rng(dev());
 				LOG(INFO) << "network topology average degree process begins";
 				for (auto&[target_node_name, target_node_inst] : node_container)
 				{
@@ -510,8 +510,8 @@ int main(int argc, char *argv[])
 					std::vector<Ml::tensor_blob_like<model_datatype>> train_data, train_label;
 					std::tie(train_data, train_label) = get_dataset_by_node_type(train_dataset, *single_node, ml_train_batch_size, ml_dataset_all_possible_labels);
 					
-					std::random_device dev;
-					std::mt19937 rng(dev());
+					static std::random_device dev;
+					static std::mt19937 rng(dev());
 					std::uniform_int_distribution<int> distribution(0, int(single_node->training_interval_tick.size()) - 1);
 					single_node->next_train_tick += single_node->training_interval_tick[distribution(rng)];
 					

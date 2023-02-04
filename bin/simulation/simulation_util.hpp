@@ -17,8 +17,8 @@ get_dataset_by_node_type(Ml::data_converter<model_datatype> &dataset, const node
 	}
 	else if (target_node.dataset_mode == dataset_mode_type::iid_dataset)
 	{
-		std::random_device dev;
-		std::mt19937 rng(dev());
+		static std::random_device dev;
+		static std::mt19937 rng(dev());
 		std::uniform_int_distribution<int> distribution(0, int(ml_dataset_all_possible_labels.size()) - 1);
 		for (int i = 0; i < size; ++i)
 		{
@@ -33,8 +33,8 @@ get_dataset_by_node_type(Ml::data_converter<model_datatype> &dataset, const node
 	else if (target_node.dataset_mode == dataset_mode_type::non_iid_dataset)
 	{
 		//non-iid dataset
-		std::random_device dev;
-		std::mt19937 rng(dev());
+		static std::random_device dev;
+		static std::mt19937 rng(dev());
 		
 		Ml::non_iid_distribution<model_datatype> label_distribution;
 		for (auto &target_label : ml_dataset_all_possible_labels)

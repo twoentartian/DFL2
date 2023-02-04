@@ -163,8 +163,8 @@ int main(int argc, char* argv[])
             {
                 try_count++;
                 bool success = true;
-                std::random_device rd;
-                std::mt19937 g(rd());
+                static std::random_device rd;
+                static std::mt19937 g(rd());
 
                 //init variables
                 connections.clear();
@@ -296,8 +296,8 @@ int main(int argc, char* argv[])
             }
             std::vector<std::vector<int>> node_connections;
             node_connections.resize(node_count);
-            std::random_device rd;
-            std::mt19937 g(rd());
+            static std::random_device rd;
+            static std::mt19937 g(rd());
             for (int i = 0; i < node_count; ++i)
             {
                 std::shuffle(node_list_ex_self.begin(), node_list_ex_self.end(), g);

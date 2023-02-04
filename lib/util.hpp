@@ -32,8 +32,8 @@ namespace util
 		auto n = data0.end() - data0.begin();
 		for (size_t i=0; i<n; ++i)
 		{
-			std::random_device dev;
-			std::mt19937 rng(dev());
+			static std::random_device dev;
+			static std::mt19937 rng(dev());
 			std::uniform_int_distribution<size_t> distribution(0,n-1);
 			
 			size_t random_number = distribution(rng);

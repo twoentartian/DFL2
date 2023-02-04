@@ -215,8 +215,8 @@ public:
 		//generate random index
 		std::vector<int> random_index;
 		random_index.resize(size);
-		std::random_device dev;
-		std::mt19937 rng(dev());
+		static std::random_device dev;
+		static std::mt19937 rng(dev());
 		std::uniform_int_distribution<int> distribution(0, total_size - 1);
 		for (int i = 0; i < random_index.size(); ++i)
 		{

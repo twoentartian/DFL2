@@ -187,8 +187,8 @@ int main(int argc, char **argv)
 	bool _running = true;
     
 	std::thread worker_thread([&](){
-        std::random_device rd;
-        std::mt19937 rng(rd());
+        static std::random_device rd;
+        static std::mt19937 rng(rd());
         std::uniform_int_distribution<std::mt19937::result_type> inject_time_dist(inject_interval_min, inject_interval_max);
 		while (_running)
 		{
@@ -205,8 +205,6 @@ int main(int argc, char **argv)
                 case dataset_mode::IID:
                 {
                     std::vector<Ml::tensor_blob_like<DType>> train_data, train_label;
-                    std::random_device dev;
-                    std::mt19937 rng(dev());
                     std::uniform_int_distribution<int> distribution(0, 9);
                     for (int i = 0; i < inject_amount; ++i)
                     {
@@ -222,9 +220,6 @@ int main(int argc, char **argv)
                 }
                 case dataset_mode::NonIID:
                 {
-                    std::random_device dev;
-                    std::mt19937 rng(dev());
-
                     Ml::non_iid_distribution<DType> label_distribution;
                     for (auto &target_label : ml_dataset_all_possible_labels)
                     {

@@ -477,8 +477,8 @@ int main(int argc, char **argv)
 				node_name_list.push_back(node_name);
 			}
 			
-			std::random_device dev;
-			std::mt19937 rng(dev());
+			static std::random_device dev;
+			static std::mt19937 rng(dev());
 			LOG(INFO) << "network topology average degree process begins";
 			for (auto&[target_node_name, target_node_inst] : node_deploy_info_container)
 			{
@@ -565,8 +565,8 @@ int main(int argc, char **argv)
 		std::vector<uint16_t> available_ports;
 		available_ports.reserve(port_end-port_start);
 		for (auto i = port_start; i < port_end; ++i) available_ports.push_back(i);
-		std::random_device rd;
-		std::mt19937 g(rd());
+		static std::random_device rd;
+		static std::mt19937 g(rd());
 		std::shuffle(available_ports.begin(), available_ports.end(), g);
 		size_t count = 0;
 		for (auto& [node_name, node_target] : node_deploy_info_container)

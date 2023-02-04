@@ -171,8 +171,8 @@ public:
                 
                                           //shuffle peer list
                                           {
-                                              std::random_device rd;
-                                              std::mt19937 g(rd());
+                                              static std::random_device rd;
+                                              static std::mt19937 g(rd());
                                               std::shuffle(peer_request.peers_info.begin(),peer_request.peers_info.end(), g);
                                           }
                 

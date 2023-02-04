@@ -139,8 +139,7 @@ namespace Ml{
 		    data.resize(size);label.resize(size);
 		    for (int i = 0; i < size; ++i)
 		    {
-			    std::random_device dev;
-			    std::mt19937 rng(dev());
+			    static std::mt19937 rng(_dev());
 			    std::uniform_int_distribution<int> distribution(0, iter->second.size()-1);
 			    int dice = distribution(rng);
 			    data[i] = iter->second[dice];
@@ -148,6 +147,26 @@ namespace Ml{
 		    }
 		    return {data,label};
 	    }
+
+        void get_random_data_by_label(const tensor_blob_like<DType>& arg_label, size_t size, std::vector<tensor_blob_like<DType>>& data, std::vector<tensor_blob_like<DType>>& label)
+        {
+            //does not exist key
+            const std::string key_str = arg_label.get_str();
+            auto iter = _container_by_label.find(key_str);
+            if(iter == _container_by_label.end())
+            {
+                return;
+            }
+            data.reserve(data.size() + size);label.reserve(label.size() + size);
+            for (int i = 0; i < size; ++i)
+            {
+                static std::mt19937 rng(_dev());
+                std::uniform_int_distribution<int> distribution(0, iter->second.size()-1);
+                int dice = distribution(rng);
+                data.push_back(iter->second[dice]);
+                label.push_back(arg_label);
+            }
+        }
 	
 	    //please ensure the dataset is larger than the size*100 to ensure the best randomness.
 	    //return: <data,label>
@@ -164,9 +183,10 @@ namespace Ml{
 		    {
 		    	tensor_blob_like<DType> label_blob;
 			    label_blob = deserialize_wrap<boost::archive::binary_iarchive, tensor_blob_like<DType>>(iter->first);
-			    auto [data,label] = get_random_data_by_Label(label_blob, iter->second / total_weight * size * enlargement_factor);
-			    data_pool.insert(data_pool.end(), data.begin(), data.end());
-			    label_pool.insert(label_pool.end(), label.begin(), label.end());
+//			    auto [data,label] = get_random_data_by_Label(label_blob, iter->second / total_weight * size * enlargement_factor);
+//			    data_pool.insert(data_pool.end(), data.begin(), data.end());
+//			    label_pool.insert(label_pool.end(), label.begin(), label.end());
+                get_random_data_by_label(label_blob, iter->second / total_weight * size * enlargement_factor, data_pool, label_pool);
 		    }
 		    return _get_random_data(size, data_pool, label_pool);
 	    }
@@ -179,6 +199,7 @@ namespace Ml{
     private:
         std::vector<tensor_blob_like<DType>> _data;
         std::vector<tensor_blob_like<DType>> _label;
+        std::random_device _dev;
 	
         std::unordered_map<std::string, std::vector<tensor_blob_like<DType>>> _container_by_label;
 	
@@ -190,8 +211,7 @@ namespace Ml{
 		    data.resize(size);label.resize(size);
 		    for (int i = 0; i < size; ++i)
 		    {
-			    std::random_device dev;
-			    std::mt19937 rng(dev());
+			    static std::mt19937 rng(_dev());
 			    std::uniform_int_distribution<size_t> distribution(0,total_size-1);
                 auto dice = distribution(rng);
 			    data[i] = data_pool[dice];
