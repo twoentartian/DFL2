@@ -302,6 +302,19 @@ int main(int argc, char* argv[])
             {
                 std::shuffle(node_list_ex_self.begin(), node_list_ex_self.end(), g);
                 int count = node_peer_connection_count;
+                if (node_peer_connection_type == simulation_config_format::bilateral_term)
+                {
+                    count = count / 2;
+                }
+                else if (node_peer_connection_type == simulation_config_format::unidirectional_term)
+                {
+                    count = count;
+                }
+                else
+                {
+                    LOG(FATAL) << "never reach";
+                }
+
                 auto iter = node_list_ex_self.begin();
                 while (count --)
                 {
@@ -322,28 +335,11 @@ int main(int argc, char* argv[])
             node_topology_json.clear();
             for (int i = 0; i < node_count; ++i)
             {
-                std::cout << std::to_string(i) << node_peer_connection_type << "{";
-                if (node_peer_connection_type == simulation_config_format::bilateral_term)
+                for (auto& peer : node_connections[i])
                 {
-                    for (int j = 0; j < node_peer_connection_count / 2; ++j)
-                    {
-                        std::cout << std::to_string(node_connections[i][j]) << ", ";
-                        node_topology_json.push_back(std::to_string(i) + node_peer_connection_type + std::to_string(node_connections[i][j]));
-                    }
+                    std::cout << std::to_string(i) << node_peer_connection_type << std::to_string(peer) << std::endl;
+                    node_topology_json.push_back(std::to_string(i) + node_peer_connection_type + std::to_string(peer));
                 }
-                else if (node_peer_connection_type == simulation_config_format::unidirectional_term)
-                {
-                    for (int j = 0; j < node_peer_connection_count; ++j)
-                    {
-                        std::cout << std::to_string(node_connections[i][j]) << ", ";
-                        node_topology_json.push_back(std::to_string(i) + node_peer_connection_type + std::to_string(node_connections[i][j]));
-                    }
-                }
-                else
-                {
-                    LOG(FATAL) << "never reach";
-                }
-                std::cout << "}" << std::endl;
             }
         }
         else
