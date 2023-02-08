@@ -10,7 +10,7 @@ int main(int argc, char* argv[])
 {
 	configuration_file config;
 	std::string config_file;
-	float a = 0;
+	double a = 0;
 	if (argc == 3)
 	{
 		config_file.assign(argv[1]);
@@ -43,7 +43,7 @@ int main(int argc, char* argv[])
 	
 	//nodes
 	std::random_device rd;
-	std::gamma_distribution<float> gamma(a,10000/a);
+	std::gamma_distribution<double> gamma(a,10000/a);
 	configuration_file::json& nodes_json = config.get_json()["nodes"];
 
 	
@@ -57,7 +57,7 @@ int main(int argc, char* argv[])
 		auto& dis_json = node["non_iid_distribution"];
 		for (auto single_label : all_labels)
 		{
-			float value = gamma(rd);
+			auto value = static_cast<float>(gamma(rd));
 			dis_json[std::to_string(single_label)] = {value,value};
 			std::cout << "node-" << node["name"] << " label-" << single_label << " dis: " << value << std::endl;
 		}
