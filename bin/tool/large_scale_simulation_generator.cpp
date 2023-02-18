@@ -272,9 +272,9 @@ int main(int argc, char* argv[])
                     if (mainland.size() == peer_map.size())
                     {
                         whole_success = true;
+                        break;
                     }
                     
-                    break;
                 }
             }
 
