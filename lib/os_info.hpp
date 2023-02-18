@@ -5,7 +5,7 @@ namespace os_info
 	enum class os_type
 	{
 		unknown,
-		linux,
+		linux_series,
 		apple,
 		windows,
 		android,
@@ -16,7 +16,7 @@ namespace os_info
 	inline os_type get_os_type()
 	{
 #if __linux__
-		return os_type::linux;
+		return os_type::linux_series;
 #elif __FreeBSD__
 		return os_type::freebsd;
 #elif __ANDROID__

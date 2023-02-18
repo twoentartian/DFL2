@@ -44,7 +44,7 @@ configuration_file::json get_default_configuration()
 	output["transaction_count_per_model_update"] = 10;
 	output["transaction_db_path"] = "./transaction_db";
 	
-	if (os_info::get_os_type() == os_info::os_type::linux)
+	if (os_info::get_os_type() == os_info::os_type::linux_series)
 	{
 		output["reputation_dll_path"] = "../reputation_sdk/sample/libreputation_api_sample.so";
 	}

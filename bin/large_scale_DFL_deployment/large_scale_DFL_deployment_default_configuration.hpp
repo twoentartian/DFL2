@@ -15,7 +15,7 @@ configuration_file::json get_default_DFL_deployment_configuration()
     output["path_exe_injector"] = "../data_injector/data_injector_mnist";
     output["path_exe_introducer"] = "../DFL_introducer/DFL_introducer";
 	
-	if (os_info::get_os_type() == os_info::os_type::linux)
+	if (os_info::get_os_type() == os_info::os_type::linux_series)
 	{
 		output["path_dll_reputation"] = "../reputation_sdk/sample/libreputation_api_sample.so";
 	}

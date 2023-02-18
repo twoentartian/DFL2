@@ -23,7 +23,7 @@ configuration_file::json get_default_simulation_configuration()
 	output["ml_non_iid_normal_weight"] = configuration_file::json::array({10.0, 15.0});
 	output["ml_dataset_all_possible_labels"] = configuration_file::json::array({0,1,2,3,4,5,6,7,8,9});
 	
-	if (os_info::get_os_type() == os_info::os_type::linux)
+	if (os_info::get_os_type() == os_info::os_type::linux_series)
 	{
 		output["ml_reputation_dll_path"] = "../reputation_sdk/sample/libreputation_api_sample.so";
 	}
