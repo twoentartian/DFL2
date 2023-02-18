@@ -38,6 +38,16 @@ configuration_file::json get_default_simulation_configuration()
 	return output;
 }
 
+void add_to_mainland(int mainland_node, const std::map<int, std::set<int>> &peer_map, std::set<int> &mainland)
+{
+    if (mainland.contains(mainland_node)) return;
+    mainland.emplace(mainland_node);
+    for (auto &peer: peer_map.at(mainland_node))
+    {
+        add_to_mainland(peer, peer_map, mainland);
+    }
+};
+
 int main(int argc, char* argv[])
 {
 	configuration_file my_config;
@@ -154,6 +164,7 @@ int main(int argc, char* argv[])
         {
             bool flop_connection = (node_peer_connection_count > node_count / 2) && (node_peer_connection_type == simulation_config_format::bilateral_term); //if true, peer = all nodes - peers
             int node_peer_connection_count_override = flop_connection?(node_count - 1 - node_peer_connection_count):node_peer_connection_count;
+            LOG_IF(FATAL, node_peer_connection_count * node_count % 2 != 0) << "impossible situation: node_peer_connection_count("<< node_peer_connection_count << ") * node_count(" << node_count << ") % 2 != 0";
 
             int try_count = 0;
             bool whole_success = false;
@@ -233,14 +244,43 @@ int main(int argc, char* argv[])
                 }
                 if (success)
                 {
-                    whole_success = true;
+                    //check whether we get a network with islands
+                    std::map<int, std::set<int>> peer_map;
+                    for (auto &[node, peer]: connections)
+                    {
+                        peer_map[node].emplace(peer);
+                        peer_map[peer].emplace(node);
+                    }
+                    if (flop_connection)
+                    {
+                        std::set<int> whole_set;
+                        for (auto &[node, all_peers]: peer_map)
+                        {
+                            whole_set.emplace(node);
+                        }
+                        for (auto& [node, all_peers]: peer_map)
+                        {
+                            std::set<int> flopped_connections;
+                            std::set_difference(whole_set.begin(), whole_set.end(), all_peers.begin(), all_peers.end(), std::insert_iterator<std::set<int>>(flopped_connections, flopped_connections.begin()));
+                            peer_map[node] = flopped_connections;
+                        }
+                    }
+                    
+                    //check islands
+                    std::set<int> mainland;
+                    add_to_mainland(peer_map.begin()->first, peer_map, mainland);
+                    if (mainland.size() == peer_map.size())
+                    {
+                        whole_success = true;
+                    }
+                    
                     break;
                 }
             }
 
             if (whole_success)
             {
-                std::cout << "generate network after " << try_count << " tries" << std::endl;
+                std::cout << "generate network after " << try_count << " tries(" << std::setprecision(4) << 100.0/try_count << "%)" << std::endl;
             }
             else
             {
