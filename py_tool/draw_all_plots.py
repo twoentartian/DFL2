@@ -1,27 +1,19 @@
 import os
 import sys
 
+import numpy
 import pandas
 import matplotlib.pyplot as plt
 
-row = 6
+row = 1
 col = 4
 
-folders = ["no_malicious_fedavg_10_iid", "no_malicious_fedavg_10_alpha1", "no_malicious_fedavg_10_alpha0_1", "no_malicious_fedavg_10_1node2label",
-           "dataset_attack_x1_fedavg_10_iid", "dataset_attack_x1_fedavg_10_alpha1", "dataset_attack_x1_fedavg_10_alpha0_1", "dataset_attack_x1_fedavg_10_1node2label",
-           "model_attack_fedavg_10_iid", "model_attack_fedavg_10_alpha1", "model_attack_fedavg_10_alpha0_1", "model_attack_fedavg_10_1node2label",
-           "no_malicious_reputation_10_iid", "no_malicious_reputation_10_alpha1", "no_malicious_reputation_10_alpha0_1", "no_malicious_reputation_10_1node2label",
-           "dataset_attack_x1_reputation_10_iid", "dataset_attack_x1_reputation_10_alpha1", "dataset_attack_x1_reputation_10_alpha0_1", "dataset_attack_x1_reputation_10_1node2label",
-           "model_attack_reputation_10_iid", "model_attack_reputation_10_alpha1", "model_attack_reputation_10_alpha0_1", "model_attack_reputation_10_1node2label"
-           ]
+folders = ["iid", "non_iid_alpha_10", "non_iid_alpha_1", "non_iid_alpha_0_1"]
 
-titles = ["no_malicious + iid", "no_malicious + alpha=1", "no_malicious + alpha=0.1", "no_malicious + 2labelsPerNode",
-          "dataset_attack + iid", "dataset_attack + alpha=1", "dataset_attack + alpha=0.1", "dataset_attack + 2labelsPerNode",
-          "model_attack + iid", "model_attack + alpha=1", "model_attack + alpha=0.1", "model_attack + 2labelsPerNode",
-          "no_malicious + naive_reputation + iid", "no_malicious + naive_reputation + alpha=1", "no_malicious + naive_reputation + alpha=0.1", "no_malicious + naive_reputation + 2labelsPerNode",
-          "dataset_attack + naive_reputation + iid", "dataset_attack + naive_reputation + alpha=1", "dataset_attack + naive_reputation + alpha=0.1", "dataset_attack + naive_reputation + 2labelsPerNode",
-          "model_attack + naive_reputation + iid", "model_attack + naive_reputation + alpha=1", "model_attack + naive_reputation + alpha=0.1", "model_attack + naive_reputation + 2labelsPerNode",
-          ]
+titles = ["I.I.D.", "non-I.I.D. alpha=10", "non-I.I.D. alpha=1", "non-I.I.D. alpha=0.1"]
+
+maximum_tick = 10000
+save_name = "draw"
 
 folder_names_set = set()
 for folder_index in range(len(folders)):
@@ -65,7 +57,7 @@ assert len(folders) == row * col
 
 flag_generate_whole = query_yes_no('do you want to generate the whole figure?')
 if flag_generate_whole:
-    whole_fig, whole_axs = plt.subplots(row*2, col, figsize=(10*col, 10*row))
+    whole_fig, whole_axs = plt.subplots(row*2, col, figsize=(5*col, 5*row))
     for folder_index in range(len(folders)):
         current_col = folder_index % col
         current_row = folder_index // col
@@ -80,11 +72,11 @@ if flag_generate_whole:
         for each_test_result_folder in subfolders:
             accuracy_file_path = each_test_result_folder + '/accuracy.csv'
             accuracy_df = pandas.read_csv(accuracy_file_path, index_col=0, header=0)
-        # print(accuracy_df)
+            # print(accuracy_df)
 
             weight_diff_file_path = each_test_result_folder + '/model_weight_diff.csv'
             weight_diff_df = pandas.read_csv(weight_diff_file_path, index_col=0, header=0)
-        # print(weight_diff_df)
+            # print(weight_diff_df)
 
             if is_first_dataframe:
                 is_first_dataframe = False
@@ -106,34 +98,46 @@ if flag_generate_whole:
         accuracy_axis = whole_axs[current_row*2, current_col]
         weight_diff_axis = whole_axs[current_row*2+1, current_col]
 
+        if maximum_tick >= accuracy_x[len(accuracy_x)-1]:
+            end_accuracy_x = len(accuracy_x)-1
+        else:
+            end_accuracy_x = next(k for k, value in enumerate(accuracy_x) if value > maximum_tick)  # find the end of axis
         for _col in final_accuracy_df.columns:
-            accuracy_axis.plot(accuracy_x, final_accuracy_df[_col], label=_col, alpha=0.75)
+            accuracy_axis.plot(accuracy_x[0:end_accuracy_x], final_accuracy_df[_col][0:end_accuracy_x], label=_col, alpha=0.75)
 
+        if maximum_tick >= weight_diff_x[len(weight_diff_x)-1]:
+            end_weight_diff_x = len(weight_diff_x)-1
+        else:
+            end_weight_diff_x = next(k for k, value in enumerate(weight_diff_x) if value > maximum_tick)  # find the end of axis
         for _col in final_weight_diff_df.columns:
-            weight_diff_axis.plot(weight_diff_x, final_weight_diff_df[_col], label=_col, linewidth=2)
+            if numpy.sum(final_weight_diff_df[_col]) == 0:
+                continue
+            weight_diff_axis.plot(weight_diff_x[0:end_weight_diff_x], final_weight_diff_df[_col][0:end_weight_diff_x], label=_col, linewidth=2)
 
         accuracy_axis.grid()
         accuracy_axis.legend(ncol=5)
-        accuracy_axis.set_title('Subplot ' + str(folder_index) + 'a - accuracy: ' + titles[folder_index])
+        if len(final_accuracy_df.columns) > 10:
+            accuracy_axis.legend().remove()
+        accuracy_axis.set_title('Subplot ' + str(folder_index+1) + 'a - accuracy: ' + titles[folder_index])
         accuracy_axis.set_xlabel('time (tick)')
         accuracy_axis.set_ylabel('accuracy (0-1)')
-        accuracy_axis.set_xlim([0, final_accuracy_df.index[accuracy_df_len - 1]])
+        accuracy_axis.set_xlim([0, final_accuracy_df.index[end_accuracy_x]])
         accuracy_axis.set_ylim([0, 1])
 
         weight_diff_axis.grid()
-        weight_diff_axis.legend()
-        weight_diff_axis.set_title('Subplot ' + str(folder_index) + 'b - model weight diff: ' + titles[folder_index])
+        weight_diff_axis.legend(ncol=4, prop={'size': 8})
+        weight_diff_axis.set_title('Subplot ' + str(folder_index+1) + 'b - model weight diff: ' + titles[folder_index])
         weight_diff_axis.set_xlabel('time (tick)')
         weight_diff_axis.set_ylabel('weight diff')
         weight_diff_axis.set_yscale('log')
-        weight_diff_axis.set_xlim([0, final_weight_diff_df.index[weight_diff_df_len - 1]])
+        weight_diff_axis.set_xlim([0, final_weight_diff_df.index[end_weight_diff_x]])
 
     whole_fig.tight_layout()
-    whole_fig.savefig('test.pdf')
-    whole_fig.savefig('test.jpg', dpi=800)
+    whole_fig.savefig(save_name + '.pdf')
+    whole_fig.savefig(save_name + '.jpg', dpi=800)
     plt.close(whole_fig)
 
-flag_generate_for_each_result = query_yes_no('do you want to draw accuracy graph and weight difference graph for each simulation result?')
+flag_generate_for_each_result = query_yes_no('do you want to draw accuracy graph and weight difference graph for each simulation result?', default="no")
 if flag_generate_for_each_result:
     for folder_index in range(len(folders)):
         folder = folders[folder_index]
