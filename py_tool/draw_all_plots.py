@@ -53,7 +53,7 @@ def query_yes_no(question, default="yes"):
             sys.stdout.write("Please respond with 'yes' or 'no' " "(or 'y' or 'n').\n")
 
 
-assert len(folders) == row * col
+assert len(folders) <= row * col
 
 flag_generate_whole = query_yes_no('do you want to generate the whole figure?')
 if flag_generate_whole:
