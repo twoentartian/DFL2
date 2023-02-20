@@ -49,7 +49,7 @@ BOOST_AUTO_TEST_SUITE (boost_network_test)
 		std::cout << "server: " << std::to_string(ret_code) << std::endl;
 		
 		// tcp_client
-		const int NumberOfClient = 1000;
+		const int NumberOfClient = 10000;
 		std::shared_ptr<simple::tcp_client_with_header> clients[NumberOfClient];
 		int client_ping_pong_counts[NumberOfClient];
 		
