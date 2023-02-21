@@ -11,4 +11,4 @@ add_subdirectory(network_libboost_test)
 add_subdirectory(rocksdb_test)
 #add_subdirectory(model_parameter_manager)
 add_subdirectory(top_level_test)
-
+add_subdirectory(test_simplified_ml_network)

@@ -1,0 +1,2 @@
+add_executable(TEST_simplified_ml_as_numbers ml_as_numbers.cpp)
+target_link_libraries(TEST_simplified_ml_as_numbers ${DFL_LINKER_LIBS})
