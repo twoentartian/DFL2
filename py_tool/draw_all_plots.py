@@ -166,6 +166,8 @@ if flag_generate_for_each_result:
 
             axs[0].grid()
             axs[0].legend(ncol=5)
+            if len(axs[0].columns) > 10:
+                axs[0].legend().remove()
             axs[0].set_title('accuracy')
             axs[0].set_xlabel('time (tick)')
             axs[0].set_ylabel('accuracy (0-1)')
