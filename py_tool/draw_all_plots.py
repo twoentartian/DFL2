@@ -113,7 +113,7 @@ if flag_generate_whole:
         else:
             end_accuracy_x = next(k for k, value in enumerate(accuracy_x) if value > maximum_tick)  # find the end of axis
         for _col in final_accuracy_df.columns:
-            accuracy_axis.plot(accuracy_x[0:end_accuracy_x], final_accuracy_df[_col][0:end_accuracy_x], label=_col, alpha=0.75)
+            accuracy_axis.plot(accuracy_x[0:end_accuracy_x], final_accuracy_df[_col].iloc[0:end_accuracy_x], label=_col, alpha=0.75)
 
         accuracy_axis.grid()
         accuracy_axis.legend(ncol=5)
@@ -134,7 +134,7 @@ if flag_generate_whole:
             for _col in final_weight_diff_df.columns:
                 if numpy.sum(final_weight_diff_df[_col]) == 0:
                     continue
-                weight_diff_axis.plot(weight_diff_x[0:end_weight_diff_x], final_weight_diff_df[_col][0:end_weight_diff_x], label=_col, linewidth=2)
+                weight_diff_axis.plot(weight_diff_x[0:end_weight_diff_x], final_weight_diff_df[_col].iloc[0:end_weight_diff_x], label=_col, linewidth=2)
 
             weight_diff_axis.grid()
             weight_diff_axis.legend(ncol=4, prop={'size': 8})
