@@ -193,15 +193,21 @@ BOOST_AUTO_TEST_SUITE (simplified_ml_network)
     BOOST_AUTO_TEST_CASE (ml_as_numbers)
     {
         size_t number_of_nodes = 100;
-        float accuracy_increase_per_training = 1.0 / (20000.0 / 10);
+//        float accuracy_increase_per_training = 1.0 / (20000.0 / 10);
+        float accuracy_increase_per_training = 0.0;
+        float accuracy_increase_per_training_stddev = 0.0;
         std::vector<size_t> training_tick = {8, 9, 10, 11, 12};
         size_t number_of_peers = 8;
         size_t model_buffer_size = 8;
-        size_t simulation_tick = 20000;
-        size_t record_accuracy_per_tick = 20;
+        size_t simulation_tick = 200;
+        size_t record_accuracy_per_tick = 1;
         
         float conservative = 0.5;
-        
+
+        //init
+        std::random_device rd{};
+        std::mt19937 gen{rd()};
+
         //set node topology
         auto result = generate_network_topology(number_of_nodes, number_of_peers);
         BOOST_CHECK(result);
@@ -209,18 +215,22 @@ BOOST_AUTO_TEST_SUITE (simplified_ml_network)
         
         //generate network
         std::map<int, simplified_ml_network_node> all_nodes;
-        for (int i = 0; i < number_of_nodes; ++i)
         {
-            all_nodes.emplace(i, simplified_ml_network_node(i));
+            std::uniform_real_distribution<float> dist(0,1);
+            for (int i = 0; i < number_of_nodes; ++i)
+            {
+                auto iter = all_nodes.emplace(i, simplified_ml_network_node(i));
+                iter.first->second.model = dist(gen);
+            }
+            for (auto& [a, b]: topology)
+            {
+                auto node_a = all_nodes.find(a);
+                auto node_b = all_nodes.find(b);
+                node_a->second.peers.emplace(&node_b->second);
+                node_b->second.peers.emplace(&node_a->second);
+            }
         }
-        for (auto& [a, b]: topology)
-        {
-            auto node_a = all_nodes.find(a);
-            auto node_b = all_nodes.find(b);
-            node_a->second.peers.emplace(&node_b->second);
-            node_b->second.peers.emplace(&node_a->second);
-        }
-        
+
         //begin simulation
         std::ofstream accuracy_file("./accuracy.csv");
         accuracy_file << "tick";
@@ -229,6 +239,8 @@ BOOST_AUTO_TEST_SUITE (simplified_ml_network)
             accuracy_file << "," << name_name;
         }
         accuracy_file << std::endl;
+
+        std::normal_distribution<float> dist{accuracy_increase_per_training, accuracy_increase_per_training_stddev};
         
         for (int tick = 0; tick < simulation_tick; ++tick)
         {
@@ -238,7 +250,8 @@ BOOST_AUTO_TEST_SUITE (simplified_ml_network)
                 if (node.next_training_tick == tick)
                 {
                     node.next_training_tick += *select_randomly(training_tick.begin(), training_tick.end());
-                    node.model += accuracy_increase_per_training;
+
+                    node.model += dist(gen);
                     
                     //broadcast
                     for (auto& peer: node.peers)
