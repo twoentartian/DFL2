@@ -95,5 +95,37 @@ namespace util
 		}
 		return randomStr;
 	}
+    
+    template<typename K, typename V>
+    bool cmp_map_value_ascending(std::pair<K, V> &a, std::pair<K, V> &b)
+    {
+        return a.second < b.second;
+    }
+    
+    template<typename K, typename V>
+    bool cmp_map_value_descending(std::pair<K, V> &a, std::pair<K, V> &b)
+    {
+        return a.second > b.second;
+    }
+    
+    template<typename K, typename V>
+    std::vector<std::pair<K, V>> sort_map_according_to_value(std::map<K, V>& target, bool descending = false)
+    {
+        std::vector<std::pair<K, V>> output;
+        for (auto &it: target)
+        {
+            output.push_back(it);
+        }
+        if (descending)
+        {
+            std::sort(output.begin(), output.end(), cmp_map_value_descending<K, V>);
+        }
+        else
+        {
+            std::sort(output.begin(), output.end(), cmp_map_value_ascending<K, V>);
+        }
+
+        return output;
+    };
 	
 }

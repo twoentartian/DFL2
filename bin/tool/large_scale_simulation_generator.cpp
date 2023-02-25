@@ -4,8 +4,8 @@
 
 /// how to use:
 /// First of all, you need to have a working configuration file, this tool only process nodes information.
-/// 1) ./large_scale_simulation_generator --> load generate config file to ../simulation/simulator_config.json
-/// 2) ./large_scale_simulation_generator {path} --> load generate config file to certain path
+/// 1) ./large_scale_simulation_generator --> load generator config file to ../simulation/simulator_config.json
+/// 2) ./large_scale_simulation_generator {path} --> load generator config file to certain path
 /// ///
 
 #include <iostream>
@@ -16,6 +16,7 @@
 #include <configure_file.hpp>
 
 #include "../simulation/simulation_config_format.hpp"
+#include "large_scale_simulation_generator_common_functions.hpp"
 
 configuration_file::json get_default_simulation_configuration()
 {
@@ -37,16 +38,6 @@ configuration_file::json get_default_simulation_configuration()
 	output["special_node"] = malicious_node;
 	return output;
 }
-
-void add_to_mainland(int mainland_node, const std::map<int, std::set<int>> &peer_map, std::set<int> &mainland)
-{
-    if (mainland.contains(mainland_node)) return;
-    mainland.emplace(mainland_node);
-    for (auto &peer: peer_map.at(mainland_node))
-    {
-        add_to_mainland(peer, peer_map, mainland);
-    }
-};
 
 int main(int argc, char* argv[])
 {
@@ -169,81 +160,22 @@ int main(int argc, char* argv[])
             int try_count = 0;
             bool whole_success = false;
             std::vector<std::tuple<int,int>> connections;
-
+            
             while (try_count < 10000)
             {
                 try_count++;
-                bool success = true;
-                static std::random_device rd;
-                static std::mt19937 g(rd());
-
-                //init variables
-                connections.clear();
-                std::map<int, int> node_instances_counter;
-                std::map<int, std::set<int>> node_ban_list;
-                std::map<int, std::set<int>> node_available_nodes;
-                std::set<int> all_nodes;
+    
+                std::map<int, int> peer_per_node;
                 for (int node = 0; node < node_count; ++node)
                 {
-                    all_nodes.emplace(node);
+                    peer_per_node[node] = node_peer_connection_count_override;
                 }
-                for (int node = 0; node < node_count; ++node)
+                
+                auto connection_result = generate_network_topology(node_count, peer_per_node);
+                if (connection_result.has_value()) //success
                 {
-                    node_instances_counter[node] = node_peer_connection_count_override;
-                    node_available_nodes[node] = all_nodes;
-                    if (node_peer_connection_type == simulation_config_format::bilateral_term)
-                    {
-                        for (int node_to_remove = 0; node_to_remove < node; ++node_to_remove)
-                        {
-                            node_available_nodes[node].erase(node_to_remove);
-                        }
-                    }
-                }
-
-                //try to generate network
-                for (auto& [node_name, instance] : node_instances_counter)
-                {
-                    if (!success) break;
-
-                    while (node_instances_counter[node_name] != 0)
-                    {
-                        if (node_available_nodes[node_name].empty())
-                        {
-                            //we should retry
-                            success = false;
-                            break;
-                        }
-
-                        std::uniform_int_distribution dist(0, int(node_available_nodes[node_name].size())-1);
-                        auto it = std::begin(node_available_nodes[node_name]);
-                        std::advance(it,dist(g));
-                        auto random_pick_node = *it;
-                        node_available_nodes[node_name].erase(it);//remove this picked node
-                        if (random_pick_node == node_name) continue;
-                        if (node_ban_list[node_name].contains(random_pick_node)) continue;
-                        if (node_instances_counter[random_pick_node] == 0) continue;
-
-                        if (node_peer_connection_type == simulation_config_format::bilateral_term)
-                        {
-                            node_ban_list[node_name].emplace(random_pick_node);
-                            node_ban_list[random_pick_node].emplace(node_name);
-                        }
-                        else if (node_peer_connection_type == simulation_config_format::unidirectional_term)
-                        {
-                            node_ban_list[node_name].emplace(random_pick_node);
-                        }
-                        else
-                        {
-                            LOG(FATAL) << "never reach";
-                        }
-
-                        node_instances_counter[node_name]--;
-                        node_instances_counter[random_pick_node]--;
-                        connections.emplace_back(node_name, random_pick_node);
-                    }
-                }
-                if (success)
-                {
+                    connections = *connection_result;
+                    
                     //check whether we get a network with islands
                     std::map<int, std::set<int>> peer_map;
                     for (auto &[node, peer]: connections)
