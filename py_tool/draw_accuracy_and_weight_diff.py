@@ -32,6 +32,8 @@ axs[0].set_xlabel('time (tick)')
 axs[0].set_ylabel('accuracy (0-1)')
 axs[0].set_xlim([0, accuracy_df.index[accuracy_df_len-1]])
 axs[0].set_ylim([0, 1])
+if len(accuracy_df.columns) > 10:
+    axs[0].legend().remove()
 
 axs[1].grid()
 axs[1].legend()
