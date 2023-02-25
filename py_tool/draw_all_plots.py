@@ -14,6 +14,7 @@ titles = ["I.I.D.", "non-I.I.D. alpha=10", "non-I.I.D. alpha=1", "non-I.I.D. alp
 
 maximum_tick = 10000
 save_name = "draw"
+draw_model_weight_diff = True
 
 folder_names_set = set()
 for folder_index in range(len(folders)):
@@ -57,7 +58,17 @@ assert len(folders) <= row * col
 
 flag_generate_whole = query_yes_no('do you want to generate the whole figure?')
 if flag_generate_whole:
-    whole_fig, whole_axs = plt.subplots(row*2, col, figsize=(5*col, 5*row))
+    figsize_col = 5 * col
+    figsize_row = 2.5 * row
+    plot_row = row
+    plot_col = col
+    number_of_plot_per_row = 1
+    if draw_model_weight_diff:
+        figsize_row = figsize_row * 2
+        plot_row = plot_row * 2
+        number_of_plot_per_row = 2
+
+    whole_fig, whole_axs = plt.subplots(plot_row, plot_col, figsize=(figsize_col, figsize_row), squeeze=False)
     for folder_index in range(len(folders)):
         current_col = folder_index % col
         current_row = folder_index // col
@@ -95,24 +106,14 @@ if flag_generate_whole:
         weight_diff_x = final_weight_diff_df.index
         weight_diff_df_len = len(final_weight_diff_df)
 
-        accuracy_axis = whole_axs[current_row*2, current_col]
-        weight_diff_axis = whole_axs[current_row*2+1, current_col]
+        accuracy_axis = whole_axs[current_row*number_of_plot_per_row, current_col]
 
         if maximum_tick >= accuracy_x[len(accuracy_x)-1]:
             end_accuracy_x = len(accuracy_x)-1
         else:
             end_accuracy_x = next(k for k, value in enumerate(accuracy_x) if value > maximum_tick)  # find the end of axis
         for _col in final_accuracy_df.columns:
-            accuracy_axis.plot(accuracy_x[0:end_accuracy_x], final_accuracy_df[_col][0:end_accuracy_x], label=_col, alpha=0.75)
-
-        if maximum_tick >= weight_diff_x[len(weight_diff_x)-1]:
-            end_weight_diff_x = len(weight_diff_x)-1
-        else:
-            end_weight_diff_x = next(k for k, value in enumerate(weight_diff_x) if value > maximum_tick)  # find the end of axis
-        for _col in final_weight_diff_df.columns:
-            if numpy.sum(final_weight_diff_df[_col]) == 0:
-                continue
-            weight_diff_axis.plot(weight_diff_x[0:end_weight_diff_x], final_weight_diff_df[_col][0:end_weight_diff_x], label=_col, linewidth=2)
+            accuracy_axis.plot(accuracy_x[0:end_accuracy_x], final_accuracy_df[_col].iloc[0:end_accuracy_x], label=_col, alpha=0.75)
 
         accuracy_axis.grid()
         accuracy_axis.legend(ncol=5)
@@ -124,13 +125,24 @@ if flag_generate_whole:
         accuracy_axis.set_xlim([0, final_accuracy_df.index[end_accuracy_x]])
         accuracy_axis.set_ylim([0, 1])
 
-        weight_diff_axis.grid()
-        weight_diff_axis.legend(ncol=4, prop={'size': 8})
-        weight_diff_axis.set_title('Subplot ' + str(folder_index+1) + 'b - model weight diff: ' + titles[folder_index])
-        weight_diff_axis.set_xlabel('time (tick)')
-        weight_diff_axis.set_ylabel('weight diff')
-        weight_diff_axis.set_yscale('log')
-        weight_diff_axis.set_xlim([0, final_weight_diff_df.index[end_weight_diff_x]])
+        if draw_model_weight_diff:
+            weight_diff_axis = whole_axs[current_row * number_of_plot_per_row + 1, current_col]
+            if maximum_tick >= weight_diff_x[len(weight_diff_x)-1]:
+                end_weight_diff_x = len(weight_diff_x)-1
+            else:
+                end_weight_diff_x = next(k for k, value in enumerate(weight_diff_x) if value > maximum_tick)  # find the end of axis
+            for _col in final_weight_diff_df.columns:
+                if numpy.sum(final_weight_diff_df[_col]) == 0:
+                    continue
+                weight_diff_axis.plot(weight_diff_x[0:end_weight_diff_x], final_weight_diff_df[_col].iloc[0:end_weight_diff_x], label=_col, linewidth=2)
+
+            weight_diff_axis.grid()
+            weight_diff_axis.legend(ncol=4, prop={'size': 8})
+            weight_diff_axis.set_title('Subplot ' + str(folder_index+1) + 'b - model weight diff: ' + titles[folder_index])
+            weight_diff_axis.set_xlabel('time (tick)')
+            weight_diff_axis.set_ylabel('weight diff')
+            weight_diff_axis.set_yscale('log')
+            weight_diff_axis.set_xlim([0, final_weight_diff_df.index[end_weight_diff_x]])
 
     whole_fig.tight_layout()
     whole_fig.savefig(save_name + '.pdf')
@@ -166,6 +178,8 @@ if flag_generate_for_each_result:
 
             axs[0].grid()
             axs[0].legend(ncol=5)
+            if len(axs[0].columns) > 10:
+                axs[0].legend().remove()
             axs[0].set_title('accuracy')
             axs[0].set_xlabel('time (tick)')
             axs[0].set_ylabel('accuracy (0-1)')
