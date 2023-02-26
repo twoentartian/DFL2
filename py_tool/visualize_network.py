@@ -66,11 +66,6 @@ for tick in accuracy_df.index:
 
     tick_to_draw.append(tick)
 
-number_of_figure = len(tick_to_draw)
-number_of_row = int(number_of_figure / 10) + 1
-
-
-
 G = nx.Graph()
 
 for single_node in nodes:
