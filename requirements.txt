@@ -1,6 +1,10 @@
-pandas~=1.5.2
-numpy~=1.23.5
-six~=1.15.0
-future~=0.18.2
-Pillow~=9.4.0
-matplotlib~=3.7.0
+pandas>=1.5.2
+numpy>=1.24.1
+six>=1.16.0
+future>=0.18.2
+Pillow>=9.0.1
+matplotlib>=3.6.2
+scipy>=1.10.1
+PyYAML>=5.4.1
+tornado>=6.1
+networkx>=3.0
