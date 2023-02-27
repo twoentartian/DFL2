@@ -10,13 +10,14 @@ import os
 import re
 import cv2
 import multiprocessing
+import math
 
 config_file_path = 'simulator_config.json'
 accuracy_file_path = 'accuracy.csv'
 peer_change_file_path = 'peer_change_record.txt'
 draw_per_row = 1
 fps = 2
-dpi = 400
+dpi = 200
 override_existing_cache = True
 HSV_H_start = 40
 HSV_H_end = 256
@@ -31,7 +32,7 @@ def save_fig(G, tick, save_name, node_color, layout, node_labels):
     ax.set_axis_off()
     fig.add_axes(ax)
     ax.text(0, 0, "tick = " + str(tick))
-    nx.draw(G, node_color=node_color, with_labels=True, pos=layout, font_color='k', labels=node_labels, alpha=1.0, linewidths=0.1, width=0.5, font_size=8)
+    nx.draw(G, node_color=node_color, with_labels=True, pos=layout, font_color='k', labels=node_labels, alpha=1.0, linewidths=0.1, width=0.5, font_size=8, node_size=300)
     fig.savefig(os.path.join(save_name), dpi=dpi, pad_inches=0)
     plt.close(fig)
 
