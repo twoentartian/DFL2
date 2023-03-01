@@ -392,6 +392,7 @@ int main(int argc, char *argv[])
 	Ml::data_converter<model_datatype> test_dataset;
 	test_dataset.load_dataset_mnist(ml_test_dataset, ml_test_dataset_label);
 	
+    //open drop_rate.txt
 	std::ofstream drop_rate(output_path / "drop_rate.txt", std::ios::binary);
 	std::mutex drop_rate_lock;
 	
