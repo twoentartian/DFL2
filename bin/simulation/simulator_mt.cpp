@@ -645,12 +645,12 @@ int main(int argc, char *argv[])
 		std::vector<std::vector<Ml::tensor_blob_like<model_datatype>>> network_output_train; // 0: node index, 1: data index
 		std::vector<std::vector<Ml::tensor_blob_like<model_datatype>>> network_output_test; // 0: node index, 1: data index
 		network_output_train.resize(node_pointer_vector_container.size());
-		for (int i = 0; i < network_output_train.size(); ++i)
+        for (int i = 0; i < network_output_train.size(); ++i)
 		{
 			network_output_train[i].resize(std::get<0>(whole_train).size());
 		}
 		network_output_test.resize(node_pointer_vector_container.size());
-		for (int i = 0; i < network_output_test.size(); ++i)
+        for (int i = 0; i < network_output_test.size(); ++i)
 		{
 			network_output_test[i].resize(std::get<0>(whole_test).size());
 		}
