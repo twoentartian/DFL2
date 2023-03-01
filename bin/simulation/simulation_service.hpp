@@ -203,7 +203,7 @@ public:
 			auto* weight_diff_sums = new std::atomic<float>[number_of_layers];
 			for (int i = 0; i < number_of_layers; ++i) weight_diff_sums[i] = 0;
 			
-			tmt::ParallelExecution([&tick, this, &weight_diff_sums,&number_of_layers](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node)
+			tmt::ParallelExecution([this, &weight_diff_sums,&number_of_layers](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node)
 			                       {
 				                       uint32_t index_next = index + 1;
 				                       const uint32_t total_size = this->node_vector_container->size();

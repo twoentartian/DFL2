@@ -552,16 +552,14 @@ int main(int argc, char *argv[])
 			
 			////check fedavg buffer full
 			tmt::ParallelExecution_StepIncremental([&tick,&test_dataset,&ml_test_batch_size,&ml_dataset_all_possible_labels,&solver_for_testing](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
-				if (single_node->parameter_buffer.size() >= single_node->buffer_size)
-				{
+				if (single_node->parameter_buffer.size() >= single_node->buffer_size) {
                     single_node->model_averaged = true;
                     
 					//update model
 					auto parameter = single_node->solver->get_parameter();
 					std::vector<updated_model<model_datatype>> received_models;
 					received_models.resize(single_node->parameter_buffer.size());
-					for (int i = 0; i < received_models.size(); ++i)
-					{
+					for (int i = 0; i < received_models.size(); ++i) {
 						auto[node_name, type, model] = single_node->parameter_buffer[i];
 						received_models[i].model_parameter = model;
 						received_models[i].type = type;
@@ -645,14 +643,14 @@ int main(int argc, char *argv[])
 		std::vector<std::vector<Ml::tensor_blob_like<model_datatype>>> network_output_train; // 0: node index, 1: data index
 		std::vector<std::vector<Ml::tensor_blob_like<model_datatype>>> network_output_test; // 0: node index, 1: data index
 		network_output_train.resize(node_pointer_vector_container.size());
-        for (int i = 0; i < network_output_train.size(); ++i)
+        for (auto & i : network_output_train)
 		{
-			network_output_train[i].resize(std::get<0>(whole_train).size());
+			i.resize(std::get<0>(whole_train).size());
 		}
 		network_output_test.resize(node_pointer_vector_container.size());
-        for (int i = 0; i < network_output_test.size(); ++i)
+        for (auto & i : network_output_test)
 		{
-			network_output_test[i].resize(std::get<0>(whole_test).size());
+			i.resize(std::get<0>(whole_test).size());
 		}
 		tmt::ParallelExecution_StepIncremental([&whole_train, &whole_test, &network_output_test, &network_output_train](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
 			{
@@ -691,7 +689,7 @@ int main(int argc, char *argv[])
 			const std::vector<Ml::tensor_blob_like<model_datatype>>& whole_train_y = std::get<1>(whole_train);
 			int correct_count = Ml::MlModel<model_datatype>::count_correct_based_on_prediction(whole_train_y, predict_y_train);
 			std::stringstream log_msg;
-			log_msg << "whole train dataset, total:" << whole_train_y.size() << "  correct:" << correct_count << "  accuracy:" << float(correct_count) / whole_train_y.size();
+			log_msg << "whole train dataset, total:" << whole_train_y.size() << "  correct:" << correct_count << "  accuracy:" << float(correct_count) / float(whole_train_y.size());
 			std::cout << log_msg.str() << std::endl;
 			LOG(INFO) << log_msg.str();
 		}
@@ -700,7 +698,7 @@ int main(int argc, char *argv[])
 			const std::vector<Ml::tensor_blob_like<model_datatype>>& whole_test_y = std::get<1>(whole_test);
 			int correct_count = Ml::MlModel<model_datatype>::count_correct_based_on_prediction(whole_test_y, predict_y_test);
 			std::stringstream log_msg;
-			log_msg << "whole test dataset, total:" << whole_test_y.size() << "  correct:" << correct_count << "  accuracy:" << float(correct_count) / whole_test_y.size();
+			log_msg << "whole test dataset, total:" << whole_test_y.size() << "  correct:" << correct_count << "  accuracy:" << float(correct_count) / float(whole_test_y.size());
 			std::cout << log_msg.str() << std::endl;
 			LOG(INFO) << log_msg.str();
 		}
