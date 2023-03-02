@@ -44,25 +44,25 @@ configuration_file::json get_default_simulation_configuration()
 
 int main(int argc, char *argv[])
 {
-    configuration_file my_config;
-    my_config.SetDefaultConfiguration(get_default_simulation_configuration());
-    auto load_config_rc = my_config.LoadConfiguration("large_scale_config_social_network.json");
+    configuration_file generator_config;
+    generator_config.SetDefaultConfiguration(get_default_simulation_configuration());
+    auto load_config_rc = generator_config.LoadConfiguration("large_scale_config_social_network.json");
     if (load_config_rc < 0)
     {
         LOG(FATAL) << "cannot load large scale configuration file, wrong format?";
         return -1;
     }
-    auto my_config_json = my_config.get_json();
+    auto my_config_json = generator_config.get_json();
     
-    int node_count = *my_config.get<int>("node_count");
-//    int buffer_size = *my_config.get<int>("buffer_size");
-    std::string dataset_mode = *my_config.get<std::string>("dataset_mode");
-    std::string model_generation_type = *my_config.get<std::string>("model_generation_type");
-    float filter_limit = *my_config.get<float>("filter_limit");
-    float social_network_node_peer_connection_gamma = *my_config.get<float>("social_network_node_peer_connection_gamma");
-    int social_network_node_peer_connection_min_peer = *my_config.get<int>("social_network_node_peer_connection_min_peer");
-    float social_network_buffer_to_peer_ratio = *my_config.get<float>("social_network_buffer_to_peer_ratio");
-    std::string node_peer_connection_type = *my_config.get<std::string>("node_peer_connection_type");
+    int node_count = *generator_config.get<int>("node_count");
+//    int buffer_size = *generator_config.get<int>("buffer_size");
+    std::string dataset_mode = *generator_config.get<std::string>("dataset_mode");
+    std::string model_generation_type = *generator_config.get<std::string>("model_generation_type");
+    float filter_limit = *generator_config.get<float>("filter_limit");
+    float social_network_node_peer_connection_gamma = *generator_config.get<float>("social_network_node_peer_connection_gamma");
+    int social_network_node_peer_connection_min_peer = *generator_config.get<int>("social_network_node_peer_connection_min_peer");
+    float social_network_buffer_to_peer_ratio = *generator_config.get<float>("social_network_buffer_to_peer_ratio");
+    std::string node_peer_connection_type = *generator_config.get<std::string>("node_peer_connection_type");
     auto special_node = my_config_json["special_node"];
     std::string node_peer_connection_generating_strategy = my_config_json["node_peer_connection_generating_strategy"];
     std::cout << "node_count: " << node_count << std::endl;
@@ -290,6 +290,10 @@ int main(int argc, char *argv[])
         }
         
         config_json["ml_delayed_test_accuracy"] = false;
+    
+        //write simulation config generator info to output config file.
+        apply_generator_config_to_output_config(generator_config.get_json(), config_json, "this_config_file_is_initially_generated_by_large_scale_simulation_generator_social_network_with_following_config");
+        
         config.write_back();
     }
     

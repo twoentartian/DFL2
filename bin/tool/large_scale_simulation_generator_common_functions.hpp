@@ -9,6 +9,7 @@
 #include <random>
 
 #include <util.hpp>
+#include <configure_file.hpp>
 
 void add_to_mainland(int mainland_node, const std::map<int, std::set<int>> &peer_map, std::set<int> &mainland)
 {
@@ -100,7 +101,7 @@ std::optional<std::vector<std::tuple<int, int>>> generate_network_topology(int n
     }
 }
 
-//std::optional<std::vector<std::tuple<int, int>>> generate_network_topology(int node_count, std::map<int, int> peer_count_of_each_node, bool bilateral = true)
-//{
-//    return generate_network_topology<std::mt19937>(node_count, peer_count_of_each_node, bilateral);
-//}
+void apply_generator_config_to_output_config(const configuration_file::json& generator_json, configuration_file::json& output_json, const std::string& comment)
+{
+    output_json[comment] = generator_json;
+}
