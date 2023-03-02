@@ -136,7 +136,7 @@ int main(int argc, char* argv[])
 			nodes_json.push_back(node);
 		}
 		
-		//add malicious nodes
+		////add special nodes
 		int node_index = 0;
 		for (auto& [node_type, count] : special_node.items())
 		{
@@ -178,15 +178,19 @@ int main(int argc, char* argv[])
                     
                     //check whether we get a network with islands
                     std::map<int, std::set<int>> peer_map;
+                    for (int node = 0; node < node_count; ++node)
+                    {
+                        peer_map[node] = {};//there is a node but no peer
+                    }
                     for (auto &[node, peer]: connections)
                     {
                         peer_map[node].emplace(peer);
-                        peer_map[peer].emplace(node);
+                        peer_map[peer].emplace(node);//add peers
                     }
                     if (flop_connection)
                     {
-                        std::set<int> whole_set;
-                        for (auto &[node, all_peers]: peer_map)
+                        std::set<int> whole_set;//should contain node 0...node_count-1
+                        for (int node = 0; node < node_count; ++node)
                         {
                             whole_set.emplace(node);
                         }
@@ -195,6 +199,7 @@ int main(int argc, char* argv[])
                             std::set<int> flopped_connections;
                             std::set_difference(whole_set.begin(), whole_set.end(), all_peers.begin(), all_peers.end(), std::insert_iterator<std::set<int>>(flopped_connections, flopped_connections.begin()));
                             peer_map[node] = flopped_connections;
+                            peer_map[node].erase(node);//remove self
                         }
                     }
                     

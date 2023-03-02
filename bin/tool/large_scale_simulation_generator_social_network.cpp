@@ -104,8 +104,8 @@ int main(int argc, char *argv[])
         {
             std::cout << "how to use:" << std::endl;
             std::cout << "First of all, you need to have a working configuration file, this tool only process nodes information." << std::endl;
-            std::cout << "1) ./large_scale_simulation_generator --> load generate config file to ../simulation/simulator_config.json" << std::endl;
-            std::cout << "2) ./large_scale_simulation_generator {path} --> load generate config file to certain path" << std::endl;
+            std::cout << "1) ./large_scale_simulation_generator_social_network --> load generate config file to ../simulation/simulator_config.json" << std::endl;
+            std::cout << "2) ./large_scale_simulation_generator_social_network {path} --> load generate config file to certain path" << std::endl;
             return -1;
         }
         
@@ -137,7 +137,7 @@ int main(int argc, char *argv[])
             nodes_json.push_back(node);
         }
         
-        ////add malicious nodes
+        ////add special nodes
         {
             int node_index = 0;
             for (auto &[node_type, count]: special_node.items())

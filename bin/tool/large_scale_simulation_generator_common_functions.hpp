@@ -37,14 +37,7 @@ std::optional<std::vector<std::tuple<int, int>>> generate_network_topology(int n
     for (int node = 0; node < node_count; ++node)
     {
         node_available_nodes[node] = all_nodes;
-        
-        if (bilateral)  //nodes shouldn't connect to a smaller node, e.g. 10 cannot connect to 9.
-        {
-            for (int node_to_remove = 0; node_to_remove <= node; ++node_to_remove)
-            {
-                node_available_nodes[node].erase(node_to_remove);
-            }
-        }
+        node_available_nodes[node].erase(node);//remove self from available nodes.
     }
     
     //find the node with more connections
@@ -88,6 +81,15 @@ std::optional<std::vector<std::tuple<int, int>>> generate_network_topology(int n
             }
 
             connections.emplace_back(node_name, random_pick_node);
+        }
+        
+        // remove current node in from all node_available_nodes
+        if (bilateral)
+        {
+            for (int node = 0; node < node_count; ++node)
+            {
+                node_available_nodes[node].erase(node_name);
+            }
         }
     }
     
