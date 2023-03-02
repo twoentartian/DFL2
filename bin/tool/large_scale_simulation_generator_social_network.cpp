@@ -137,7 +137,7 @@ int main(int argc, char *argv[])
             nodes_json.push_back(node);
         }
         
-        ////add malicious nodes
+        ////add special nodes
         {
             int node_index = 0;
             for (auto &[node_type, count]: special_node.items())
