@@ -89,6 +89,12 @@ configuration_file::json get_default_simulation_configuration()
 		
 		services["peer_control_service"] = peer_control_service;
 	}
+    {
+        configuration_file::json reputation_record_service = configuration_file::json::object();
+        reputation_record_service["enable"] = true;
+        
+        services["reputation_record"] = reputation_record_service;
+    }
 	output["services"] = services;
 	
 	return output;

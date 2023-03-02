@@ -59,10 +59,6 @@ int main(int argc, char *argv[])
 	if (!std::filesystem::exists(log_path)) std::filesystem::create_directories(log_path);
 	google::SetLogDestination(google::INFO, (log_path.string() + "/").c_str());
 	
-	//reputation folder
-	std::filesystem::path reputation_folder = output_path / "reputation";
-	if (!std::filesystem::exists(reputation_folder)) std::filesystem::create_directories(reputation_folder);
-	
 	//load configuration
 	configuration_file config;
 	config.SetDefaultConfiguration(get_default_simulation_configuration());
@@ -111,7 +107,7 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 	
-	//backup reputation file
+	//backup reputation dll file
 	{
 		std::filesystem::path ml_reputation_dll(ml_reputation_dll_path);
 		std::filesystem::copy(ml_reputation_dll_path, output_path / ml_reputation_dll.filename());
@@ -153,9 +149,8 @@ int main(int argc, char *argv[])
 		
 		auto[iter, status] = node_container.emplace(node_name, temp_node);
 		
-		//load models solver and open reputation_fileS
+		//load models solver
 		iter->second->solver->load_caffe_model(ml_solver_proto);
-		iter->second->open_reputation_file(reputation_folder);
 		
 		//dataset mode
 		const std::string dataset_mode_str = single_node["dataset_mode"];
@@ -397,21 +392,9 @@ int main(int argc, char *argv[])
 	Ml::data_converter<model_datatype> test_dataset;
 	test_dataset.load_dataset_mnist(ml_test_dataset, ml_test_dataset_label);
 	
+    //open drop_rate.txt
 	std::ofstream drop_rate(output_path / "drop_rate.txt", std::ios::binary);
 	std::mutex drop_rate_lock;
-	
-	//print reputation first line
-	for (auto &single_node : node_container)
-	{
-		*single_node.second->reputation_output << "tick";
-		for (auto &reputation_item: single_node.second->reputation_map)
-		{
-			*single_node.second->reputation_output << "," << reputation_item.first;
-		}
-		*single_node.second->reputation_output << std::endl;
-	}
-	
-
 	
 	//node vector container
 	std::vector<node<model_datatype>*> node_pointer_vector_container;
@@ -429,12 +412,13 @@ int main(int argc, char *argv[])
 		solver_for_testing[i].load_caffe_model(ml_solver_proto);
 	}
 	
-	//services
+	////services
 	std::unordered_map<std::string, std::shared_ptr<service<model_datatype>>> services;
 	services.emplace("accuracy", new accuracy_record<model_datatype>());
 	services.emplace("weights_diff", new model_weights_record<model_datatype>());
 	services.emplace("force_broadcast_average", new force_broadcast_model<model_datatype>());
 	services.emplace("peer_control_service", new peer_control_service<model_datatype>());
+    services.emplace("reputation_record", new reputation_record<model_datatype>());
 	auto services_json = config_json["services"];
 	LOG_IF(FATAL, services_json.is_null()) << "services are not defined in configuration file";
 	
@@ -479,6 +463,14 @@ int main(int argc, char *argv[])
 		service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
 	}
 	
+    //reputation_record
+    {
+        auto service_iter = services.find("reputation_record");
+    
+        service_iter->second->apply_config(services_json["reputation_record"]);
+        service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+    }
+    
 	////////////  BEGIN SIMULATION  ////////////
 	{
 		auto last_time_point = std::chrono::system_clock::now();
@@ -501,12 +493,12 @@ int main(int argc, char *argv[])
 				std::cout << "est finish at: " << std::put_time( &est_finish_time_tm, "%Y-%m-%d %H:%M:%S") << std::endl;
 			}
 			
-			bool exit = false;
-			
-			//train the model
+			////train the model
 			tmt::ParallelExecution_StepIncremental([&drop_rate_lock, &drop_rate, &tick, &train_dataset, &ml_train_batch_size, &ml_dataset_all_possible_labels](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
 				if (tick >= single_node->next_train_tick)
 				{
+                    single_node->model_trained = true;
+                    
 					std::vector<Ml::tensor_blob_like<model_datatype>> train_data, train_label;
 					std::tie(train_data, train_label) = get_dataset_by_node_type(train_dataset, *single_node, ml_train_batch_size, ml_dataset_all_possible_labels);
 					
@@ -553,18 +545,22 @@ int main(int argc, char *argv[])
 						updating_node->parameter_buffer.emplace_back(single_node->name, type, parameter_output);
 					}
 				}
+                else
+                {
+                    single_node->model_trained = false;
+                }
 			}, node_pointer_vector_container.size(), node_pointer_vector_container.data());
 			
-			//check fedavg buffer full
+			////check fedavg buffer full
 			tmt::ParallelExecution_StepIncremental([&tick,&test_dataset,&ml_test_batch_size,&ml_dataset_all_possible_labels,&solver_for_testing](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
-				if (single_node->parameter_buffer.size() >= single_node->buffer_size)
-				{
+				if (single_node->parameter_buffer.size() >= single_node->buffer_size) {
+                    single_node->model_averaged = true;
+                    
 					//update model
 					auto parameter = single_node->solver->get_parameter();
 					std::vector<updated_model<model_datatype>> received_models;
 					received_models.resize(single_node->parameter_buffer.size());
-					for (int i = 0; i < received_models.size(); ++i)
-					{
+					for (int i = 0; i < received_models.size(); ++i) {
 						auto[node_name, type, model] = single_node->parameter_buffer[i];
 						received_models[i].model_parameter = model;
 						received_models[i].type = type;
@@ -609,17 +605,14 @@ int main(int argc, char *argv[])
 					reputation_dll.get()->update_model(parameter, self_accuracy, received_models, reputation_map);
 					single_node->solver->set_parameter(parameter);
 					
-					//print reputation map
-					*single_node->reputation_output << tick;
-					for (const auto &reputation_pair : reputation_map)
-					{
-						*single_node->reputation_output << "," << reputation_pair.second;
-					}
-					*single_node->reputation_output << std::endl;
-					
 					//clear buffer and start new loop
 					single_node->parameter_buffer.clear();
 				}
+                else
+                {
+                    //do nothing
+                    single_node->model_averaged = false;
+                }
 			}, node_pointer_vector_container.size(), node_pointer_vector_container.data());
 			
 			//services
@@ -629,7 +622,6 @@ int main(int argc, char *argv[])
 			}
 			
 			tick++;
-			if (exit) break;
 		}
 	}
 	
@@ -652,14 +644,14 @@ int main(int argc, char *argv[])
 		std::vector<std::vector<Ml::tensor_blob_like<model_datatype>>> network_output_train; // 0: node index, 1: data index
 		std::vector<std::vector<Ml::tensor_blob_like<model_datatype>>> network_output_test; // 0: node index, 1: data index
 		network_output_train.resize(node_pointer_vector_container.size());
-		for (int i = 0; i < network_output_train.size(); ++i)
+        for (auto & i : network_output_train)
 		{
-			network_output_train[i].resize(std::get<0>(whole_train).size());
+			i.resize(std::get<0>(whole_train).size());
 		}
 		network_output_test.resize(node_pointer_vector_container.size());
-		for (int i = 0; i < network_output_test.size(); ++i)
+        for (auto & i : network_output_test)
 		{
-			network_output_test[i].resize(std::get<0>(whole_test).size());
+			i.resize(std::get<0>(whole_test).size());
 		}
 		tmt::ParallelExecution_StepIncremental([&whole_train, &whole_test, &network_output_test, &network_output_train](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
 			{
@@ -698,7 +690,7 @@ int main(int argc, char *argv[])
 			const std::vector<Ml::tensor_blob_like<model_datatype>>& whole_train_y = std::get<1>(whole_train);
 			int correct_count = Ml::MlModel<model_datatype>::count_correct_based_on_prediction(whole_train_y, predict_y_train);
 			std::stringstream log_msg;
-			log_msg << "whole train dataset, total:" << whole_train_y.size() << "  correct:" << correct_count << "  accuracy:" << float(correct_count) / whole_train_y.size();
+			log_msg << "whole train dataset, total:" << whole_train_y.size() << "  correct:" << correct_count << "  accuracy:" << float(correct_count) / float(whole_train_y.size());
 			std::cout << log_msg.str() << std::endl;
 			LOG(INFO) << log_msg.str();
 		}
@@ -707,7 +699,7 @@ int main(int argc, char *argv[])
 			const std::vector<Ml::tensor_blob_like<model_datatype>>& whole_test_y = std::get<1>(whole_test);
 			int correct_count = Ml::MlModel<model_datatype>::count_correct_based_on_prediction(whole_test_y, predict_y_test);
 			std::stringstream log_msg;
-			log_msg << "whole test dataset, total:" << whole_test_y.size() << "  correct:" << correct_count << "  accuracy:" << float(correct_count) / whole_test_y.size();
+			log_msg << "whole test dataset, total:" << whole_test_y.size() << "  correct:" << correct_count << "  accuracy:" << float(correct_count) / float(whole_test_y.size());
 			std::cout << log_msg.str() << std::endl;
 			LOG(INFO) << log_msg.str();
 		}

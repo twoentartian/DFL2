@@ -203,7 +203,7 @@ public:
 			auto* weight_diff_sums = new std::atomic<float>[number_of_layers];
 			for (int i = 0; i < number_of_layers; ++i) weight_diff_sums[i] = 0;
 			
-			tmt::ParallelExecution([&tick, this, &weight_diff_sums,&number_of_layers](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node)
+			tmt::ParallelExecution([this, &weight_diff_sums,&number_of_layers](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node)
 			                       {
 				                       uint32_t index_next = index + 1;
 				                       const uint32_t total_size = this->node_vector_container->size();
@@ -483,4 +483,95 @@ public:
 
 private:
 	Ml::MlCaffeModel<float, caffe::SGDSolver>* solver_for_testing;
+};
+
+template <typename model_datatype>
+class reputation_record : public service<model_datatype>
+{
+
+private:
+    std::unordered_map<std::string, std::shared_ptr<std::ofstream>> reputations_files;
+    
+public:
+    reputation_record()
+    {
+    
+    }
+    
+    std::tuple<record_service_status, std::string> apply_config(const configuration_file::json &config) override
+    {
+        this->enable = config["enable"];
+        
+        return {record_service_status::success, ""};
+    }
+    
+    std::tuple<record_service_status, std::string> init_service(const std::filesystem::path &output_path, std::unordered_map<std::string, node<model_datatype> *> &_node_container, std::vector<node<model_datatype> *> &_node_vector_container) override
+    {
+        this->set_node_container(_node_container, _node_vector_container);
+        
+        if (!this->enable) return {record_service_status::skipped, ""};
+        
+        //reputation folder
+        std::filesystem::path reputation_folder = output_path / "reputation";
+        if (!std::filesystem::exists(reputation_folder)) std::filesystem::create_directories(reputation_folder);
+    
+        for (auto& [node_name, node] : _node_container)
+        {
+            auto reputation_file = std::make_shared<std::ofstream>();
+            reputation_file->open(reputation_folder / (node_name + "_reputation.csv"));
+            reputations_files.emplace(node_name, reputation_file);
+        }
+    
+        //print reputation first line
+        for (auto &[node_name, node]: _node_container)
+        {
+            auto reputation_file = reputations_files[node_name];
+            *reputation_file << "tick";
+            for (auto &reputation_item: node->reputation_map)
+            {
+                *reputation_file << "," << reputation_item.first;
+            }
+            *reputation_file << std::endl;
+        }
+    
+        return {record_service_status::success, ""};
+    }
+    
+    std::tuple<record_service_status, std::string> process_per_tick(int tick) override
+    {
+        if (!this->enable) return {record_service_status::skipped, ""};
+        
+        //print reputation map
+        for (auto& [node_name, node]: *(this->node_container))
+        {
+            if (!node->model_averaged) continue; // we don't update reputation if node doesn't perform Fedavg
+            
+            auto reputation_file = reputations_files[node_name];
+            *reputation_file << tick;
+            for (auto &[target_reputation_node_name, reputation_value]: node->reputation_map)
+            {
+                *reputation_file << "," << reputation_value;
+            }
+            *reputation_file << std::endl;
+        }
+        
+        return {record_service_status::success, ""};
+    }
+    
+    std::tuple<record_service_status, std::string> destruction_service() override
+    {
+        if (!this->enable) return {record_service_status::skipped, ""};
+        
+        for (auto& [node_name, reputation_file]: reputations_files)
+        {
+            if (reputation_file)
+            {
+                reputation_file->flush();
+                reputation_file->close();
+            }
+        }
+    
+        return {record_service_status::success, ""};
+    }
+    
 };

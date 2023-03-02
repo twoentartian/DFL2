@@ -78,20 +78,7 @@ public:
 		solver.reset(new Ml::MlCaffeModel<model_datatype, caffe::SGDSolver>());
 	}
 	
-	virtual ~node()
-	{
-		if (reputation_output)
-		{
-			reputation_output->flush();
-			reputation_output->close();
-		}
-	}
-	
-	void open_reputation_file(const std::filesystem::path &output_path)
-	{
-		reputation_output.reset(new std::ofstream());
-		reputation_output->open(output_path / (name + "_reputation.csv"));
-	}
+	virtual ~node() = default;
 	
 	std::string name;
 	dataset_mode_type dataset_mode;
@@ -111,13 +98,14 @@ public:
 	std::unordered_map<std::string, double> reputation_map;
 	Ml::model_compress_type model_generation_type;
 	float filter_limit;
-	std::shared_ptr<std::ofstream> reputation_output;
 	
 	std::unordered_map<std::string, node *> peers;
 	std::unordered_map<std::string, node *> planned_peers;
 	
 	float last_measured_accuracy;
 	int last_measured_tick;
+    bool model_trained;
+    bool model_averaged;
 	
 	virtual void train_model(const std::vector<Ml::tensor_blob_like<model_datatype>> &data, const std::vector<Ml::tensor_blob_like<model_datatype>> &label, bool display) = 0;
 	

@@ -9,6 +9,7 @@
 #include <random>
 
 #include <util.hpp>
+#include <configure_file.hpp>
 
 void add_to_mainland(int mainland_node, const std::map<int, std::set<int>> &peer_map, std::set<int> &mainland)
 {
@@ -36,14 +37,7 @@ std::optional<std::vector<std::tuple<int, int>>> generate_network_topology(int n
     for (int node = 0; node < node_count; ++node)
     {
         node_available_nodes[node] = all_nodes;
-        
-        if (bilateral)  //nodes shouldn't connect to a smaller node, e.g. 10 cannot connect to 9.
-        {
-            for (int node_to_remove = 0; node_to_remove <= node; ++node_to_remove)
-            {
-                node_available_nodes[node].erase(node_to_remove);
-            }
-        }
+        node_available_nodes[node].erase(node);//remove self from available nodes.
     }
     
     //find the node with more connections
@@ -88,6 +82,15 @@ std::optional<std::vector<std::tuple<int, int>>> generate_network_topology(int n
 
             connections.emplace_back(node_name, random_pick_node);
         }
+        
+        // remove current node in from all node_available_nodes
+        if (bilateral)
+        {
+            for (int node = 0; node < node_count; ++node)
+            {
+                node_available_nodes[node].erase(node_name);
+            }
+        }
     }
     
     if (success)
@@ -100,7 +103,7 @@ std::optional<std::vector<std::tuple<int, int>>> generate_network_topology(int n
     }
 }
 
-//std::optional<std::vector<std::tuple<int, int>>> generate_network_topology(int node_count, std::map<int, int> peer_count_of_each_node, bool bilateral = true)
-//{
-//    return generate_network_topology<std::mt19937>(node_count, peer_count_of_each_node, bilateral);
-//}
+void apply_generator_config_to_output_config(const configuration_file::json& generator_json, configuration_file::json& output_json, const std::string& comment)
+{
+    output_json[comment] = generator_json;
+}
