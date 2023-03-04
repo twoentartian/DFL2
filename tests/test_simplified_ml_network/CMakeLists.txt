@@ -1,2 +1,5 @@
-add_executable(TEST_simplified_ml_as_numbers ml_as_numbers.cpp)
-target_link_libraries(TEST_simplified_ml_as_numbers ${DFL_LINKER_LIBS})
+add_executable(TEST_simplified_ml_zaid_1 zaid_1.cpp)
+target_link_libraries(TEST_simplified_ml_zaid_1 ${DFL_LINKER_LIBS})
+
+add_executable(TEST_simplified_ml_maksim_1 maksim_1.cpp)
+target_link_libraries(TEST_simplified_ml_maksim_1 ${DFL_LINKER_LIBS})
