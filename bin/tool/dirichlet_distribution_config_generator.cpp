@@ -6,6 +6,8 @@
 
 #include <configure_file.hpp>
 
+#include "simulation_config_generator_common_functions.hpp"
+
 int main(int argc, char* argv[])
 {
 	configuration_file config;
@@ -45,8 +47,7 @@ int main(int argc, char* argv[])
 	std::random_device rd;
 	std::gamma_distribution<double> gamma(a,10000/a);
 	configuration_file::json& nodes_json = config.get_json()["nodes"];
-
-	
+ 
 	CHECK(nodes_json.is_array());
 	
 	for (auto& node : nodes_json)
@@ -62,7 +63,11 @@ int main(int argc, char* argv[])
 			std::cout << "node-" << node["name"] << " label-" << single_label << " dis: " << value << std::endl;
 		}
 	}
-	
+    
+    configuration_file::json generator_comment;
+    generator_comment["alpha"] = a;
+    apply_generator_config_to_output_config(generator_comment, config.get_json(), "comment_this_config_file_is_modified_by_distribution_config_generator");
+    
 	std::cout << "writing back" << std::endl;
 	config.write_back();
 	return 0;

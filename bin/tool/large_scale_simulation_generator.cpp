@@ -16,7 +16,7 @@
 #include <configure_file.hpp>
 
 #include "../simulation/simulation_config_format.hpp"
-#include "large_scale_simulation_generator_common_functions.hpp"
+#include "simulation_config_generator_common_functions.hpp"
 
 configuration_file::json get_default_simulation_configuration()
 {
@@ -327,7 +327,7 @@ int main(int argc, char* argv[])
 		config_json["ml_delayed_test_accuracy"] = false;
         
         //write simulation config generator info to output config file.
-        apply_generator_config_to_output_config(generator_config.get_json(), config_json, "this_config_file_is_initially_generated_by_large_scale_simulation_generator_with_following_config");
+        apply_generator_config_to_output_config(generator_config.get_json(), config_json, "comment_this_config_file_is_initially_generated_by_large_scale_simulation_generator_with_following_config");
         
 		config.write_back();
 	}
