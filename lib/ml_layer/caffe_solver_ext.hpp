@@ -224,7 +224,7 @@ namespace Ml
 				{
 					float lapse = this->iteration_timer_.Seconds();
 					float per_s = (this->iter_ - this->iterations_last_) / (lapse ? lapse : 1);
-					LOG_IF(INFO, caffe::Caffe::root_solver()) << "Iteration " << this->iter_ << " (" << per_s << " iter/s, " << lapse << "s/" << this->param_.display() << " iters), loss = " << this->smoothed_loss_;
+//					LOG_IF(INFO, caffe::Caffe::root_solver()) << "Iteration " << this->iter_ << " (" << per_s << " iter/s, " << lapse << "s/" << this->param_.display() << " iters), loss = " << this->smoothed_loss_;
 					this->iteration_timer_.Start();
 					this->iterations_last_ = this->iter_;
 					const std::vector<caffe::Blob<DType>*>& result = this->net_->output_blobs();
@@ -241,7 +241,7 @@ namespace Ml
 							{
 								loss_msg_stream << " (* " << loss_weight << " = " << loss_weight * result_vec[k] << " loss)";
 							}
-							LOG_IF(INFO, caffe::Caffe::root_solver()) << "    Train net output #" << score_index++ << ": " << output_name << " = " << result_vec[k] << loss_msg_stream.str();
+//							LOG_IF(INFO, caffe::Caffe::root_solver()) << "    Train net output #" << score_index++ << ": " << output_name << " = " << result_vec[k] << loss_msg_stream.str();
 						}
 					}
 				}
@@ -304,7 +304,7 @@ namespace Ml
 		{
 			DType output_accuracy,output_loss;
 			CHECK(caffe::Caffe::root_solver());
-			LOG(INFO) << "Iteration " << this->iter_ << ", testing net (#" << test_net_id << ")";
+//			LOG(INFO) << "Iteration " << this->iter_ << ", testing net (#" << test_net_id << ")";
 			CHECK_NOTNULL(this->test_nets_[test_net_id].get())->ShareTrainedLayersWith(this->net_.get());
 			std::vector<DType> test_score;
 			std::vector<int> test_score_output_id;
