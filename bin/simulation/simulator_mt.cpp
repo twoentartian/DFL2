@@ -630,80 +630,80 @@ int main(int argc, char *argv[])
 		service_instance->destruction_service();
 	}
 	
-	// generate final summary for the whole network
-	{
-		{
-			std::string log_msg = "generating final network summary";
-			std::cout << log_msg << std::endl;
-			LOG(INFO) << log_msg;
-		}
-		
-		auto whole_train = train_dataset.get_whole_dataset();
-		auto whole_test = test_dataset.get_whole_dataset();
-		
-		std::vector<std::vector<Ml::tensor_blob_like<model_datatype>>> network_output_train; // 0: node index, 1: data index
-		std::vector<std::vector<Ml::tensor_blob_like<model_datatype>>> network_output_test; // 0: node index, 1: data index
-		network_output_train.resize(node_pointer_vector_container.size());
-        for (auto & i : network_output_train)
-		{
-			i.resize(std::get<0>(whole_train).size());
-		}
-		network_output_test.resize(node_pointer_vector_container.size());
-        for (auto & i : network_output_test)
-		{
-			i.resize(std::get<0>(whole_test).size());
-		}
-		tmt::ParallelExecution_StepIncremental([&whole_train, &whole_test, &network_output_test, &network_output_train](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
-			{
-				std::vector<Ml::tensor_blob_like<model_datatype>> whole_train_x = std::get<0>(whole_train);
-				std::vector<Ml::tensor_blob_like<model_datatype>> predict_train_y = single_node->solver->predict(whole_train_x);
-				network_output_train[index] = predict_train_y;
-			}
-			{
-				std::vector<Ml::tensor_blob_like<model_datatype>> whole_test_x = std::get<0>(whole_test);
-				std::vector<Ml::tensor_blob_like<model_datatype>> predict_test_y = single_node->solver->predict(whole_test_x);
-				network_output_test[index] = predict_test_y;
-			}
-		}, node_pointer_vector_container.size(), node_pointer_vector_container.data());
-		
-		std::vector<Ml::tensor_blob_like<model_datatype>> network_prob_train, network_prob_test;
-		network_prob_train = network_output_train[0];
-		network_prob_test = network_output_test[0];
-		for (int node_index = 1; node_index < network_output_train.size(); ++node_index) // starts from 1 because index 0 is the inital value
-		{
-			for (int sample_index = 0; sample_index < network_output_train[0].size(); ++sample_index)
-			{
-				network_prob_train[sample_index] = network_prob_train[sample_index] + network_output_train[node_index][sample_index];
-			}
-		}
-		for (int node_index = 1; node_index < network_output_test.size(); ++node_index) // starts from 1 because index 0 is the inital value
-		{
-			for (int sample_index = 0; sample_index < network_output_test[0].size(); ++sample_index)
-			{
-				network_prob_test[sample_index] = network_prob_test[sample_index] + network_output_test[node_index][sample_index];
-			}
-		}
-		
-		//find the largest value
-		{
-			auto predict_y_train = Ml::MlModel<model_datatype>::get_labels_from_probability(network_prob_train);
-			const std::vector<Ml::tensor_blob_like<model_datatype>>& whole_train_y = std::get<1>(whole_train);
-			int correct_count = Ml::MlModel<model_datatype>::count_correct_based_on_prediction(whole_train_y, predict_y_train);
-			std::stringstream log_msg;
-			log_msg << "whole train dataset, total:" << whole_train_y.size() << "  correct:" << correct_count << "  accuracy:" << float(correct_count) / float(whole_train_y.size());
-			std::cout << log_msg.str() << std::endl;
-			LOG(INFO) << log_msg.str();
-		}
-		{
-			auto predict_y_test = Ml::MlModel<model_datatype>::get_labels_from_probability(network_prob_test);
-			const std::vector<Ml::tensor_blob_like<model_datatype>>& whole_test_y = std::get<1>(whole_test);
-			int correct_count = Ml::MlModel<model_datatype>::count_correct_based_on_prediction(whole_test_y, predict_y_test);
-			std::stringstream log_msg;
-			log_msg << "whole test dataset, total:" << whole_test_y.size() << "  correct:" << correct_count << "  accuracy:" << float(correct_count) / float(whole_test_y.size());
-			std::cout << log_msg.str() << std::endl;
-			LOG(INFO) << log_msg.str();
-		}
-	}
+//	// generate final summary for the whole network
+//	{
+//		{
+//			std::string log_msg = "generating final network summary";
+//			std::cout << log_msg << std::endl;
+//			LOG(INFO) << log_msg;
+//		}
+//
+//		auto whole_train = train_dataset.get_whole_dataset();
+//		auto whole_test = test_dataset.get_whole_dataset();
+//
+//		std::vector<std::vector<Ml::tensor_blob_like<model_datatype>>> network_output_train; // 0: node index, 1: data index
+//		std::vector<std::vector<Ml::tensor_blob_like<model_datatype>>> network_output_test; // 0: node index, 1: data index
+//		network_output_train.resize(node_pointer_vector_container.size());
+//        for (auto & i : network_output_train)
+//		{
+//			i.resize(std::get<0>(whole_train).size());
+//		}
+//		network_output_test.resize(node_pointer_vector_container.size());
+//        for (auto & i : network_output_test)
+//		{
+//			i.resize(std::get<0>(whole_test).size());
+//		}
+//		tmt::ParallelExecution_StepIncremental([&whole_train, &whole_test, &network_output_test, &network_output_train](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
+//			{
+//				std::vector<Ml::tensor_blob_like<model_datatype>> whole_train_x = std::get<0>(whole_train);
+//				std::vector<Ml::tensor_blob_like<model_datatype>> predict_train_y = single_node->solver->predict(whole_train_x);
+//				network_output_train[index] = predict_train_y;
+//			}
+//			{
+//				std::vector<Ml::tensor_blob_like<model_datatype>> whole_test_x = std::get<0>(whole_test);
+//				std::vector<Ml::tensor_blob_like<model_datatype>> predict_test_y = single_node->solver->predict(whole_test_x);
+//				network_output_test[index] = predict_test_y;
+//			}
+//		}, node_pointer_vector_container.size(), node_pointer_vector_container.data());
+//
+//		std::vector<Ml::tensor_blob_like<model_datatype>> network_prob_train, network_prob_test;
+//		network_prob_train = network_output_train[0];
+//		network_prob_test = network_output_test[0];
+//		for (int node_index = 1; node_index < network_output_train.size(); ++node_index) // starts from 1 because index 0 is the inital value
+//		{
+//			for (int sample_index = 0; sample_index < network_output_train[0].size(); ++sample_index)
+//			{
+//				network_prob_train[sample_index] = network_prob_train[sample_index] + network_output_train[node_index][sample_index];
+//			}
+//		}
+//		for (int node_index = 1; node_index < network_output_test.size(); ++node_index) // starts from 1 because index 0 is the inital value
+//		{
+//			for (int sample_index = 0; sample_index < network_output_test[0].size(); ++sample_index)
+//			{
+//				network_prob_test[sample_index] = network_prob_test[sample_index] + network_output_test[node_index][sample_index];
+//			}
+//		}
+//
+//		//find the largest value
+//		{
+//			auto predict_y_train = Ml::MlModel<model_datatype>::get_labels_from_probability(network_prob_train);
+//			const std::vector<Ml::tensor_blob_like<model_datatype>>& whole_train_y = std::get<1>(whole_train);
+//			int correct_count = Ml::MlModel<model_datatype>::count_correct_based_on_prediction(whole_train_y, predict_y_train);
+//			std::stringstream log_msg;
+//			log_msg << "whole train dataset, total:" << whole_train_y.size() << "  correct:" << correct_count << "  accuracy:" << float(correct_count) / float(whole_train_y.size());
+//			std::cout << log_msg.str() << std::endl;
+//			LOG(INFO) << log_msg.str();
+//		}
+//		{
+//			auto predict_y_test = Ml::MlModel<model_datatype>::get_labels_from_probability(network_prob_test);
+//			const std::vector<Ml::tensor_blob_like<model_datatype>>& whole_test_y = std::get<1>(whole_test);
+//			int correct_count = Ml::MlModel<model_datatype>::count_correct_based_on_prediction(whole_test_y, predict_y_test);
+//			std::stringstream log_msg;
+//			log_msg << "whole test dataset, total:" << whole_test_y.size() << "  correct:" << correct_count << "  accuracy:" << float(correct_count) / float(whole_test_y.size());
+//			std::cout << log_msg.str() << std::endl;
+//			LOG(INFO) << log_msg.str();
+//		}
+//	}
 	
 	delete[] solver_for_testing;
 	
