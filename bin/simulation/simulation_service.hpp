@@ -621,8 +621,8 @@ public:
         const std::uintmax_t model_size = serialize_wrap<boost::archive::binary_oarchive>(model).str().size();
         const std::uintmax_t space_required = model_size * (total_tick / ml_model_record_interval_tick + 1) * this->node_vector_container->size();
         if (si.available < space_required)
-            LOG(FATAL) << "[service] not enough space in model record path, available: " << si.available/1024/1024 << "MB, required: " << space_required/1024/1024 << "MB";
-        LOG(INFO) << "[service] space in model record path, available: " << si.available / 1024 / 1024 << "MB, required: " << space_required / 1024 / 1024 << "MB";
+            LOG(FATAL) << "[model record service] not enough space in model record path, available: " << si.available/1024/1024 << "MB, required: " << space_required/1024/1024 << "MB";
+        LOG(INFO) << "[model record service] space in model record path, available: " << si.available / 1024 / 1024 << "MB, required: " << space_required / 1024 / 1024 << "MB";
         return {record_service_status::success, ""};
     }
     
