@@ -6,6 +6,8 @@
 
 #include <configure_file.hpp>
 
+#include "simulation_config_generator_common_functions.hpp"
+
 int main(int argc, char* argv[])
 {
     configuration_file config;
@@ -66,6 +68,12 @@ int main(int argc, char* argv[])
         node["training_interval_tick"] = interval_ticks;
         std::cout << node["name"] << ": " << interval_ticks.dump() << std::endl;
     }
+    
+    configuration_file::json generator_comment;
+    generator_comment["inject_interval_mean"] = mean;
+    generator_comment["inject_interval_stddev"] = stddev;
+    generator_comment["inject_interval_floating"] = floating;
+    apply_generator_config_to_output_config(generator_comment, config.get_json(), "comment_this_config_file_is_modified_by_inject_interval_generator", false);
 
     std::cout << "writing back" << std::endl;
     config.write_back();

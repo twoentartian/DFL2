@@ -292,7 +292,7 @@ int main(int argc, char *argv[])
         config_json["ml_delayed_test_accuracy"] = false;
     
         //write simulation config generator info to output config file.
-        apply_generator_config_to_output_config(generator_config.get_json(), config_json, "comment_this_config_file_is_initially_generated_by_large_scale_simulation_generator_social_network_with_following_config");
+        apply_generator_config_to_output_config(generator_config.get_json(), config_json, "comment_this_config_file_is_initially_generated_by_large_scale_simulation_generator_social_network_with_following_config", true);
         
         config.write_back();
     }

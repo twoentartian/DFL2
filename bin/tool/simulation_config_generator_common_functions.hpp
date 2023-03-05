@@ -103,7 +103,21 @@ std::optional<std::vector<std::tuple<int, int>>> generate_network_topology(int n
     }
 }
 
-void apply_generator_config_to_output_config(const configuration_file::json& generator_json, configuration_file::json& output_json, const std::string& comment)
+void apply_generator_config_to_output_config(const configuration_file::json& generator_json, configuration_file::json& output_json, const std::string& comment, bool delete_other_comments = false)
 {
+    if (delete_other_comments)
+    {
+        std::vector<std::string> erase_list;
+        for (auto &json_item: output_json.items())
+        {
+            if (json_item.key().starts_with("comment"))
+                erase_list.push_back(json_item.key());
+        }
+        for (const auto &erase_item_name: erase_list)
+        {
+            output_json.erase(erase_item_name);
+        }
+    }
+    
     output_json[comment] = generator_json;
 }

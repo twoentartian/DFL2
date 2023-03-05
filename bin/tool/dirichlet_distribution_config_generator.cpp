@@ -66,7 +66,7 @@ int main(int argc, char* argv[])
     
     configuration_file::json generator_comment;
     generator_comment["alpha"] = a;
-    apply_generator_config_to_output_config(generator_comment, config.get_json(), "comment_this_config_file_is_modified_by_distribution_config_generator");
+    apply_generator_config_to_output_config(generator_comment, config.get_json(), "comment_this_config_file_is_modified_by_distribution_config_generator", false);
     
 	std::cout << "writing back" << std::endl;
 	config.write_back();
