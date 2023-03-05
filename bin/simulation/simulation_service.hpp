@@ -4,6 +4,10 @@
 #include <random>
 #include <configure_file.hpp>
 #include <sstream>
+#include <filesystem>
+
+#include "boost_serialization_wrapper.hpp"
+
 #include "./node.hpp"
 #include "./simulation_util.hpp"
 
@@ -47,6 +51,8 @@ protected:
 	std::unordered_map<std::string, node<model_datatype> *>* node_container;
 };
 
+/// Notice that the accuracy_record service keeps its own caffe solver for testing the accuracy,
+/// these solvers are independent from the solvers in simulator
 template <typename model_datatype>
 class accuracy_record : public service<model_datatype>
 {
@@ -104,35 +110,34 @@ public:
 	{
 		if (this->enable == false) return {record_service_status::skipped, "not enabled"};
 		
-		if (tick % ml_test_interval_tick == 0)
-		{
-			tmt::ParallelExecution([&tick, this](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node)
-			                       {
-				                       auto[test_data, test_label] = test_dataset->get_random_data(ml_test_batch_size);
-				                       auto model = single_node->solver->get_parameter();
-				                       solver_for_testing[thread_index].set_parameter(model);
-				                       auto accuracy = solver_for_testing[thread_index].evaluation(test_data, test_label);
-				                       single_node->nets_accuracy_only_record.emplace(tick, accuracy);
-			                       }, this->node_vector_container->size(), this->node_vector_container->data());
-
-			//print accuracy to file
-			*accuracy_file << tick;
-			for (auto &single_node : *(this->node_container))
-			{
-				auto iter_find = single_node.second->nets_accuracy_only_record.find(tick);
-				if (iter_find != single_node.second->nets_accuracy_only_record.end())
-				{
-					auto accuracy = iter_find->second;
-					*accuracy_file << "," << accuracy;
-				}
-				else
-				{
-					*accuracy_file << "," << " ";
-				}
-			}
-			*accuracy_file << std::endl;
-		}
-		
+		if (tick % ml_test_interval_tick != 0) return {record_service_status::skipped, "not time yet"};
+        
+        tmt::ParallelExecution([&tick, this](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node)
+                               {
+                                   auto [test_data, test_label] = test_dataset->get_random_data(ml_test_batch_size);
+                                   auto model = single_node->solver->get_parameter();
+                                   solver_for_testing[thread_index].set_parameter(model);
+                                   auto accuracy = solver_for_testing[thread_index].evaluation(test_data, test_label);
+                                   single_node->nets_accuracy_only_record.emplace(tick, accuracy);
+                               }, this->node_vector_container->size(), this->node_vector_container->data());
+        
+        //print accuracy to file
+        *accuracy_file << tick;
+        for (auto &single_node: *(this->node_container))
+        {
+            auto iter_find = single_node.second->nets_accuracy_only_record.find(tick);
+            if (iter_find != single_node.second->nets_accuracy_only_record.end())
+            {
+                auto accuracy = iter_find->second;
+                *accuracy_file << "," << accuracy;
+            }
+            else
+            {
+                *accuracy_file << "," << " ";
+            }
+        }
+        *accuracy_file << std::endl;
+        
 		return {record_service_status::success, ""};
 	}
 	
@@ -151,13 +156,13 @@ private:
 };
 
 template <typename model_datatype>
-class model_weights_record : public service<model_datatype>
+class model_weights_difference_record : public service<model_datatype>
 {
 public:
 	//set these variables before init
 	int ml_model_weight_diff_record_interval_tick;
 	
-	model_weights_record()
+	model_weights_difference_record()
 	{
 		this->node_vector_container = nullptr;
 		ml_model_weight_diff_record_interval_tick = 0;
@@ -195,42 +200,40 @@ public:
 	{
 		if (this->enable == false) return {record_service_status::skipped, "not enabled"};
 		
-		if (tick % ml_model_weight_diff_record_interval_tick == 0)
-		{
-			auto weights = (*this->node_vector_container)[0]->solver->get_parameter();
-			auto layers = weights.getLayers();
-			size_t number_of_layers = layers.size();
-			auto* weight_diff_sums = new std::atomic<float>[number_of_layers];
-			for (int i = 0; i < number_of_layers; ++i) weight_diff_sums[i] = 0;
-			
-			tmt::ParallelExecution([this, &weight_diff_sums,&number_of_layers](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node)
-			                       {
-				                       uint32_t index_next = index + 1;
-				                       const uint32_t total_size = this->node_vector_container->size();
-				                       if (index_next == total_size-1) index_next = 0;
-				                       auto net1 = (*this->node_vector_container)[index]->solver->get_parameter();
-				                       auto net2 = (*this->node_vector_container)[index_next]->solver->get_parameter();
-				                       auto layers1 = net1.getLayers();
-				                       auto layers2 = net2.getLayers();
-				                       for (int i = 0; i < number_of_layers; ++i)
-				                       {
-					                       auto diff = layers1[i] - layers2[i];
-					                       diff.abs();
-					                       auto value = diff.sum();
-					                       weight_diff_sums[i] = weight_diff_sums[i] + value;
-				                       }
-			                       }, this->node_vector_container->size()-1, this->node_vector_container->data());
-			
-			*model_weights_file << tick;
-			for (int i = 0; i < number_of_layers; ++i)
-			{
-				*model_weights_file << "," << weight_diff_sums[i];
-			}
-			*model_weights_file << std::endl;
-			
-			delete[] weight_diff_sums;
-		}
-		
+        if (tick % ml_model_weight_diff_record_interval_tick != 0) return {record_service_status::skipped, "not time yet"};
+        
+        auto weights = (*this->node_vector_container)[0]->solver->get_parameter();
+        auto layers = weights.getLayers();
+        size_t number_of_layers = layers.size();
+        auto *weight_diff_sums = new std::atomic<float>[number_of_layers];
+        for (int i = 0; i < number_of_layers; ++i) weight_diff_sums[i] = 0;
+        
+        tmt::ParallelExecution([this, &weight_diff_sums, &number_of_layers](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node)
+                               {
+                                   uint32_t index_next = index + 1;
+                                   const uint32_t total_size = this->node_vector_container->size();
+                                   if (index_next == total_size - 1) index_next = 0;
+                                   auto net1 = (*this->node_vector_container)[index]->solver->get_parameter();
+                                   auto net2 = (*this->node_vector_container)[index_next]->solver->get_parameter();
+                                   auto layers1 = net1.getLayers();
+                                   auto layers2 = net2.getLayers();
+                                   for (int i = 0; i < number_of_layers; ++i)
+                                   {
+                                       auto diff = layers1[i] - layers2[i];
+                                       diff.abs();
+                                       auto value = diff.sum();
+                                       weight_diff_sums[i] = weight_diff_sums[i] + value;
+                                   }
+                               }, this->node_vector_container->size() - 1, this->node_vector_container->data());
+        
+        *model_weights_file << tick;
+        for (int i = 0; i < number_of_layers; ++i)
+        {
+            *model_weights_file << "," << weight_diff_sums[i];
+        }
+        *model_weights_file << std::endl;
+        delete[] weight_diff_sums;
+        
 		return {record_service_status::success, ""};
 	}
 	
@@ -278,7 +281,7 @@ public:
 		
 		auto model_sum = (*this->node_vector_container)[0]->solver->get_parameter();
 		model_sum.set_all(0);
-		if (tick % tick_to_broadcast == 0 && tick != 0)
+        if (tick % tick_to_broadcast == 0 && tick != 0)
 		{
 			LOG(INFO) << "force_broadcast_model triggered at tick: " << tick;
 			for (auto& node: *(this->node_container))
@@ -292,6 +295,10 @@ public:
 				node.second->solver->set_parameter(model_sum);
 			}
 		}
+        else
+        {
+            return {record_service_status::skipped, "not time yet"};
+        }
 		return {record_service_status::success, ""};
 	}
 	
@@ -509,7 +516,7 @@ public:
     {
         this->set_node_container(_node_container, _node_vector_container);
         
-        if (!this->enable) return {record_service_status::skipped, ""};
+        if (!this->enable) return {record_service_status::skipped, "not enabled"};
         
         //reputation folder
         std::filesystem::path reputation_folder = output_path / "reputation";
@@ -539,7 +546,7 @@ public:
     
     std::tuple<record_service_status, std::string> process_per_tick(int tick) override
     {
-        if (!this->enable) return {record_service_status::skipped, ""};
+        if (!this->enable) return {record_service_status::skipped, "not enabled"};
         
         //print reputation map
         for (auto& [node_name, node]: *(this->node_container))
@@ -560,7 +567,7 @@ public:
     
     std::tuple<record_service_status, std::string> destruction_service() override
     {
-        if (!this->enable) return {record_service_status::skipped, ""};
+        if (!this->enable) return {record_service_status::skipped, "not enabled"};
         
         for (auto& [node_name, reputation_file]: reputations_files)
         {
@@ -570,8 +577,77 @@ public:
                 reputation_file->close();
             }
         }
+        return {record_service_status::success, ""};
+    }
+    
+};
+
+template <typename model_datatype>
+class model_record : public service<model_datatype>
+{
+private:
+    int ml_model_record_interval_tick;
+    std::string path;
+    std::filesystem::path storage_path;
+    
+public:
+    int total_tick;
+    
+public:
+    model_record()
+    {
+        this->node_vector_container = nullptr;
+        ml_model_record_interval_tick = 0;
+    }
+    
+    std::tuple<record_service_status, std::string> apply_config(const configuration_file::json &config) override
+    {
+        this->enable = config["enable"];
+        this->ml_model_record_interval_tick = config["interval"];
+        this->path = config["path"];
+        
+        return {record_service_status::success, ""};
+    }
+    
+    std::tuple<record_service_status, std::string> init_service(const std::filesystem::path &output_path, std::unordered_map<std::string, node<model_datatype> *> &_node_container, std::vector<node<model_datatype> *> &_node_vector_container) override
+    {
+        this->set_node_container(_node_container, _node_vector_container);
+        this->storage_path = output_path / path;
+        if (!std::filesystem::exists(storage_path)) std::filesystem::create_directories(storage_path);
+        
+        //check available space
+        const std::filesystem::space_info si = std::filesystem::space(this->storage_path);
+        auto model = _node_vector_container[0]->solver->get_parameter();
+        const std::uintmax_t model_size = serialize_wrap<boost::archive::binary_oarchive>(model).str().size();
+        const std::uintmax_t space_required = model_size * (total_tick / ml_model_record_interval_tick + 1) * this->node_vector_container->size();
+        if (si.available < space_required)
+            LOG(FATAL) << "[service] not enough space in model record path, available: " << si.available/1024/1024 << "MB, required: " << space_required/1024/1024 << "MB";
+        LOG(INFO) << "[service] space in model record path, available: " << si.available / 1024 / 1024 << "MB, required: " << space_required / 1024 / 1024 << "MB";
+        return {record_service_status::success, ""};
+    }
+    
+    std::tuple<record_service_status, std::string> process_per_tick(int tick) override
+    {
+        if (this->enable == false) return {record_service_status::skipped, "not enabled"};
+    
+        if (tick % ml_model_record_interval_tick != 0) return {record_service_status::skipped, "not time yet"};
+        
+        std::filesystem::path folder_of_this_tick = storage_path / std::to_string(tick);
+        if (!std::filesystem::exists(folder_of_this_tick)) std::filesystem::create_directories(folder_of_this_tick);
+    
+        tmt::ParallelExecution([&folder_of_this_tick](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node)
+        {
+            auto model = single_node->solver->get_parameter();
+            std::ofstream output_file(folder_of_this_tick / (single_node->name + ".bin"));
+            output_file << serialize_wrap<boost::archive::binary_oarchive>(model).str();
+            output_file.close();
+        }, this->node_vector_container->size(), this->node_vector_container->data());
     
         return {record_service_status::success, ""};
     }
     
+    std::tuple<record_service_status, std::string> destruction_service() override
+    {
+        return {record_service_status::success, ""};
+    }
 };

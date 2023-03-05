@@ -415,10 +415,11 @@ int main(int argc, char *argv[])
 	////services
 	std::unordered_map<std::string, std::shared_ptr<service<model_datatype>>> services;
 	services.emplace("accuracy", new accuracy_record<model_datatype>());
-	services.emplace("weights_diff", new model_weights_record<model_datatype>());
+	services.emplace("model_weights_difference_record", new model_weights_difference_record<model_datatype>());
 	services.emplace("force_broadcast_average", new force_broadcast_model<model_datatype>());
 	services.emplace("peer_control_service", new peer_control_service<model_datatype>());
     services.emplace("reputation_record", new reputation_record<model_datatype>());
+    services.emplace("model_record", new model_record<model_datatype>());
 	auto services_json = config_json["services"];
 	LOG_IF(FATAL, services_json.is_null()) << "services are not defined in configuration file";
 	
@@ -434,11 +435,11 @@ int main(int argc, char *argv[])
 		service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
 	}
 	
-	//weights record
+	//model weights difference record
 	{
-		auto service_iter = services.find("weights_diff");
+		auto service_iter = services.find("model_weights_difference_record");
 		
-		service_iter->second->apply_config(services_json["weights_diff"]);
+		service_iter->second->apply_config(services_json["model_weights_difference_record"]);
 		service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
 	}
 	
@@ -468,6 +469,15 @@ int main(int argc, char *argv[])
         auto service_iter = services.find("reputation_record");
     
         service_iter->second->apply_config(services_json["reputation_record"]);
+        service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+    }
+    
+    //model record
+    {
+        auto service_iter = services.find("model_record");
+        std::static_pointer_cast<model_record<model_datatype>>(service_iter->second)->total_tick = ml_max_tick;
+    
+        service_iter->second->apply_config(services_json["model_record"]);
         service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
     }
     

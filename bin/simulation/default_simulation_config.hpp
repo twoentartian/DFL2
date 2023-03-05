@@ -71,7 +71,7 @@ configuration_file::json get_default_simulation_configuration()
 		configuration_file::json weights_service = configuration_file::json::object();
 		weights_service["enable"] = true;
 		weights_service["interval"] = 20;
-		services["weights_diff"] = weights_service;
+		services["model_weights_difference_record"] = weights_service;
 	}
 	{
 		configuration_file::json force_broadcast_service = configuration_file::json::object();
@@ -86,14 +86,19 @@ configuration_file::json get_default_simulation_configuration()
 		peer_control_service["fedavg_buffer_size"] = "linear"; //// candidates: static, linear
 		peer_control_service["accuracy_threshold_high"] = 0.8;
 		peer_control_service["accuracy_threshold_low"] = 0.2;
-		
 		services["peer_control_service"] = peer_control_service;
 	}
     {
         configuration_file::json reputation_record_service = configuration_file::json::object();
         reputation_record_service["enable"] = true;
-        
         services["reputation_record"] = reputation_record_service;
+    }
+    {
+        configuration_file::json model_record_service = configuration_file::json::object();
+        model_record_service["enable"] = true;
+        model_record_service["path"] = "./models";
+        model_record_service["interval"] = 1000;
+        services["model_record"] = model_record_service;
     }
 	output["services"] = services;
 	
