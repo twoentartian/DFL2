@@ -6,15 +6,17 @@ import pandas
 import matplotlib.pyplot as plt
 
 row = 1
-col = 4
+col = 3
 
-folders = ["iid", "non_iid_alpha_10", "non_iid_alpha_1", "non_iid_alpha_0_1"]
-
-titles = ["I.I.D.", "non-I.I.D. alpha=10", "non-I.I.D. alpha=1", "non-I.I.D. alpha=0.1"]
+# folders = ["50_node_8_random_peers", "50_node_grid", "50_node_loop", "50_node_star"]
+folders = ["50_node_grid", "50_node_loop", "50_node_star"]
+# titles = ["random network - 8 peers", "grid", "loop", "star"]
+titles = ["grid", "loop", "star"]
 
 maximum_tick = 10000
 save_name = "draw"
 draw_model_weight_diff = True
+draw_topology_map = False
 
 folder_names_set = set()
 for folder_index in range(len(folders)):
@@ -64,11 +66,16 @@ if flag_generate_whole:
     plot_col = col
     number_of_plot_per_row = 1
     if draw_model_weight_diff:
-        figsize_row = figsize_row * 2
-        plot_row = plot_row * 2
-        number_of_plot_per_row = 2
+        figsize_row = figsize_row + figsize_row
+        plot_row = plot_row + 1
+        number_of_plot_per_row = plot_row
+    if draw_topology_map:
+        figsize_row = figsize_row + figsize_row
+        plot_row = plot_row + 1
+        number_of_plot_per_row = plot_row
 
     whole_fig, whole_axs = plt.subplots(plot_row, plot_col, figsize=(figsize_col, figsize_row), squeeze=False)
+    topology_graphs = []
     for folder_index in range(len(folders)):
         current_col = folder_index % col
         current_row = folder_index // col
@@ -80,7 +87,28 @@ if flag_generate_whole:
         final_accuracy_df = pandas.DataFrame()
         final_weight_diff_df = pandas.DataFrame()
         is_first_dataframe = True
+        first_to_draw_topology = True
         for each_test_result_folder in subfolders:
+            # load the topology
+            if first_to_draw_topology:
+                import json
+                import networkx as nx
+                first_to_draw_topology = False
+                config_file = open(each_test_result_folder + '/simulator_config.json')
+                config_file_content = config_file.read()
+                config_file_json = json.loads(config_file_content)
+                topology = config_file_json['node_topology']
+                G = nx.Graph()
+                for singleItem in topology:
+                    unDirLink = singleItem.split('--')
+                    if len(unDirLink) != 1:
+                        G.add_edge(unDirLink[0], unDirLink[1])
+
+                    dirLink = singleItem.split('->')
+                    if len(dirLink) != 1:
+                        G.add_edge(dirLink[0], dirLink[1])
+                topology_graphs.append(G)
+
             accuracy_file_path = each_test_result_folder + '/accuracy.csv'
             accuracy_df = pandas.read_csv(accuracy_file_path, index_col=0, header=0)
             # print(accuracy_df)
@@ -143,6 +171,17 @@ if flag_generate_whole:
             weight_diff_axis.set_ylabel('weight diff')
             weight_diff_axis.set_yscale('log')
             weight_diff_axis.set_xlim([0, final_weight_diff_df.index[end_weight_diff_x]])
+
+        if draw_topology_map:
+            topology_axis = whole_axs[current_row * number_of_plot_per_row + 2, current_col]
+            topology_axis.set_axis_off()
+            G = topology_graphs[folder_index]
+            if folder_index == 0:
+                layout = nx.spring_layout(G, iterations=100, seed=39775)
+            else:
+                layout = nx.nx_agraph.graphviz_layout(G)
+            nx.draw(G, pos=layout, font_color='k', alpha=1.0, linewidths=0.1, width=0.5, font_size=8, ax=topology_axis,
+                    node_size=100)
 
     whole_fig.tight_layout()
     whole_fig.savefig(save_name + '.pdf')
