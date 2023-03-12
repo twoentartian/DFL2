@@ -611,6 +611,8 @@ public:
     
     std::tuple<record_service_status, std::string> init_service(const std::filesystem::path &output_path, std::unordered_map<std::string, node<model_datatype> *> &_node_container, std::vector<node<model_datatype> *> &_node_vector_container) override
     {
+        if (this->enable == false) return {record_service_status::skipped, "not enabled"};
+
         this->set_node_container(_node_container, _node_vector_container);
         this->storage_path = output_path / path;
         if (!std::filesystem::exists(storage_path)) std::filesystem::create_directories(storage_path);
