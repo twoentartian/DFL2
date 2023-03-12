@@ -424,61 +424,68 @@ int main(int argc, char *argv[])
 	LOG_IF(FATAL, services_json.is_null()) << "services are not defined in configuration file";
 	
 	//accuracy service
-	{
-		auto service_iter = services.find("accuracy");
-		
-		std::static_pointer_cast<accuracy_record<model_datatype>>(service_iter->second)->ml_solver_proto = ml_solver_proto;
-		std::static_pointer_cast<accuracy_record<model_datatype>>(service_iter->second)->test_dataset = &test_dataset;
-		std::static_pointer_cast<accuracy_record<model_datatype>>(service_iter->second)->ml_test_batch_size = ml_test_batch_size;
-		
-		service_iter->second->apply_config(services_json["accuracy"]);
-		service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
-	}
-	
-	//model weights difference record
-	{
-		auto service_iter = services.find("model_weights_difference_record");
-		
-		service_iter->second->apply_config(services_json["model_weights_difference_record"]);
-		service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
-	}
-	
-	//force_broadcast
-	{
-		auto service_iter = services.find("force_broadcast_average");
-		
-		service_iter->second->apply_config(services_json["force_broadcast_average"]);
-		service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
-	}
-	
-	//peer_control_service
-	{
-		auto service_iter = services.find("peer_control_service");
-		
-		std::static_pointer_cast<peer_control_service<model_datatype>>(service_iter->second)->ml_solver_proto = ml_solver_proto;
-		std::static_pointer_cast<peer_control_service<model_datatype>>(service_iter->second)->test_dataset = &test_dataset;
-		std::static_pointer_cast<peer_control_service<model_datatype>>(service_iter->second)->ml_test_batch_size = ml_test_batch_size;
-		std::static_pointer_cast<peer_control_service<model_datatype>>(service_iter->second)->ml_dataset_all_possible_labels = &ml_dataset_all_possible_labels;
-		
-		service_iter->second->apply_config(services_json["peer_control_service"]);
-		service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
-	}
-	
-    //reputation_record
     {
-        auto service_iter = services.find("reputation_record");
-    
-        service_iter->second->apply_config(services_json["reputation_record"]);
-        service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
-    }
-    
-    //model record
-    {
-        auto service_iter = services.find("model_record");
-        std::static_pointer_cast<model_record<model_datatype>>(service_iter->second)->total_tick = ml_max_tick;
-    
-        service_iter->second->apply_config(services_json["model_record"]);
-        service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+        auto check_and_get_config = [&services_json](const std::string& service_name) -> auto{
+            auto json_config = services_json[service_name];
+            LOG_IF(FATAL, json_config.is_null()) << "service: \"" << service_name << "\" config item is empty";
+            return json_config;
+        };
+        {
+            auto service_iter = services.find("accuracy");
+
+            std::static_pointer_cast<accuracy_record<model_datatype>>(service_iter->second)->ml_solver_proto = ml_solver_proto;
+            std::static_pointer_cast<accuracy_record<model_datatype>>(service_iter->second)->test_dataset = &test_dataset;
+            std::static_pointer_cast<accuracy_record<model_datatype>>(service_iter->second)->ml_test_batch_size = ml_test_batch_size;
+
+            service_iter->second->apply_config(check_and_get_config("accuracy"));
+            service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+        }
+
+        //model weights difference record
+        {
+            auto service_iter = services.find("model_weights_difference_record");
+
+            service_iter->second->apply_config(check_and_get_config("model_weights_difference_record"));
+            service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+        }
+
+        //force_broadcast
+        {
+            auto service_iter = services.find("force_broadcast_average");
+
+            service_iter->second->apply_config(check_and_get_config("force_broadcast_average"));
+            service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+        }
+
+        //peer_control_service
+        {
+            auto service_iter = services.find("peer_control_service");
+
+            std::static_pointer_cast<peer_control_service<model_datatype>>(service_iter->second)->ml_solver_proto = ml_solver_proto;
+            std::static_pointer_cast<peer_control_service<model_datatype>>(service_iter->second)->test_dataset = &test_dataset;
+            std::static_pointer_cast<peer_control_service<model_datatype>>(service_iter->second)->ml_test_batch_size = ml_test_batch_size;
+            std::static_pointer_cast<peer_control_service<model_datatype>>(service_iter->second)->ml_dataset_all_possible_labels = &ml_dataset_all_possible_labels;
+
+            service_iter->second->apply_config(check_and_get_config("peer_control_service"));
+            service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+        }
+
+        //reputation_record
+        {
+            auto service_iter = services.find("reputation_record");
+
+            service_iter->second->apply_config(check_and_get_config("reputation_record"));
+            service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+        }
+
+        //model record
+        {
+            auto service_iter = services.find("model_record");
+            std::static_pointer_cast<model_record<model_datatype>>(service_iter->second)->total_tick = ml_max_tick;
+
+            service_iter->second->apply_config(check_and_get_config("model_record"));
+            service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+        }
     }
     
 	////////////  BEGIN SIMULATION  ////////////
