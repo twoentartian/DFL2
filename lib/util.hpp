@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <random>
+#include <map>
 
 #define GENERATE_GET(Var_name, get_name)    \
 auto& get_name()                            \
