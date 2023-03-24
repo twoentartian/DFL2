@@ -104,44 +104,53 @@ namespace network::simple
 			accept();
 			if (!ec)
 			{
-				std::shared_ptr<tcp_session_with_header> clientSession = std::make_shared<tcp_session_with_header>(socket_ptr);
-				clientSession->_server_closeHandlers = &this->_closeHandlers;
-				clientSession->_server_receiveHandlers = &this->_receiveHandlers;
-				clientSession->_server_receiveHandlers_with_header = &this->_receiveHandlers_with_header;
-				
-				const auto remote_endpoint = socket_ptr->remote_endpoint();
-				const std::string remote_ip = remote_endpoint.address().to_string();
-				const uint16_t remote_port = remote_endpoint.port();
-				
-				//Session control
-				{
-					lock_guard_write lgd_wsc(_lockSessionMap);
-					_sessionMap[remote_ip + ":" + std::to_string(remote_port)] = clientSession;
-				}
-				
-				//Set close handler
-				clientSession->SetCloseHandler([this](const std::shared_ptr<tcp_session> &session)
-				                               {
-					                               //Session control
-					                               lock_guard_write lgd_wsc(_lockSessionMap);
-					                               const auto result = _sessionMap.find(session->ip() + ":" + std::to_string(session->port()));
-					                               if (result == _sessionMap.end())
-					                               {
-						                               throw std::logic_error("item should be here but it does not");
-					                               }
-					                               else
-					                               {
-						                               _sessionMap.erase(result);
-					                               }
-				                               });
-				
-				//Accept Handler
-				for (auto &&handler : _acceptHandler)
-				{
-					handler(remote_ip, remote_port, clientSession);
-				}
-				
-				clientSession->start();
+                try
+                {
+                    if (!socket_ptr) return;
+
+                    std::shared_ptr<tcp_session_with_header> clientSession = std::make_shared<tcp_session_with_header>(socket_ptr);
+                    clientSession->_server_closeHandlers = &this->_closeHandlers;
+                    clientSession->_server_receiveHandlers = &this->_receiveHandlers;
+                    clientSession->_server_receiveHandlers_with_header = &this->_receiveHandlers_with_header;
+
+                    const auto remote_endpoint = socket_ptr->remote_endpoint();
+                    const std::string remote_ip = remote_endpoint.address().to_string();
+                    const uint16_t remote_port = remote_endpoint.port();
+
+                    //Session control
+                    {
+                        lock_guard_write lgd_wsc(_lockSessionMap);
+                        _sessionMap[remote_ip + ":" + std::to_string(remote_port)] = clientSession;
+                    }
+
+                    //Set close handler
+                    clientSession->SetCloseHandler([this](const std::shared_ptr<tcp_session> &session)
+                                                   {
+                                                       //Session control
+                                                       lock_guard_write lgd_wsc(_lockSessionMap);
+                                                       const auto result = _sessionMap.find(session->ip() + ":" + std::to_string(session->port()));
+                                                       if (result == _sessionMap.end())
+                                                       {
+                                                           throw std::logic_error("item should be here but it does not");
+                                                       }
+                                                       else
+                                                       {
+                                                           _sessionMap.erase(result);
+                                                       }
+                                                   });
+
+                    //Accept Handler
+                    for (auto &&handler : _acceptHandler)
+                    {
+                        handler(remote_ip, remote_port, clientSession);
+                    }
+
+                    clientSession->start();
+                }
+                catch (...)
+                {
+                    //do nothing here
+                }
 			}
 		}
 	

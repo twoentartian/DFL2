@@ -181,7 +181,52 @@ public:
 	std::unordered_map<std::string, block_confirmation> block_confirmation_container;
 	TIME_STAMP_TYPE block_finalization_time;
 	std::string final_hash;
-	
+
+    block() = default;
+    block(const block& target)
+    {
+        this->height = target.height;
+        this->content = target.content;
+        this->block_content_hash = target.block_content_hash;
+        this->block_confirmation_container = target.block_confirmation_container;
+        this->block_finalization_time = target.block_finalization_time;
+        this->final_hash = target.final_hash;
+    }
+
+    block(block&& target)
+    {
+        this->height = target.height;
+        this->content = std::move(target.content);
+        this->block_content_hash = std::move(target.block_content_hash);
+        this->block_confirmation_container = std::move(target.block_confirmation_container);
+        this->block_finalization_time = target.block_finalization_time;
+        this->final_hash = std::move(target.final_hash);
+    }
+
+    block& operator=(const block& target)
+    {
+        if (this == &target) return *this;
+        this->height = target.height;
+        this->content = target.content;
+        this->block_content_hash = target.block_content_hash;
+        this->block_confirmation_container = target.block_confirmation_container;
+        this->block_finalization_time = target.block_finalization_time;
+        this->final_hash = target.final_hash;
+        return *this;
+    }
+
+    block& operator=(block&& target) noexcept
+    {
+        if (this == &target) return *this;
+        this->height = target.height;
+        this->content = std::move(target.content);
+        this->block_content_hash = std::move(target.block_content_hash);
+        this->block_confirmation_container = std::move(target.block_confirmation_container);
+        this->block_finalization_time = target.block_finalization_time;
+        this->final_hash = std::move(target.final_hash);
+        return *this;
+    }
+
 	void to_byte_buffer(byte_buffer& target) const
 	{
 		target.add(height);
