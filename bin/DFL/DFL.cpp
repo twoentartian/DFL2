@@ -1,6 +1,9 @@
 #include <thread>
 #include <csignal>
 
+#define BOOST_STACKTRACE_USE_BACKTRACE
+#include <boost/stacktrace.hpp>
+
 #include <glog/logging.h>
 
 #include <configure_file.hpp>
@@ -361,15 +364,25 @@ int main(int argc, char **argv)
 	
     //signal handler
     {
-        auto sig_handler = [](int signum)
+        auto error_sig_handler = [](int signum){
+            auto stacktrace = boost::stacktrace::stacktrace();
+            std::cerr << stacktrace;
+            global_container::get()->clear();
+            LOG(FATAL) << stacktrace;
+            exit(signum);
+        };
+
+        auto interrupt_sig_handler = [](int signum)
         {
-	        global_container::get()->clear();
+            global_container::get()->clear();
             exit(0);
         };
-        signal(SIGTERM, sig_handler);
-        signal(SIGINT, sig_handler);
-    }
+        signal(SIGTERM, interrupt_sig_handler);
+        signal(SIGINT, interrupt_sig_handler);
 
+        signal(SIGSEGV, error_sig_handler);
+        signal(SIGABRT, error_sig_handler);
+    }
     
 	//log file path
 	{

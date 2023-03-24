@@ -21,6 +21,7 @@ set(DFL_LINKER_LIBS)
 
 option(USE_HUNTER_BOOST "USE the Boost library in Hunter" ON)
 option(USE_ROCKSDB "USE RocksDB to store block/transactions" ON)
+option(USE_BACKTRACE "USE backtrace library to provide stack trace information" OFF)
 
 # Boost
 if (USE_HUNTER_BOOST)
@@ -36,6 +37,11 @@ endif ()
 if (Boost_VERSION VERSION_GREATER_EQUAL 1.76)
     add_compile_definitions(Boost_dll_import_symbol)
 endif ()
+
+# Backtrace
+if (USE_BACKTRACE)
+    list(APPEND DFL_LINKER_LIBS backtrace)
+endif()
 
 # Caffe cmake
 add_subdirectory(3rd/caffe)

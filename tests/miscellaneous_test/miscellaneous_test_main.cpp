@@ -1,5 +1,13 @@
+#include <csignal>
+
 #include <thread>
 #include <cmath>
+#include <sstream>
+#include <filesystem>
+
+#define BOOST_STACKTRACE_USE_BACKTRACE
+#include <boost/stacktrace.hpp>
+
 #include <time_util.hpp>
 #include <byte_buffer.hpp>
 #include <time_util.hpp>
@@ -107,6 +115,22 @@ BOOST_AUTO_TEST_SUITE (miscellaneous_test)
                                                                 }, DATA_SIZE, data);
         }
         BOOST_CHECK(pass);
+    }
+
+    void signalHandler(int sig_num)
+    {
+        std::cerr << boost::stacktrace::stacktrace();
+        exit(sig_num);
+    }
+
+    BOOST_AUTO_TEST_CASE(signal_SIGSEGV_test)
+    {
+        ::signal(SIGSEGV, signalHandler);
+        ::signal(SIGABRT, signalHandler);
+
+        int *foo = (int*)-1; // make a bad pointer
+        printf("%d\n", *foo);
+
     }
 
 BOOST_AUTO_TEST_SUITE_END()
