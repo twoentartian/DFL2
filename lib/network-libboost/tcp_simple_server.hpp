@@ -32,9 +32,18 @@ namespace network::simple
 			//_socket->set_option(boost::asio::socket_base::receive_buffer_size(BUFFER_SIZE));
 			//_socket->set_option(boost::asio::socket_base::send_buffer_size(BUFFER_SIZE));
 			//_socket->set_option(boost::asio::ip::tcp::no_delay(true));
-			
-			_ip = _socket->remote_endpoint().address().to_string();
-			_port = _socket->remote_endpoint().port();
+
+            try
+            {
+                _ip = _socket->remote_endpoint().address().to_string();
+                _port = _socket->remote_endpoint().port();
+            }
+            catch (const boost::system::system_error& e)
+            {
+                LOG(WARNING) << "get an already-closed tcp session";
+                _connected = false;
+            }
+
 		}
 		
 		~tcp_session()
