@@ -23,6 +23,15 @@ option(USE_HUNTER_BOOST "USE the Boost library in Hunter" ON)
 option(USE_ROCKSDB "USE RocksDB to store block/transactions" ON)
 option(USE_BACKTRACE "USE backtrace library to provide stack trace information" OFF)
 
+# Build type: RelWithDebInfo
+set(CMAKE_CXX_FLAGS_RELEASEWITHDEBINFO "-O2 -g")
+set(CMAKE_C_FLAGS_RELEASEWITHDEBINFO "-O2 -g")
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Choose the type of build." FORCE)
+endif()
+
+set(CMAKE_CONFIGURATION_TYPES "Debug;Release;RelWithDebInfo" CACHE STRING "Available build types" FORCE)
+
 # Boost
 if (USE_HUNTER_BOOST)
     hunter_add_package(Boost COMPONENTS system filesystem serialization thread)
