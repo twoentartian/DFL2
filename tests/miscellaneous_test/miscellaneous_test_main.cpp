@@ -125,8 +125,8 @@ BOOST_AUTO_TEST_SUITE (miscellaneous_test)
 
     BOOST_AUTO_TEST_CASE(signal_SIGSEGV_test)
     {
-        ::signal(SIGSEGV, signalHandler);
-        ::signal(SIGABRT, signalHandler);
+        signal(SIGSEGV, signalHandler);
+        signal(SIGABRT, signalHandler);
 
         int *foo = (int*)-1; // make a bad pointer
         printf("%d\n", *foo);
