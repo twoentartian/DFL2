@@ -39,7 +39,7 @@ constexpr char LOG_PATH[] = "./log/";
 using model_datatype = float;
 
 
-std::mutex training_lock;
+std::mutex model_lock;
 
 std::shared_ptr<Ml::MlCaffeModel<model_datatype, caffe::SGDSolver>> model_train;
 std::shared_ptr<Ml::MlCaffeModel<model_datatype, caffe::SGDSolver>> model_test;
@@ -142,7 +142,7 @@ void generate_transaction(const std::vector<Ml::tensor_blob_like<model_datatype>
 	Ml::caffe_parameter_net<model_datatype> net_after,net_before;
 	float accuracy;
 	{
-		std::lock_guard guard(training_lock);
+		std::lock_guard guard(model_lock);
 		net_before = model_train->get_parameter();
 		model_train->train(data, label, false);
 		auto[test_dataset_data, test_dataset_label] = global_container::get()->main_dataset_storage->get_random_data(global_var::ml_test_batch_size);
@@ -312,44 +312,48 @@ void update_model(std::shared_ptr<std::vector<transaction>> transactions)
 	
 	global_container::get()->main_reputation_manager->get_reputation_map(reputation_map);
 	LOG(INFO) << "start updating model - retrieving reputation - done";
-	
-	Ml::caffe_parameter_net<model_datatype> parameter = model_train->get_parameter();
-	
-	double self_accuracy;
-	{
-		std::shared_ptr<profiler_auto> profiler_calculate_self_accuracy;
-		if (global_var::enable_profiler)
-			profiler_calculate_self_accuracy.reset(new profiler_auto("update_model/calculate_self_accuracy"));
-		auto[test_dataset_data, test_dataset_label] = global_container::get()->main_dataset_storage->get_random_data(global_var::ml_test_batch_size);
-		self_accuracy = model_train->evaluation(test_dataset_data, test_dataset_label);
-	}
-	
-	std::vector<updated_model<model_datatype>> received_models;
-	received_models.resize(transactions->size());
-	for (int i = 0; i < received_models.size(); ++i)
-	{
-		Ml::model_compress_type model_type;
-		std::tie(received_models[i].model_parameter, model_type) = Ml::model_interpreter<model_datatype>::parse_model_stream((*transactions)[i].content.model_data);
-		
-		received_models[i].generator_address = (*transactions)[i].content.creator.node_address;
-		received_models[i].type = model_type;
-		
-		//set accuracy
-		bool found_flag = false;
-		for (auto& [receipt_hash, receipt]:(*transactions)[i].receipts)
-		{
-			if (receipt.content.creator.node_address == global_var::address.getTextStr_lowercase())
-			{
-				//find the generated accuracy
-				found_flag = true;
-				received_models[i].accuracy = std::stof(receipt.content.accuracy);
-			}
-		}
-		LOG_IF(WARNING, !found_flag) << "cannot find the receipt to retrieve the accuracy data";
-	}
-	
-	reputation_dll.get()->update_model(parameter, self_accuracy, received_models, reputation_map);
-	model_train->set_parameter(parameter);
+
+    {
+        std::lock_guard guard(model_lock);
+
+        Ml::caffe_parameter_net<model_datatype> parameter = model_train->get_parameter();
+
+        double self_accuracy;
+        {
+            std::shared_ptr<profiler_auto> profiler_calculate_self_accuracy;
+            if (global_var::enable_profiler)
+                profiler_calculate_self_accuracy.reset(new profiler_auto("update_model/calculate_self_accuracy"));
+            auto[test_dataset_data, test_dataset_label] = global_container::get()->main_dataset_storage->get_random_data(global_var::ml_test_batch_size);
+            self_accuracy = model_train->evaluation(test_dataset_data, test_dataset_label);
+        }
+
+        std::vector<updated_model<model_datatype>> received_models;
+        received_models.resize(transactions->size());
+        for (int i = 0; i < received_models.size(); ++i)
+        {
+            Ml::model_compress_type model_type;
+            std::tie(received_models[i].model_parameter, model_type) = Ml::model_interpreter<model_datatype>::parse_model_stream((*transactions)[i].content.model_data);
+
+            received_models[i].generator_address = (*transactions)[i].content.creator.node_address;
+            received_models[i].type = model_type;
+
+            //set accuracy
+            bool found_flag = false;
+            for (auto& [receipt_hash, receipt]:(*transactions)[i].receipts)
+            {
+                if (receipt.content.creator.node_address == global_var::address.getTextStr_lowercase())
+                {
+                    //find the generated accuracy
+                    found_flag = true;
+                    received_models[i].accuracy = std::stof(receipt.content.accuracy);
+                }
+            }
+            LOG_IF(WARNING, !found_flag) << "cannot find the receipt to retrieve the accuracy data";
+        }
+
+        reputation_dll.get()->update_model(parameter, self_accuracy, received_models, reputation_map);
+        model_train->set_parameter(parameter);
+    }
 	global_container::get()->main_reputation_manager->update_reputation(reputation_map);
 	
 	//display reputation and accuracy.
