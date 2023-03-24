@@ -375,9 +375,9 @@ int main(int argc, char **argv)
     {
         auto error_sig_handler = [](int signum){
             auto stacktrace = boost::stacktrace::stacktrace();
-            std::cerr << stacktrace;
+            std::cerr << "get signal: " << signum << " stacktrace:\n" <<stacktrace;
             global_container::get()->clear();
-            LOG(FATAL) << stacktrace;
+            LOG(FATAL) << "get signal: " << signum << " stacktrace:\n" << stacktrace;
             exit(signum);
         };
 
