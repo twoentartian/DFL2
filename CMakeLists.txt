@@ -19,9 +19,11 @@ include("cmake/CompileTimeContent.cmake")
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
 set(DFL_LINKER_LIBS)
 
+# options
 option(USE_HUNTER_BOOST "USE the Boost library in Hunter" ON)
 option(USE_ROCKSDB "USE RocksDB to store block/transactions" ON)
 option(USE_BACKTRACE "USE backtrace library to provide stack trace information" OFF)
+option(ENABLE_BLOCK_GENERATION "Enable generating block, can be disabled to save CPU & disk & memory resources" ON)
 
 # Build type: RelWithDebInfo
 set(CMAKE_CXX_FLAGS_RELEASEWITHDEBINFO "-O2 -g")
@@ -31,6 +33,12 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release;RelWithDebInfo" CACHE STRING "Available build types" FORCE)
+
+if (ENABLE_BLOCK_GENERATION)
+    add_compile_definitions(BLOCK_GENERATION=1)
+else()
+    add_compile_definitions(BLOCK_GENERATION=0)
+endif ()
 
 # Boost
 if (USE_HUNTER_BOOST)

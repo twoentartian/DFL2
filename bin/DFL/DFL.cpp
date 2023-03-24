@@ -179,7 +179,9 @@ void generate_transaction(const std::vector<Ml::tensor_blob_like<model_datatype>
 			profiler_triggered_generating_block.reset(new profiler_auto("generate_transaction/triggered_generating_block"));
 		
 		//trigger dump
+#if BLOCK_GENERATION
 		generate_block();
+#endif
 	}
 	
 	std::shared_ptr<profiler_auto> profiler_broadcast;
