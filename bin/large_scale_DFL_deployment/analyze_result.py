@@ -109,7 +109,7 @@ if __name__ == "__main__":
     df_for_each_node = {}
     node_names = df["node"].value_counts().index
     for node_name in node_names:
-        df_for_each_node[node_name] = df.loc[df.node == node_name & df.event_type == "report_accuracy"]
+        df_for_each_node[node_name] = df.loc[(df.node == node_name) & (df.event_type == "report_accuracy")]
 
     fig = plt.figure()
     axs = fig.add_subplot(111)
