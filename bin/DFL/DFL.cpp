@@ -80,6 +80,7 @@ global_container* global_container::_instance;
 
 dll_loader<reputation_interface<model_datatype>> reputation_dll;
 
+#if BLOCK_GENERATION
 void generate_block()
 {
 	std::shared_ptr<profiler_auto> profiler_p;
@@ -130,6 +131,7 @@ void generate_block()
 	LOG(INFO) << ss.str();
 	std_cout::println("[DFL] " +ss.str());
 }
+#endif
 
 void generate_transaction(const std::vector<Ml::tensor_blob_like<model_datatype>> &data, const std::vector<Ml::tensor_blob_like<model_datatype>> &label)
 {
@@ -170,8 +172,9 @@ void generate_transaction(const std::vector<Ml::tensor_blob_like<model_datatype>
 	}
 	
 	transaction trans = global_container::get()->main_transaction_generator->generate(parameter_str, std::to_string(accuracy));
-	
+#if BLOCK_GENERATION
 	global_container::get()->main_transaction_storage_for_block->add_to_block_cache(trans);
+#endif
 	if (global_container::get()->main_transaction_storage_for_block->block_cache_size() >= global_var::estimated_transaction_per_block)
 	{
 		std::shared_ptr<profiler_auto> profiler_triggered_generating_block;
@@ -213,7 +216,9 @@ void receive_transaction(const transaction& trans)
 	if (trans.content.creator.node_address == global_var::address.getTextStr_lowercase())
 	{
 		//yes, this is my transaction
+#if BLOCK_GENERATION // we don't need to store the transaction if no block is going to generate
 		global_container::get()->main_transaction_storage_for_block->add_to_block_cache(trans);
+#endif
 		return;
 	}
 	
