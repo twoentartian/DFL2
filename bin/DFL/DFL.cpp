@@ -272,8 +272,10 @@ void receive_transaction(const transaction& trans)
 	if (receipt_status == transaction_generator::append_receipt_status::success)
 	{
 		//add to the verified transaction
+#if BLOCK_GENERATION // we don't need to store the transaction if no block is going to generate
 		global_container::get()->main_transaction_storage_for_block->add_verified_transaction(trans, *receipt);
-		
+#endif
+
 		//add the new transaction and broadcast
 		global_container::get()->main_transaction_storage->add(new_transaction);
 		
