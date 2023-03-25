@@ -710,6 +710,7 @@ int main(int argc, char **argv)
                 node["use_preferred_peers_only"] = node_target.use_preferred_peers_only;
                 node["preferred_peers"] = node_target.preferred_peers;
                 node["maximum_peer"] = node_target.maximum_peer;
+                node["start_delay_ms"] = node_target.start_delay_ms;
                 summary_nodes.push_back(node);
             }
             summary["nodes"] = summary_nodes;
