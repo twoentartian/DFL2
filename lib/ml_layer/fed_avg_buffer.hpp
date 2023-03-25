@@ -5,6 +5,7 @@
 #pragma once
 
 #include <vector>
+#include <mutex>
 #include <optional>
 #include "util.hpp"
 
@@ -23,6 +24,8 @@ namespace Ml
 		
 		void add(const T& target)
 		{
+            std::lock_guard guard(_lock);
+
 			_data[_current_write_loc] = target;
 			move_to_next(_current_write_loc);
 			
@@ -31,6 +34,8 @@ namespace Ml
 		
 		T average()
 		{
+            std::lock_guard guard(_lock);
+
 			T output = _data[0] - _data[0];
 			for (int i = 0; i < _current_size; ++i)
 			{
@@ -42,6 +47,8 @@ namespace Ml
 		
 		T average_ignore(typename T::DataType ignore = NAN)
 		{
+            std::lock_guard guard(_lock);
+
 			static_assert(std::is_same_v<T, caffe_parameter_net<typename T::DataType>>);
 			caffe_parameter_net<typename T::DataType> output = _data[0] - _data[0], counter = _data[0] - _data[0];
 			output.set_all(0);
@@ -86,6 +93,7 @@ namespace Ml
 		size_t _current_write_loc;
 		size_t _current_size;
 		size_t _size;
+        std::mutex _lock;
 		
 		void move_to_next(size_t& value)
 		{
