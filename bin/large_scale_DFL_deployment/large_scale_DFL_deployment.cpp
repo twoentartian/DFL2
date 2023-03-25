@@ -6,6 +6,7 @@
 #include <iostream>
 #include <algorithm>
 #include <numeric>
+#include <random>
 
 #include <glog/logging.h>
 
@@ -80,7 +81,8 @@ public:
 	int blockchain_estimated_block_size{};
 	int data_storage_trigger_training_size{};
 	int ml_test_batch_size{};
-	
+	size_t start_delay_ms;
+
 	std::string blockchain_address;
 	std::string blockchain_public_key;
 	std::string blockchain_private_key;
@@ -132,6 +134,7 @@ public:
 		output["blockchain_estimated_block_size"] = blockchain_estimated_block_size;
 		output["data_storage_trigger_training_size"] = data_storage_trigger_training_size;
 		output["ml_test_batch_size"] = ml_test_batch_size;
+        output["start_delay_ms"] = start_delay_ms;
 		
 		output["blockchain_address"] = blockchain_address;
 		output["blockchain_public_key"] = blockchain_public_key;
@@ -356,11 +359,17 @@ int main(int argc, char **argv)
 	//apply simulation node information to node deployment
 	{
 		auto nodes_json = simulation_config_json["nodes"];
+        std::random_device rd;
+        std::mt19937 gen(rd());
 		for (auto& single_node : nodes_json)
 		{
 			const std::string node_name = single_node["name"];
 			
 			node_deploy_info temp;
+
+            //apply information to node deployment_config.
+            temp.apply_deployment_information(deployment_config);
+
 			temp.set_default_values();
 			temp.name = node_name;
 			
@@ -369,6 +378,9 @@ int main(int argc, char **argv)
 			temp.data_injector_inject_interval_tick = std::accumulate(interval_ticks.begin(), interval_ticks.end(), 0.0f) / interval_ticks.size();
             temp.data_injector_inject_interval_variance = *deployment_config.get<int>("data_injector_inject_interval_variance");
 			temp.transaction_count_per_model_update = single_node["buffer_size"];
+            auto start_delay_max = temp.data_storage_trigger_training_size / temp.data_injector_inject_amount * temp.data_injector_inject_interval_tick * temp.data_injector_inject_interval_scale_ms_to_tick;
+            std::uniform_real_distribution<float> dis(0.0, 1.0);
+            temp.start_delay_ms = static_cast<int>(start_delay_max * dis(gen));
 			
 			//dataset mode
 			{
@@ -550,12 +562,6 @@ int main(int argc, char **argv)
 		{
 			LOG(FATAL) << "unknown topology item: " << topology_item_str;
 		}
-	}
-	
-	//apply information to node deployment_config.
-	for (auto& [node_name, node_target] : node_deploy_info_container)
-	{
-		node_target.apply_deployment_information(deployment_config);
 	}
 	
 	//allocate port

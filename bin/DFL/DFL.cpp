@@ -353,22 +353,21 @@ void update_model(std::shared_ptr<std::vector<transaction>> transactions)
 
         reputation_dll.get()->update_model(parameter, self_accuracy, received_models, reputation_map);
         model_train->set_parameter(parameter);
+
+        //display reputation and accuracy.
+        LOG(INFO) << "[[DEBUG]] REPUTATION:";
+        for (auto& reputation_item: reputation_map)
+        {
+            LOG(INFO) << "[[DEBUG]] reputation: " << reputation_item.first << ":" << reputation_item.second;
+        }
+
+        LOG(INFO) << "[[DEBUG]] DEBUG ACCURACY:";
+        for (auto& model_item: received_models)
+        {
+            LOG(INFO) << "[[DEBUG]] model accuracy: " << model_item.generator_address << ":" << model_item.accuracy;
+        }
     }
-	global_container::get()->main_reputation_manager->update_reputation(reputation_map);
-	
-	//display reputation and accuracy.
-	std_cout::println("[[DEBUG]] REPUTATION:");
-	for (auto& reputation_item: reputation_map)
-	{
-		std_cout::println("[[DEBUG]] reputation: " + reputation_item.first + ":" +  std::to_string(reputation_item.second));
-	}
-	
-	std_cout::println("[[DEBUG]] DEBUG ACCURACY:");
-	for (auto& model_item: received_models)
-	{
-		std_cout::println("[[DEBUG]] model accuracy: " + model_item.generator_address + ":" +  std::to_string(model_item.accuracy));
-	}
-	
+    global_container::get()->main_reputation_manager->update_reputation(reputation_map);
 }
 
 int main(int argc, char **argv)
@@ -552,6 +551,16 @@ int main(int argc, char **argv)
             std::stringstream ss;
             ss << "[reputation dll] [same model test] " << (pass ? "pass" : "fail") << ": " << info;
             LOG(INFO) << ss.str();
+        }
+    }
+
+    //start delay
+    {
+        auto start_delay_ms = *config.get<int>("start_delay_ms");
+        if(start_delay_ms > 0)
+        {
+            LOG(INFO) << "wait for " << start_delay_ms << " ms";
+            std::this_thread::sleep_for(std::chrono::milliseconds(start_delay_ms));
         }
     }
 	
