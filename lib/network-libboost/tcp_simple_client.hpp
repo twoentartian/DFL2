@@ -64,8 +64,6 @@ namespace network::simple
 			_ip = ip;
 			_port = port;
 			
-			auto self(shared_from_this());
-			
 			boost::asio::ip::tcp::endpoint endPoint(boost::asio::ip::address::from_string(ip), port);
 			
 			_socket.reset(new boost::asio::ip::tcp::socket(*_io_service));
@@ -248,16 +246,13 @@ namespace network::simple
 		
 		void connect_handler(const boost::system::error_code &ec, std::shared_ptr<boost::asio::ip::tcp::socket> socket)
 		{
-			std::shared_ptr<tcp_client> self;
 			_connecting = false;
-			try
-			{
-				self = shared_from_this();
-			}
-			catch (...)
-			{
-				return;
-			}
+
+            if (weak_from_this().expired()) //check whether this is a shared pointer
+            {
+                return;
+            }
+            std::shared_ptr<tcp_client> self = shared_from_this();
 			
 			//determine connect_status
 			network::tcp_status connect_status = Success;
@@ -294,19 +289,18 @@ namespace network::simple
 		
 		virtual void do_read()
 		{
-			_socket->async_read_some(boost::asio::buffer(_buffer, BUFFER_SIZE), [this](const boost::system::error_code &ec, size_t received_length)
+			_socket->async_read_some(boost::asio::buffer(_buffer, BUFFER_SIZE), [self = shared_from_this()](const boost::system::error_code &ec, size_t received_length)
 			{
 				if (ec)
 				{
-					close();
+					self->close();
 					return;
 				}
-				auto self(shared_from_this());
-				for (auto &&receive_handler : _receiveHandlers)
+				for (auto &&receive_handler : self->_receiveHandlers)
 				{
-					receive_handler(_buffer, received_length, self);
+					receive_handler(self->_buffer, received_length, self);
 				}
-				do_read();
+				self->do_read();
 			});
 		}
 	};
