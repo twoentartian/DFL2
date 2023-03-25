@@ -36,8 +36,7 @@ namespace Ml
 		{
             std::lock_guard guard(_lock);
 
-            T output = _data[0];
-            output.set_all(0);
+			T output = _data[0] - _data[0];
 			for (int i = 0; i < _current_size; ++i)
 			{
 				output = output + _data[i];
@@ -51,7 +50,7 @@ namespace Ml
             std::lock_guard guard(_lock);
 
 			static_assert(std::is_same_v<T, caffe_parameter_net<typename T::DataType>>);
-			T output = _data[0], counter = _data[0];
+			caffe_parameter_net<typename T::DataType> output = _data[0] - _data[0], counter = _data[0] - _data[0];
 			output.set_all(0);
 			counter.set_all(0);
 			
