@@ -8,6 +8,8 @@ class reputation_implementation : public reputation_interface<DType>
 public:
 	void update_model(Ml::caffe_parameter_net<DType> &current_model, double self_accuracy, const std::vector<updated_model<DType>> &models, std::unordered_map<std::string, double> &reputation) override
 	{
+        if (models.empty()) return;
+
 		////////********////////    put the reputation logic here    ////////********////////
 		////////********  to update the model, directly change the "current_model"
 		////////********  to update the reputation, directly use "reputation[node_address]" to change
