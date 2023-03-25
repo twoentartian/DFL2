@@ -134,7 +134,6 @@ public:
 		output["blockchain_estimated_block_size"] = blockchain_estimated_block_size;
 		output["data_storage_trigger_training_size"] = data_storage_trigger_training_size;
 		output["ml_test_batch_size"] = ml_test_batch_size;
-        output["start_delay_ms"] = start_delay_ms;
 		
 		output["blockchain_address"] = blockchain_address;
 		output["blockchain_public_key"] = blockchain_public_key;
@@ -191,6 +190,7 @@ public:
 		output["inject_amount"] = data_injector_inject_amount;
         size_t inject_interval_ms = static_cast<int>((data_injector_inject_interval_tick * static_cast<float>(data_injector_inject_interval_scale_ms_to_tick)));
 		output["inject_interval_ms"] = std::to_string(inject_interval_ms - data_injector_inject_interval_variance) + "-" + std::to_string(inject_interval_ms + data_injector_inject_interval_variance);
+        output["start_delay_ms"] = start_delay_ms;
 		
 		configuration_file::json node_non_iid = configuration_file::json::object();
 		for (const auto& single_non_iid_item: special_non_iid_distribution)

@@ -23,6 +23,7 @@ configuration_file::json get_default_configuration()
 	output["ip_address"] = "127.0.0.1";
 	output["ip_port"] = 8040;
     output["timeout_second"] = 0;
+    output["start_delay_ms"] = 0;
 
     output["dataset_mode"] = "iid"; //default - randomly choose from dataset, iid - randomly choose from iid labels, non-iid - choose higher frequency labels for specific label
     configuration_file::json node_non_iid = configuration_file::json::object();
@@ -181,8 +182,17 @@ int main(int argc, char **argv)
 	Ml::data_converter<DType> dataset;
 	dataset.load_dataset_mnist(dataset_path, label_dataset_path);
 	LOG(INFO) << "loading dataset - done";
- 
- 
+
+    //start delay
+    {
+        auto start_delay_ms = *config.get<int>("start_delay_ms");
+        if(start_delay_ms > 0)
+        {
+            LOG(INFO) << "wait for " << start_delay_ms << " ms";
+            std::this_thread::sleep_for(std::chrono::milliseconds(start_delay_ms));
+        }
+    }
+
 	network::p2p client;
 	bool _running = true;
     
