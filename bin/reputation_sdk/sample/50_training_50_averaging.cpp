@@ -12,8 +12,10 @@ public:
         {
             parameter_buffers.add(models[i].model_parameter);
         }
-
-        current_model = current_model*0.5 + parameter_buffers.average()*0.5;
+        auto current_mode_0_5 = current_model*0.5;
+        auto average_buffer = parameter_buffers.average();
+        auto average_buffer_0_5 = average_buffer * 0.5;
+        current_model = current_mode_0_5 + average_buffer_0_5;
     }
 };
 
