@@ -36,7 +36,7 @@ def is_log(msg: str) -> (bool, str, datetime):
 
 
 def get_accuracy(msg: str) -> (bool, float):
-    pattern_accuracy = re.compile(r'accuracy: \d.\d{2}')
+    pattern_accuracy = re.compile(r'accuracy: \d\.\d{2}')
 
     # accuracy
     accuracy_str = pattern_accuracy.findall(msg)
