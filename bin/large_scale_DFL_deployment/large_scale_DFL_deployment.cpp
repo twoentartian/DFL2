@@ -113,6 +113,7 @@ public:
 	std::unordered_map<int, std::tuple<float, float>> special_non_iid_distribution;
 	
 	//network
+    bool enable_time_based_hierarchy;
 	uint16_t port;
 	std::vector<introducer_node> introducer_nodes;
 	bool use_preferred_peers_only{};
@@ -156,6 +157,7 @@ public:
 		output["timeout_second"] = timeout_second;
 		output["transaction_count_per_model_update"] = transaction_count_per_model_update;
 		output["enable_profiler"] = enable_profiler;
+        output["enable_time_based_hierarchy"] = enable_time_based_hierarchy;
 		
 		configuration_file::json introducers = configuration_file::json::array();
 		for (const auto& single_introducer: introducer_nodes)
@@ -240,6 +242,7 @@ public:
 		inactive_peer_second = *json.get<int>("network_inactive_peer_second");
         use_preferred_peers_only = *json.get<bool>("network_use_preferred_peers_only");
 		maximum_peer = *json.get<int>("network_maximum_peer");
+        enable_time_based_hierarchy = *json.get<bool>("enable_time_based_hierarchy");
 		
 		blockchain_estimated_block_size = *json.get<int>("blockchain_estimated_block_size");
 		data_storage_trigger_training_size = *json.get<int>("data_storage_trigger_training_size");

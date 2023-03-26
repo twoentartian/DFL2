@@ -53,6 +53,7 @@ configuration_file::json get_default_DFL_deployment_configuration()
 	output["network_use_preferred_peers_only"] = false;
 	output["network_maximum_peer"] = 10;
     output["enable_start_delay"] = true;
+    output["enable_time_based_hierarchy"] = false;
 	
 	output["introducer_port"] = 8500;
 	output["introducer_ip"] = "127.0.0.1";
