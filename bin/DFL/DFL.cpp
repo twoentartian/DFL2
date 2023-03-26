@@ -44,6 +44,9 @@ std::mutex model_lock;
 std::shared_ptr<Ml::MlCaffeModel<model_datatype, caffe::SGDSolver>> model_train;
 std::shared_ptr<Ml::MlCaffeModel<model_datatype, caffe::SGDSolver>> model_test;
 
+constexpr float TIME_BASED_HIERARCHY_HIGH_ACCURACY_THRESHOLD = 0.8;
+constexpr float TIME_BASED_HIERARCHY_LOW_ACCURACY_THRESHOLD = 0.2;
+
 class global_container
 {
 public:
@@ -156,6 +159,14 @@ void generate_transaction(const std::vector<Ml::tensor_blob_like<model_datatype>
 		std_cout::println("[DFL] training complete, accuracy: " + std::to_string(accuracy));
 		net_after = model_train->get_parameter();
 	}
+
+    //update the number of peers?
+    if (global_container::get()->main_transaction_tran_rece->get_maximum_peer() == 0 && accuracy > TIME_BASED_HIERARCHY_HIGH_ACCURACY_THRESHOLD)
+    {
+        auto& maximum_peer = global_container::get()->main_transaction_tran_rece->get_maximum_peer();
+        maximum_peer = 1;
+        global_container::get()->main_transaction_storage->set_event_trigger(static_cast<int>(std::ceil(static_cast<float>(maximum_peer) / global_var::maximum_peer_in_config * global_var::model_buffer_size_in_config)));
+    }
 	
 	std::string parameter_str;
 	if (global_var::ml_model_stream_type == "compressed")
@@ -373,14 +384,18 @@ void update_model(std::shared_ptr<std::vector<transaction>> transactions)
             //time-based hierarchy
             static int counter = 0;
             counter++;
-            if (self_accuracy > 0.8 && counter > 5)
+            if (self_accuracy > TIME_BASED_HIERARCHY_HIGH_ACCURACY_THRESHOLD && counter > 5)
             {
-                ++global_container::get()->main_transaction_tran_rece->get_maximum_peer();
+                auto& maximum_peer = global_container::get()->main_transaction_tran_rece->get_maximum_peer();
+                maximum_peer++;
+                global_container::get()->main_transaction_storage->set_event_trigger(static_cast<int>(std::ceil(static_cast<float>(maximum_peer)/global_var::maximum_peer_in_config * global_var::model_buffer_size_in_config)));
                 counter = 0;
             }
-            if (self_accuracy < 0.2 && counter > 5)
+            if (self_accuracy < TIME_BASED_HIERARCHY_LOW_ACCURACY_THRESHOLD && counter > 5)
             {
-                --global_container::get()->main_transaction_tran_rece->get_maximum_peer();
+                auto& maximum_peer = global_container::get()->main_transaction_tran_rece->get_maximum_peer();
+                if (maximum_peer > 1) maximum_peer--;//we don't want to remove peers until zero.
+                global_container::get()->main_transaction_storage->set_event_trigger(static_cast<int>(std::ceil(static_cast<float>(maximum_peer)/global_var::maximum_peer_in_config * global_var::model_buffer_size_in_config)));
                 counter = 0;
             }
         }
@@ -497,7 +512,8 @@ int main(int argc, char **argv)
     LOG(INFO) << "starting transaction storage";
 	global_container::get()->main_transaction_storage.reset(new transaction_storage());
 	global_container::get()->main_transaction_storage->add_event_callback(update_model);
-	global_container::get()->main_transaction_storage->set_event_trigger(*config.get<int>("transaction_count_per_model_update"));
+    global_var::model_buffer_size_in_config = *config.get<int>("transaction_count_per_model_update");
+	global_container::get()->main_transaction_storage->set_event_trigger(global_var::model_buffer_size_in_config);
 	
 	//start reputation manager
     LOG(INFO) << "starting reputation manager";
@@ -565,7 +581,8 @@ int main(int argc, char **argv)
         else
         {
             //no time-based hierarchy
-            global_container::get()->main_transaction_tran_rece->get_maximum_peer() = config.get_json()["network"]["maximum_peer"];
+            global_var::maximum_peer_in_config = config.get_json()["network"]["maximum_peer"];
+            global_container::get()->main_transaction_tran_rece->get_maximum_peer() = global_var::maximum_peer_in_config;
         }
 	}
 	
