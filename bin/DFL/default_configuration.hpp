@@ -61,6 +61,7 @@ configuration_file::json get_default_configuration()
 	
 	output["enable_profiler"] = false;
     output["enable_reputation_test"] = false;
+    output["enable_time_based_hierarchy"] = false;
 	output["timeout_second"] = 0;
     output["start_delay_ms"] = 0;
     

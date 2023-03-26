@@ -457,13 +457,14 @@ public:
 							_active_peers.erase(removal_peer);
 						}
 					}
-                    
+
                     //request new peers
-                    int peer_to_add = 0;
+                    int peer_to_add = static_cast<int>(static_cast<int>(_maximum_peer) - _active_peers.size());
                     if (_use_preferred_peer_only)
-                        peer_to_add = static_cast<int>(static_cast<int>(_preferred_peers.size()) - _active_peers.size());
-                    else //use _maximum_peer
-                        peer_to_add = static_cast<int>(static_cast<int>(_maximum_peer) - _active_peers.size());
+                    {
+                        int preferred_peer_empty_slots = static_cast<int>(static_cast<int>(_preferred_peers.size()) - _active_peers.size());
+                        peer_to_add = peer_to_add > preferred_peer_empty_slots ? preferred_peer_empty_slots : peer_to_add;
+                    }
                     if (peer_to_add > 0)
                     {
                         auto [status, msg] = try_to_add_peer(peer_to_add);
@@ -684,6 +685,7 @@ public:
 	GENERATE_GET(_use_preferred_peer_only, get_use_preferred_peer_only);
 	GENERATE_GET(_inactive_time_seconds, get_inactive_time);
     GENERATE_READ(_preferred_peers, read_preferred_peers);
+    GENERATE_GET(_enable_time_based_hierarchy, get_enable_time_based_hierarchy);
 private:
 	crypto::hex_data _address;
 	crypto::hex_data _public_key;
@@ -691,6 +693,7 @@ private:
 	
 	size_t _maximum_peer{};
 	bool _use_preferred_peer_only;
+    bool _enable_time_based_hierarchy;
 	std::unordered_set<std::string> _preferred_peers;
 	
 	std::vector<receive_transaction_callback> _receive_transaction_callbacks;

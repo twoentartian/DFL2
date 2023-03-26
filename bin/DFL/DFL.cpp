@@ -318,7 +318,7 @@ void update_model(std::shared_ptr<std::vector<transaction>> transactions)
 
         Ml::caffe_parameter_net<model_datatype> parameter = model_train->get_parameter();
 
-        double self_accuracy;
+        float self_accuracy;
         {
             std::shared_ptr<profiler_auto> profiler_calculate_self_accuracy;
             if (global_var::enable_profiler)
@@ -365,6 +365,29 @@ void update_model(std::shared_ptr<std::vector<transaction>> transactions)
         for (auto& model_item: received_models)
         {
             LOG(INFO) << "[[DEBUG]] model accuracy: " << model_item.generator_address << ":" << model_item.accuracy;
+        }
+
+        //update the number of peers?
+        if (global_container::get()->main_transaction_tran_rece->get_enable_time_based_hierarchy())
+        {
+            //time-based hierarchy
+            static int counter = 0;
+            counter++;
+            if (self_accuracy > 0.8 && counter > 5)
+            {
+                ++global_container::get()->main_transaction_tran_rece->get_maximum_peer();
+                counter = 0;
+            }
+            if (self_accuracy < 0.2 && counter > 5)
+            {
+                --global_container::get()->main_transaction_tran_rece->get_maximum_peer();
+                counter = 0;
+            }
+        }
+        else
+        {
+            //no time-based hierarchy, do nothing
+
         }
     }
     global_container::get()->main_reputation_manager->update_reputation(reputation_map);
@@ -513,9 +536,10 @@ int main(int argc, char **argv)
 		global_container::get()->main_transaction_tran_rece.reset(new transaction_tran_rece(global_var::public_key, global_var::private_key, global_var::address,
 																							global_container::get()->main_transaction_storage_for_block,
 																							config.get_json()["network"]["use_preferred_peers_only"]));
+        global_container::get()->main_transaction_tran_rece->get_enable_time_based_hierarchy() = *config.get<bool>("enable_time_based_hierarchy");
 		global_container::get()->main_transaction_tran_rece->start_listen(config.get_json()["network"]["port"]);
 		auto preferred_peers = config.get_json()["network"]["preferred_peers"];
-		global_container::get()->main_transaction_tran_rece->get_maximum_peer() = config.get_json()["network"]["maximum_peer"];
+
 		global_container::get()->main_transaction_tran_rece->get_inactive_time() = config.get_json()["network"]["inactive_peer_second"];
 		for (auto &single_preferred_peer : preferred_peers)
 		{
@@ -533,6 +557,16 @@ int main(int argc, char **argv)
 			                                           single_introducer_json["public_key"].get<std::string>(),
 			                                           single_introducer_json["port"].get<uint16_t>());
 		}
+        if (global_container::get()->main_transaction_tran_rece->get_enable_time_based_hierarchy())
+        {
+            //time-based hierarchy
+            global_container::get()->main_transaction_tran_rece->get_maximum_peer() = 0;
+        }
+        else
+        {
+            //no time-based hierarchy
+            global_container::get()->main_transaction_tran_rece->get_maximum_peer() = config.get_json()["network"]["maximum_peer"];
+        }
 	}
 	
 	//perform reputation test
