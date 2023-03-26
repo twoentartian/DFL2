@@ -562,7 +562,7 @@ public:
 			using namespace network;
 			
 			//send available peer list request
-			_p2p.send(peer.second.address, peer.second.port, i_p2p_node_with_header::ipv4, command::request_peer_info, message_str.data(), message_str.length(), [this](i_p2p_node_with_header::send_packet_status status, header::COMMAND_TYPE command_received, const char* data, int length) {
+			_p2p.send(peer.second.address, peer.second.port, i_p2p_node_with_header::ipv4, command::request_peer_info, message_str.data(), message_str.length(), [this, desired_peer_count](i_p2p_node_with_header::send_packet_status status, header::COMMAND_TYPE command_received, const char* data, int length) {
 				if (status != i_p2p_node_with_header::send_packet_success)
 				{
 					LOG(WARNING) << "[transaction trans] request peer list does not success, status:" << i_p2p_node_with_header::send_packet_status_message[status];
@@ -600,6 +600,8 @@ public:
 					message.signature = crypto::ecdsa_openssl::sign(hash_hex, _private_key).getTextStr_lowercase();
 					
 					std::string message_str = serialize_wrap<boost::archive::binary_oarchive>(message).str();
+
+                    int peer_send_invitation_count = 0;
 					for (auto& single_peer_info : received_peers.peers_info)
 					{
 						crypto::hex_data single_peer_name_hex(single_peer_info.name);
@@ -611,7 +613,17 @@ public:
                         {
                             continue;
                         }
-						
+                        if (peer_send_invitation_count >= desired_peer_count) // we have already get enough peer
+                        {
+                            continue;
+                        }
+                        if (this->_active_peers.contains(single_peer_info.address)) // we already have this peer and it is active
+                        {
+                            continue;
+                        }
+
+                        peer_send_invitation_count++;
+
 						//send register as peer request
 						_p2p.send(single_peer_info.address, single_peer_info.port, i_p2p_node_with_header::ipv4, command::register_as_peer, message_str.data(), message_str.length(), [this, single_peer_info](i_p2p_node_with_header::send_packet_status status, header::COMMAND_TYPE command_received, const char* data, int length) {
                             if (status != i_p2p_node_with_header::send_packet_success)
