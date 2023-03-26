@@ -86,7 +86,7 @@ configuration_file::json get_default_simulation_configuration()
 		peer_control_service["fedavg_buffer_size"] = "linear"; //// candidates: static, linear
 		peer_control_service["accuracy_threshold_high"] = 0.8;
 		peer_control_service["accuracy_threshold_low"] = 0.2;
-		services["peer_control_service"] = peer_control_service;
+		services["time_based_hierarchy_service"] = peer_control_service;
 	}
     {
         configuration_file::json reputation_record_service = configuration_file::json::object();

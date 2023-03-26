@@ -403,7 +403,7 @@
         },
         
         //Debug purpose only !
-        "peer_control_service": {
+        "time_based_hierarchy_service": {
             "accuracy_threshold_high": 0.8,
             "accuracy_threshold_low": 0.2,
             "enable": false,

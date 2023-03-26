@@ -309,7 +309,7 @@ public:
 };
 
 template <typename model_datatype>
-class peer_control_service : public service<model_datatype>
+class time_based_hierarchy_service : public service<model_datatype>
 {
 public:
 	enum fedavg_buffer_size_strategy
@@ -333,7 +333,7 @@ public:
 	
 	std::shared_ptr<std::ofstream> peer_change_file;
 	
-	peer_control_service()
+	time_based_hierarchy_service()
 	{
 		fedavg_buffer_strategy = unknown_strategy;
 		least_peer_change_interval = 0;
@@ -440,7 +440,7 @@ public:
 				std::stringstream ss;
 				ss << "tick:" << tick << "    " << node_pointer->name << "(accuracy: " << node_pointer->last_measured_accuracy << ") add " << new_peer_name << "(buffer size:" << new_peer.buffer_size << ")";
 				*peer_change_file << ss.str() << std::endl;
-				LOG(INFO) << "[peer_control_service]  " << ss.str();
+				LOG(INFO) << "[time_based_hierarchy_service]  " << ss.str();
 				last_time_changed[node_pointer->name] = tick;
 			}
 			
@@ -462,7 +462,7 @@ public:
 						std::stringstream ss;
 						ss << "tick:" << tick << "    " << node_pointer->name << "(accuracy: " << node_pointer->last_measured_accuracy << ") delete " << delete_peer_name << "(buffer size:" << delete_peer.buffer_size << ")";
 						*peer_change_file << ss.str() << std::endl;
-						LOG(INFO) << "[peer_control_service]  " << ss.str();
+						LOG(INFO) << "[time_based_hierarchy_service]  " << ss.str();
 						break;
 					}
 					delete_index --;

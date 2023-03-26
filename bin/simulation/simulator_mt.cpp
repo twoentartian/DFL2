@@ -417,7 +417,7 @@ int main(int argc, char *argv[])
 	services.emplace("accuracy", new accuracy_record<model_datatype>());
 	services.emplace("model_weights_difference_record", new model_weights_difference_record<model_datatype>());
 	services.emplace("force_broadcast_average", new force_broadcast_model<model_datatype>());
-	services.emplace("peer_control_service", new peer_control_service<model_datatype>());
+	services.emplace("time_based_hierarchy_service", new time_based_hierarchy_service<model_datatype>());
     services.emplace("reputation_record", new reputation_record<model_datatype>());
     services.emplace("model_record", new model_record<model_datatype>());
 	auto services_json = config_json["services"];
@@ -457,16 +457,16 @@ int main(int argc, char *argv[])
             service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
         }
 
-        //peer_control_service
+        //time_based_hierarchy_service
         {
-            auto service_iter = services.find("peer_control_service");
+            auto service_iter = services.find("time_based_hierarchy_service");
 
-            std::static_pointer_cast<peer_control_service<model_datatype>>(service_iter->second)->ml_solver_proto = ml_solver_proto;
-            std::static_pointer_cast<peer_control_service<model_datatype>>(service_iter->second)->test_dataset = &test_dataset;
-            std::static_pointer_cast<peer_control_service<model_datatype>>(service_iter->second)->ml_test_batch_size = ml_test_batch_size;
-            std::static_pointer_cast<peer_control_service<model_datatype>>(service_iter->second)->ml_dataset_all_possible_labels = &ml_dataset_all_possible_labels;
+            std::static_pointer_cast<time_based_hierarchy_service<model_datatype>>(service_iter->second)->ml_solver_proto = ml_solver_proto;
+            std::static_pointer_cast<time_based_hierarchy_service<model_datatype>>(service_iter->second)->test_dataset = &test_dataset;
+            std::static_pointer_cast<time_based_hierarchy_service<model_datatype>>(service_iter->second)->ml_test_batch_size = ml_test_batch_size;
+            std::static_pointer_cast<time_based_hierarchy_service<model_datatype>>(service_iter->second)->ml_dataset_all_possible_labels = &ml_dataset_all_possible_labels;
 
-            service_iter->second->apply_config(check_and_get_config("peer_control_service"));
+            service_iter->second->apply_config(check_and_get_config("time_based_hierarchy_service"));
             service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
         }
 
