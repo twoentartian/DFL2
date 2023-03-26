@@ -1,5 +1,6 @@
 #include <thread>
 #include <csignal>
+#include <cmath>
 
 #define BOOST_STACKTRACE_USE_BACKTRACE
 #include <boost/stacktrace.hpp>
@@ -165,7 +166,9 @@ void generate_transaction(const std::vector<Ml::tensor_blob_like<model_datatype>
     {
         auto& maximum_peer = global_container::get()->main_transaction_tran_rece->get_maximum_peer();
         maximum_peer = 1;
-        global_container::get()->main_transaction_storage->set_event_trigger(static_cast<int>(std::ceil(static_cast<float>(maximum_peer) / global_var::maximum_peer_in_config * global_var::model_buffer_size_in_config)));
+        int event_trigger = static_cast<int>(std::ceil(static_cast<float>(maximum_peer) / global_var::maximum_peer_in_config * global_var::model_buffer_size_in_config));
+        LOG(INFO) << "set maximum peer to " << maximum_peer << ",set model buffer size to " << event_trigger;
+        global_container::get()->main_transaction_storage->set_event_trigger(event_trigger);
     }
 	
 	std::string parameter_str;
@@ -388,14 +391,18 @@ void update_model(std::shared_ptr<std::vector<transaction>> transactions)
             {
                 auto& maximum_peer = global_container::get()->main_transaction_tran_rece->get_maximum_peer();
                 maximum_peer++;
-                global_container::get()->main_transaction_storage->set_event_trigger(static_cast<int>(std::ceil(static_cast<float>(maximum_peer)/global_var::maximum_peer_in_config * global_var::model_buffer_size_in_config)));
+                int event_trigger = static_cast<int>(std::ceil(static_cast<float>(maximum_peer) / global_var::maximum_peer_in_config * global_var::model_buffer_size_in_config));
+                LOG(INFO) << "set maximum peer to " << maximum_peer << ",set model buffer size to " << event_trigger;
+                global_container::get()->main_transaction_storage->set_event_trigger(event_trigger);
                 counter = 0;
             }
             if (self_accuracy < TIME_BASED_HIERARCHY_LOW_ACCURACY_THRESHOLD && counter > 5)
             {
                 auto& maximum_peer = global_container::get()->main_transaction_tran_rece->get_maximum_peer();
                 if (maximum_peer > 1) maximum_peer--;//we don't want to remove peers until zero.
-                global_container::get()->main_transaction_storage->set_event_trigger(static_cast<int>(std::ceil(static_cast<float>(maximum_peer)/global_var::maximum_peer_in_config * global_var::model_buffer_size_in_config)));
+                int event_trigger = static_cast<int>(std::ceil(static_cast<float>(maximum_peer) / global_var::maximum_peer_in_config * global_var::model_buffer_size_in_config));
+                LOG(INFO) << "set maximum peer to " << maximum_peer << ",set model buffer size to " << event_trigger;
+                global_container::get()->main_transaction_storage->set_event_trigger(event_trigger);
                 counter = 0;
             }
         }
@@ -573,6 +580,17 @@ int main(int argc, char **argv)
 			                                           single_introducer_json["public_key"].get<std::string>(),
 			                                           single_introducer_json["port"].get<uint16_t>());
 		}
+        if (config.get_json()["network"]["use_preferred_peers_only"])
+        {
+            //only use preferred peers
+            global_var::maximum_peer_in_config = preferred_peers.size();
+        }
+        else
+        {
+            //no peer preference
+            global_var::maximum_peer_in_config = config.get_json()["network"]["maximum_peer"];
+        }
+
         if (global_container::get()->main_transaction_tran_rece->get_enable_time_based_hierarchy())
         {
             //time-based hierarchy
@@ -581,7 +599,6 @@ int main(int argc, char **argv)
         else
         {
             //no time-based hierarchy
-            global_var::maximum_peer_in_config = config.get_json()["network"]["maximum_peer"];
             global_container::get()->main_transaction_tran_rece->get_maximum_peer() = global_var::maximum_peer_in_config;
         }
 	}
