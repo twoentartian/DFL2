@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 log_file_name = "./node_log.txt"
 glog_file_name = "./log/DFL.INFO"
 
+maximum_time_second = 16000
 
 def is_log(msg: str) -> (bool, str, datetime):
     pattern_glog_header = re.compile(r'[IW]\d{8} \d{2}:\d{2}:\d{2}')
@@ -121,6 +122,8 @@ if __name__ == "__main__":
     axs.set_xlabel('time (seconds)')
     axs.set_ylabel('accuracy (0-1)')
     axs.set_ylim([0, 1])
+    axs.set_xlim([0,maximum_time_second])
+
 
     fig.tight_layout()
     fig.savefig('accuracy.pdf')
