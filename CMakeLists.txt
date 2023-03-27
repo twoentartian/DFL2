@@ -57,8 +57,15 @@ endif ()
 
 # Backtrace
 if (USE_BACKTRACE)
+    IF(APPLE)
+        message(FATAL_ERROR "backtrace is not supported on macOS")
+    endif()
     list(APPEND DFL_LINKER_LIBS backtrace)
+    add_compile_definitions(Backtrace_enable=1)
+else()
+    add_compile_definitions(Backtrace_enable=0)
 endif()
+
 
 # Caffe cmake
 add_subdirectory(3rd/caffe)

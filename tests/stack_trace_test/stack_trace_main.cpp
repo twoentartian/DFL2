@@ -1,7 +1,12 @@
 #include <csignal>
 #include <iostream>
 
+#if Backtrace_enable
 #define BOOST_STACKTRACE_USE_BACKTRACE
+#endif
+#ifdef __APPLE__
+#define _GNU_SOURCE
+#endif
 #include <boost/stacktrace.hpp>
 
 void signalHandler(int sig_num)
