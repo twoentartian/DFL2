@@ -2,7 +2,9 @@
 #include <csignal>
 #include <cmath>
 
+#if Backtrace_enable
 #define BOOST_STACKTRACE_USE_BACKTRACE
+#endif
 #include <boost/stacktrace.hpp>
 
 #include <glog/logging.h>
