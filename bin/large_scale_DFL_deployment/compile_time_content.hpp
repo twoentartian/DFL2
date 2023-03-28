@@ -21,4 +21,9 @@ namespace compile_time_content
     const char *analyze_result_py_content =
 #include "generated/analyze_result.py.generated"
 ;
+
+    const char *filter_log_py_name = "filter_log.py";
+    const char *filter_log_py_content =
+#include "generated/filter_log.py.generated"
+;
 }

@@ -738,6 +738,20 @@ int main(int argc, char **argv)
         analyze_result_py << compile_time_content::analyze_result_py_content;
         analyze_result_py.close();
     }
+
+    //generate analyze_result.py
+    {
+        std::ofstream analyze_result_py(output_path / compile_time_content::analyze_result_py_name);
+        analyze_result_py << compile_time_content::analyze_result_py_content;
+        analyze_result_py.close();
+    }
+
+    //generate filter_log.py
+    {
+        std::ofstream filter_log_py(output_path / compile_time_content::filter_log_py_name);
+        filter_log_py << compile_time_content::filter_log_py_content;
+        filter_log_py.close();
+    }
     
     return 0;
 }
