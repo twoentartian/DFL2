@@ -289,6 +289,16 @@ namespace network::simple
 		
 		virtual void do_read()
 		{
+            if (!_socket)
+            {
+                close();
+                return;
+            }
+            if (!_socket->is_open())
+            {
+                close();
+                return;
+            }
 			_socket->async_read_some(boost::asio::buffer(_buffer, BUFFER_SIZE), [self = shared_from_this()](const boost::system::error_code &ec, size_t received_length)
 			{
 				if (ec)
