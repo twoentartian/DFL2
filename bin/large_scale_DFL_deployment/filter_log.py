@@ -10,15 +10,17 @@ if __name__ == "__main__":
     os.mkdir(output_dir)
 
     for single_entry in os.listdir(os.curdir):
-        print("processing " + single_entry)
         if not os.path.isdir(single_entry):
             continue    # not a dir
         if single_entry.startswith("node"):
             # this is a node
+            print("processing " + single_entry)
+
             src_dir = os.path.join(os.curdir, single_entry)
             output_dir = os.path.join(os.curdir, output_dir_name, single_entry)
             os.mkdir(output_dir)
             output_log_dir = os.path.join(output_dir, "log")
             os.mkdir(output_log_dir)
             shutil.copy(os.path.join(src_dir, "node_log.txt"), os.path.join(output_dir, "node_log.txt"))
+            print(single_entry + " glog file size: " + str(os.path.getsize(os.path.join(src_dir, "log", "DFL.INFO")) / 1024 / 1024) + "MB")
             shutil.copy(os.path.join(src_dir, "log", "DFL.INFO"), os.path.join(output_log_dir, "DFL.INFO"))
