@@ -420,6 +420,7 @@ int main(int argc, char *argv[])
 	services.emplace("time_based_hierarchy_service", new time_based_hierarchy_service<model_datatype>());
     services.emplace("reputation_record", new reputation_record<model_datatype>());
     services.emplace("model_record", new model_record<model_datatype>());
+    services.emplace("network_topology_manager", new network_topology_manager<model_datatype>());
 	auto services_json = config_json["services"];
 	LOG_IF(FATAL, services_json.is_null()) << "services are not defined in configuration file";
 	
@@ -485,6 +486,22 @@ int main(int argc, char *argv[])
 
             service_iter->second->apply_config(check_and_get_config("model_record"));
             service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+        }
+
+        //network_topology_manager
+        {
+            auto service_iter = services.find("network_topology_manager");
+
+            service_iter->second->apply_config(check_and_get_config("network_topology_manager"));
+            service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+        }
+
+
+
+        //final service check
+        {
+            LOG_IF(FATAL, services["network_topology_manager"]->enable && services["time_based_hierarchy_service"]->enable) << "you cannot enable time_based_hierarchy_service and network_topology_manager at same time";
+
         }
     }
     

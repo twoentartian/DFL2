@@ -100,6 +100,24 @@ configuration_file::json get_default_simulation_configuration()
         model_record_service["interval"] = 1000;
         services["model_record"] = model_record_service;
     }
+    {
+        configuration_file::json network_topology_manager_service = configuration_file::json::object();
+
+        configuration_file::json network_topology_manager_service_read_from_file = configuration_file::json::object();
+        network_topology_manager_service_read_from_file["enable"] = false;
+        network_topology_manager_service_read_from_file["topology_file_path"] = "./topology.json";
+        network_topology_manager_service["read_from_file"] = network_topology_manager_service_read_from_file;
+
+        configuration_file::json network_topology_manager_service_rebuild_scale_free_network = configuration_file::json::object();
+        network_topology_manager_service_rebuild_scale_free_network["enable"] = false;
+        network_topology_manager_service_rebuild_scale_free_network["gamma"] = 3.0;
+        network_topology_manager_service_rebuild_scale_free_network["min_peer"] = 3;
+        network_topology_manager_service_rebuild_scale_free_network["buffer_to_peer_ratio"] = 1.0;
+        network_topology_manager_service_rebuild_scale_free_network["interval"] = 8;
+        network_topology_manager_service["scale_free_network"] = network_topology_manager_service_rebuild_scale_free_network;
+
+        services["network_topology_manager"] = network_topology_manager_service;
+    }
 	output["services"] = services;
 	
 	return output;

@@ -11,6 +11,8 @@
 #include "./node.hpp"
 #include "./simulation_util.hpp"
 
+#include "../tool/simulation_config_generator_common_functions.hpp"
+
 enum class record_service_status
 {
 	success,
@@ -651,5 +653,241 @@ public:
     std::tuple<record_service_status, std::string> destruction_service() override
     {
         return {record_service_status::success, ""};
+    }
+};
+
+template <typename model_datatype>
+class network_topology_manager : public service<model_datatype>
+{
+private:
+    bool enable_read_from_file;
+    std::string read_from_file_path;
+
+    bool enable_scale_free_network;
+    float scale_free_network_gamma;
+    int scale_free_network_min_peer;
+    float scale_free_network_buffer_to_peer_ratio;
+    int scale_free_network_interval;
+
+    std::filesystem::path output_file_path;
+    std::ofstream output_file;
+    int last_topology_update_tick;
+public:
+
+
+public:
+    network_topology_manager()
+    {
+        this->node_vector_container = nullptr;
+
+    }
+
+    std::tuple<record_service_status, std::string> apply_config(const configuration_file::json &config) override
+    {
+        {
+            auto read_from_file_config = config["read_from_file"];
+            enable_read_from_file = read_from_file_config["enable"];
+            read_from_file_path = read_from_file_config["topology_file_path"];
+
+            auto scale_free_network_config = config["scale_free_network"];
+            enable_scale_free_network = scale_free_network_config["enable"];
+            scale_free_network_gamma = scale_free_network_config["gamma"];
+            scale_free_network_min_peer = scale_free_network_config["min_peer"];
+            scale_free_network_buffer_to_peer_ratio = scale_free_network_config["buffer_to_peer_ratio"];
+            scale_free_network_interval = scale_free_network_config["interval"];
+        }
+
+        LOG_IF(FATAL, enable_read_from_file) << "read from file is not implemented yet";
+
+        this->enable = enable_read_from_file || enable_scale_free_network;
+
+        return {record_service_status::success, ""};
+    }
+
+    std::tuple<record_service_status, std::string> init_service(const std::filesystem::path &output_path, std::unordered_map<std::string, node<model_datatype> *> &_node_container, std::vector<node<model_datatype> *> &_node_vector_container) override
+    {
+        if (this->enable == false) return {record_service_status::skipped, "not enabled"};
+
+        this->set_node_container(_node_container, _node_vector_container);
+        this->output_file_path = output_path / "network_topology_record.json";
+        last_topology_update_tick = 0;
+        output_file.open(output_file_path);
+        output_file << "{\n";
+
+
+        return {record_service_status::success, ""};
+    }
+
+    std::tuple<record_service_status, std::string> process_per_tick(int tick) override
+    {
+        if (this->enable == false) return {record_service_status::skipped, "not enabled"};
+
+        ////scale free network
+        if (enable_scale_free_network)
+        {
+            if (tick >= last_topology_update_tick + scale_free_network_interval)
+            {
+                update_scale_free_topology(tick);
+                last_topology_update_tick = tick;
+            }
+        }
+
+        return {record_service_status::success, ""};
+    }
+
+    std::tuple<record_service_status, std::string> destruction_service() override
+    {
+        output_file << "\n}\n";
+        return {record_service_status::success, ""};
+    }
+
+private:
+    void update_scale_free_topology(int tick)
+    {
+        int node_count = this->node_container->size();
+        LOG_IF(FATAL, node_count < scale_free_network_min_peer + 1) << "not enough nodes to generate a scale free network";
+
+        ////Scale-free network: https://en.wikipedia.org/wiki/Scale-free_network
+        ////P(k) = A k ^ (-gamma)
+        std::map<int, int> peer_count_per_node;
+        std::map<int, double> weight_per_k;
+        double total_weight = 0.0;
+        for (int k = scale_free_network_min_peer; k < node_count - 1; ++k) // from peer=1 to peer=(node-1)
+        {
+            double current_weight = std::pow(k, -scale_free_network_gamma);
+            weight_per_k[k] = current_weight;
+            total_weight += current_weight;
+        }
+        for (auto& [k,weight]: weight_per_k)
+        {
+            weight /= total_weight;
+        }
+
+        std::vector<double> boundaries;
+        boundaries.reserve(node_count);
+        double accumulate_boundary = 0.0;
+        for (auto &[k, weight]: weight_per_k)
+        {
+            boundaries.push_back(accumulate_boundary);
+            accumulate_boundary += weight;
+        }
+        boundaries.push_back(accumulate_boundary);
+
+        std::vector<std::tuple<int, int>> connections;
+        int generate_degree_count = 1;
+        while (generate_degree_count++)
+        {
+            static std::random_device rd;
+            static std::mt19937 engine(rd());
+            std::uniform_real_distribution<double> distribution(0.0, 1.0);
+            while (true)
+            {
+                for (int node = 0; node < node_count; ++node)
+                {
+                    double random_number = distribution(engine);
+                    int select_degree = 0;
+                    for (int i = 0; i < boundaries.size() - 1; ++i)
+                    {
+                        if (boundaries[i] <= random_number && random_number < boundaries[i + 1])
+                        {
+                            select_degree = i + scale_free_network_min_peer;
+                        }
+                    }
+                    peer_count_per_node[node] = select_degree;
+                }
+
+                ////check if it is possible
+                size_t total_connection_terminals = 0;
+                for (const auto &[node, peer_count]: peer_count_per_node)
+                {
+                    total_connection_terminals += peer_count;
+                }
+                if (total_connection_terminals % 2 == 0)
+                    break;
+            }
+
+            ////begin generating the network topology
+            int try_count = 0;
+            bool whole_success = false;
+            while (try_count < 10000)
+            {
+                try_count++;
+
+                auto connection_optional = generate_network_topology(node_count, peer_count_per_node);
+                if (connection_optional.has_value()) //success
+                {
+                    connections = *connection_optional;
+
+                    ////check whether we get a network with islands
+                    std::map<int, std::set<int>> peer_map;
+                    for (auto &[node, peer]: connections)
+                    {
+                        peer_map[node].emplace(peer);
+                        peer_map[peer].emplace(node);
+                    }
+
+                    ////check islands
+                    std::set<int> mainland;
+                    add_to_mainland(peer_map.begin()->first, peer_map, mainland);
+                    if (mainland.size() == peer_map.size())
+                    {
+                        whole_success = true;
+                        break;
+                    }
+                }
+            }
+            if (whole_success) break;
+        }
+
+        ////update model buffer size
+        for (const auto &[node, peer_count]: peer_count_per_node)
+        {
+            auto node_iter = this->node_container->find(std::to_string(node));
+            node_iter->second->buffer_size = static_cast<int>(peer_count * this->scale_free_network_buffer_to_peer_ratio);
+        }
+
+        std::map<int, std::set<int>> peer_per_node;
+        for (auto& [lhs, rhs]: connections)
+        {
+            peer_per_node[lhs].emplace(rhs);
+            peer_per_node[rhs].emplace(lhs);
+        }
+
+        ////update peers
+        for (auto& [node, peers]: peer_per_node)
+        {
+            auto node_iter = this->node_container->find(std::to_string(node));
+            node_iter->second->peers.clear();
+            for (auto& single_peer: peers)
+            {
+                auto peer_name_str = std::to_string(single_peer);
+                auto peer_iter = this->node_container->find(peer_name_str);
+                node_iter->second->peers.emplace(peer_name_str, peer_iter->second);
+            }
+        }
+
+        ////record the topology to json file
+        nlohmann::json output = nlohmann::json::object();
+        for (auto& [node, peers]: peer_per_node)
+        {
+            std::vector<std::string> peers_for_single_node;
+            for (auto& single_peer: peers)
+            {
+                peers_for_single_node.push_back(std::to_string(single_peer));
+            }
+            nlohmann::json peers_for_single_node_json = peers_for_single_node;
+            output[std::to_string(node)] = peers_for_single_node_json;
+        }
+        static bool first_json_object = true;
+        if (first_json_object)
+        {
+            output_file << "\"tick-" << std::to_string(tick) << "\":" << output.dump();
+            first_json_object = false;
+        }
+        else
+        {
+            output_file << ",\n" << "\"tick-" << std::to_string(tick) << "\":" << output.dump();
+        }
+
     }
 };

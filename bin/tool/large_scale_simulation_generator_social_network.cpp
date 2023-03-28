@@ -31,7 +31,7 @@ configuration_file::json get_default_simulation_configuration()
     
 //    output["node_peer_connection_count"] = 8;
     output["social_network_node_peer_connection_gamma"] = 3.0;
-    output["social_network_node_peer_connection_min_peer"] = 2;
+    output["social_network_node_peer_connection_min_peer"] = 3;
     output["social_network_buffer_to_peer_ratio"] = 1.0;
     output["node_peer_connection_type"] = "--";
     output["node_peer_connection_generating_strategy"] = "exact";
