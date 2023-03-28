@@ -430,7 +430,7 @@ int main(int argc, char **argv)
             auto stacktrace = boost::stacktrace::stacktrace();
             std::cerr << "get signal: " << signum << " stacktrace:\n" <<stacktrace;
             global_container::get()->clear();
-            LOG(INFO) << "get signal: " << signum << " stacktrace:\n" << stacktrace;
+            LOG(ERROR) << "get signal: " << signum << " stacktrace:\n" << stacktrace;
             exit(signum);
         };
 
