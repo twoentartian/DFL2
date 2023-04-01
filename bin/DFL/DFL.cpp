@@ -5,6 +5,9 @@
 #if Backtrace_enable
 #define BOOST_STACKTRACE_USE_BACKTRACE
 #endif
+#ifdef __APPLE__
+#define _GNU_SOURCE
+#endif
 #include <boost/stacktrace.hpp>
 
 #include <glog/logging.h>
