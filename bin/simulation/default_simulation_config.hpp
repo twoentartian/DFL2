@@ -25,11 +25,11 @@ configuration_file::json get_default_simulation_configuration()
 	
 	if (os_info::get_os_type() == os_info::os_type::linux_series)
 	{
-		output["ml_reputation_dll_path"] = "../reputation_sdk/sample/libreputation_api_sample.so";
+		output["ml_reputation_dll_path"] = "../reputation_sdk/sample/50_training_50_averaging.so";
 	}
 	else if (os_info::get_os_type() == os_info::os_type::apple)
 	{
-		output["ml_reputation_dll_path"] = "../reputation_sdk/sample/libreputation_api_sample.dylib";
+		output["ml_reputation_dll_path"] = "../reputation_sdk/sample/50_training_50_averaging.dylib";
 	}
 	else
 	{
