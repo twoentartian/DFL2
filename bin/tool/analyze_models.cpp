@@ -260,7 +260,7 @@ int main(int argc, char** argv)
     boost::program_options::options_description desc("allowed options");
     desc.add_options()
             ("help,h", "produce help message")
-            ("model_path,m", boost::program_options::value<std::string>(&models_path_str)->default_value("./model"), "model folder path")
+            ("model_path,m", boost::program_options::value<std::string>(&models_path_str)->default_value("./models"), "model folder path")
             ("output_path,o", boost::program_options::value<std::string>(&output_path_str)->default_value("./analyze_models_output"), "output folder path")
             ("cuda,c", "use cuda accelerator")
             ;
