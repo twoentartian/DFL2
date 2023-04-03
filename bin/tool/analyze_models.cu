@@ -3,6 +3,9 @@
 #include <map>
 #include <filesystem>
 #include <thread>
+#include <mutex>
+
+#include <BS_thread_pool.hpp>
 
 #include "cuda_util.hpp"
 
@@ -89,7 +92,7 @@ private:
     std::vector<cudaStream_t> _cuda_streams;
 };
 
-static cuda_stream_manager static_cuda_stream_manager(8);
+static cuda_stream_manager static_cuda_stream_manager(16);
 
 std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calculate_model_distance_of_each_model_pair_gpu_kernel(const std::map<std::string, std::map<std::string, std::vector<float>>>& node_layer_weight)
 {
@@ -136,12 +139,11 @@ std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calc
         {
             if (iter_r == iter_l) continue;
             
-
             for (const auto& [layer_name, weight_l] : iter_l->second)
             {
                 auto cuda_stream = static_cuda_stream_manager.get_cuda_stream();
-                std::thread temp_thread([iter_l, iter_r, &node_layer_to_device_memory, &output, &cuda_stream, &output_lck, &layer_name, &weight_l](){
-                    checkCudaErrors(cudaStreamSynchronize(cuda_stream));
+
+                std::thread temp_thread([iter_l, iter_r, &node_layer_to_device_memory, &output, &cuda_stream, &output_lck, layer_name, weight_l](){
                     auto lhs_device_data_iter = node_layer_to_device_memory.find(iter_l->first + layer_name);
                     if (lhs_device_data_iter == node_layer_to_device_memory.end()) throw std::logic_error("logic_error");
                     float* lhs_device_data = lhs_device_data_iter->second;
@@ -180,6 +182,7 @@ std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calc
                         output.at(node_pair).at(layer_name) = std::sqrt(v);
                     }
                 });
+                
                 std::thread dummy;
                 dummy.swap(temp_thread);
                 pools.push_back(std::move(dummy));

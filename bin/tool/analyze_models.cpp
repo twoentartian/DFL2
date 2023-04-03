@@ -11,6 +11,7 @@
 #include <boost/program_options.hpp>
 
 #include <ml_layer.hpp>
+#include <measure_time.hpp>
 #include <boost_serialization_wrapper.hpp>
 
 std::mutex cout_mutex;
@@ -219,10 +220,13 @@ int main(int argc, char** argv)
     
     ////calculate the model difference of each model pair in a tick folder
     std::map<int, std::map<std::pair<std::string, std::string>, std::map<std::string, float>>> tick_to_distance_result;
-    for (const auto& [tick, tick_folder_path]: ticks_to_directories)
+    
+    for (const auto &[tick, tick_folder_path]: ticks_to_directories)
     {
+        measure_time timer;
+        timer.start();
         std::map<std::string, std::filesystem::path> node_and_model;
-        for (const auto & entry : std::filesystem::directory_iterator(tick_folder_path))
+        for (const auto &entry: std::filesystem::directory_iterator(tick_folder_path))
         {
             if (entry.is_regular_file())
             {
@@ -232,7 +236,12 @@ int main(int argc, char** argv)
         }
         auto distance_results = calculate_model_distance_of_each_model_pair(node_and_model, use_cuda, std::stoi(tick));
         tick_to_distance_result.emplace(std::stoi(tick), distance_results);
+        timer.stop();
+        std::cout << "tick: " << tick << " costs " << timer.instant_measure_ms() << "ms" << std::endl;
     }
+
+
+    
     
     ////save distance result to file
     ////*
