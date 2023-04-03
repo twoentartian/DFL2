@@ -16,10 +16,6 @@
 
 std::mutex cout_mutex;
 
-#if ANALYZE_MODEL_USE_CUDA
-extern std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calculate_model_distance_of_each_model_pair_gpu_kernel(const std::map<std::string, std::map<std::string, std::vector<float>>>& node_layer_weight);
-#endif
-
 void calculate_distance(float* output, const std::vector<float>& data0, const std::vector<float>& data1)
 {
     LOG_IF(FATAL, data0.size() != data1.size()) << "data sizes not equal";
@@ -31,6 +27,110 @@ void calculate_distance(float* output, const std::vector<float>& data0, const st
     }
     *output = std::sqrt(v);
 }
+
+
+#if ANALYZE_MODEL_USE_CUDA
+extern void sync_all_cuda_stream();
+
+extern void allocate_and_copy_device_memory(float** temp_device_ptr, const float* host_data, size_t size);
+
+extern std::vector<float> run_kernel(const std::vector<float>& weight_l, float* lhs_device_data, float* rhs_device_data);
+
+extern void clear_gpu_memory(const std::map<std::string, float*>& node_layer_to_device_memory);
+
+////*
+/// return: map < <smaller_node, larger_node> : <layer_name : value> >
+///
+/// *////
+
+std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calculate_model_distance_of_each_model_pair_gpu_kernel(const std::map<std::string, std::map<std::string, std::vector<float>>>& node_layer_weight)
+{
+    std::map<std::pair<std::string, std::string>, std::map<std::string, float>> output;
+    std::mutex output_lck;
+    
+    //allocate output
+    for (auto iter_l = node_layer_weight.begin(); iter_l != node_layer_weight.end() ; ++iter_l)
+    {
+        for (auto iter_r = iter_l; iter_r != node_layer_weight.end(); ++iter_r)
+        {
+            if (iter_r == iter_l) continue;
+            for (const auto &[layer_name, weight_l]: iter_l->second)
+            {
+                auto node_pair = std::make_pair(iter_l->first, iter_r->first);
+                output[node_pair][layer_name] = 0;
+            }
+        }
+    }
+    
+    std::map<std::string, float*> node_layer_to_device_memory;
+    
+    //copy layer weight to GPU
+    {
+        for (const auto& [node_name, layer_weight] : node_layer_weight)
+        {
+            for (const auto& [layer, weight] : layer_weight)
+            {
+                float* temp_device_ptr;
+                allocate_and_copy_device_memory(&temp_device_ptr, weight.data(), weight.size() * sizeof(weight[0]));
+                node_layer_to_device_memory.emplace(node_name+layer, temp_device_ptr);
+            }
+        }
+    }
+    
+    
+    std::vector<std::thread> pools;
+    for (auto iter_l = node_layer_weight.begin(); iter_l != node_layer_weight.end() ; ++iter_l)
+    {
+        for (auto iter_r = iter_l; iter_r != node_layer_weight.end(); ++iter_r)
+        {
+            if (iter_r == iter_l) continue;
+            
+            for (const auto& [layer_name, weight_l] : iter_l->second)
+            {
+                std::thread temp_thread([iter_l, iter_r, &node_layer_to_device_memory, &output, &output_lck, &layer_name, &weight_l](){
+                    auto lhs_device_data_iter = node_layer_to_device_memory.find(iter_l->first + layer_name);
+                    if (lhs_device_data_iter == node_layer_to_device_memory.end()) throw std::logic_error("logic_error");
+                    float* lhs_device_data = lhs_device_data_iter->second;
+                    
+                    auto rhs_device_data_iter = node_layer_to_device_memory.find(iter_r->first + layer_name);
+                    if (rhs_device_data_iter == node_layer_to_device_memory.end()) throw std::logic_error("logic_error");
+                    float* rhs_device_data = rhs_device_data_iter->second;
+                    
+                    std::vector<float> host_buffer = run_kernel(weight_l, lhs_device_data, rhs_device_data);
+                    
+                    float v = 0;
+                    for (const auto& i: host_buffer)
+                    {
+                        v += i;
+                    }
+                    auto node_pair = std::make_pair(iter_l->first, iter_r->first);
+                    
+                    {
+                        std::lock_guard guard(output_lck);
+                        output.at(node_pair).at(layer_name) = std::sqrt(v);
+                    }
+                });
+                
+                std::thread dummy;
+                dummy.swap(temp_thread);
+                pools.push_back(std::move(dummy));
+            }
+        }
+    }
+    for (auto& thread: pools)
+    {
+        thread.join();
+    }
+    
+    sync_all_cuda_stream();
+    
+    //clear gpu memory
+    clear_gpu_memory(node_layer_to_device_memory);
+    sync_all_cuda_stream();
+    
+    return output;
+}
+#endif
 
 ////*
 /// return: map < <smaller_node, larger_node> : <layer_name : value> >
