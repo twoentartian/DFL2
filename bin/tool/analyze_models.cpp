@@ -78,7 +78,7 @@ std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calc
     }
     
     
-    std::vector<std::thread> pools;
+    boost::asio::thread_pool pool(4);
     for (auto iter_l = node_layer_weight.begin(); iter_l != node_layer_weight.end() ; ++iter_l)
     {
         for (auto iter_r = iter_l; iter_r != node_layer_weight.end(); ++iter_r)
@@ -87,7 +87,7 @@ std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calc
             
             for (const auto& [layer_name, weight_l] : iter_l->second)
             {
-                std::thread temp_thread([iter_l, iter_r, &node_layer_to_device_memory, &output, &output_lck, &layer_name, &weight_l](){
+                boost::asio::post(pool, [iter_l, iter_r, &node_layer_to_device_memory, &output, &output_lck, &layer_name, &weight_l](){
                     auto lhs_device_data_iter = node_layer_to_device_memory.find(iter_l->first + layer_name);
                     if (lhs_device_data_iter == node_layer_to_device_memory.end()) throw std::logic_error("logic_error");
                     float* lhs_device_data = lhs_device_data_iter->second;
@@ -104,23 +104,16 @@ std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calc
                         v += i;
                     }
                     auto node_pair = std::make_pair(iter_l->first, iter_r->first);
-                    
                     {
                         std::lock_guard guard(output_lck);
                         output.at(node_pair).at(layer_name) = std::sqrt(v);
                     }
                 });
-                
-                std::thread dummy;
-                dummy.swap(temp_thread);
-                pools.push_back(std::move(dummy));
+
             }
         }
     }
-    for (auto& thread: pools)
-    {
-        thread.join();
-    }
+    pool.join();
     
     sync_all_cuda_stream();
     

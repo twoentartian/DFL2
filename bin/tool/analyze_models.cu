@@ -59,7 +59,7 @@ private:
     std::vector<cudaStream_t> _cuda_streams;
 };
 
-static cuda_stream_manager static_cuda_stream_manager(8);
+static cuda_stream_manager static_cuda_stream_manager(4);
 
 void sync_all_cuda_stream()
 {
