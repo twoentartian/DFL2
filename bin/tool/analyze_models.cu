@@ -22,6 +22,34 @@ __global__ void calculate_square_of_value(T* output, T* input0, T* input1, uint3
     output[index] = diff * diff;
 }
 
+template <typename T>
+__global__ void calculate_square_of_value_with_single_output_region(T* output, uint32_t output_index, T* input0, T* input1, uint32_t size)
+{
+    uint32_t block_x = blockIdx.x;
+    uint32_t thread_x = threadIdx.x;
+    uint32_t index = block_x * BLOCK_SIZE + thread_x;
+    
+    if (index >= size) return;
+    auto diff = (input0[index] - input1[index]);
+    output[output_index + index] = diff * diff;
+}
+
+void cuda_malloc(void** device_ptr, size_t size)
+{
+    checkCudaErrors(cudaMalloc(device_ptr, size));
+}
+
+void cuda_copy_device_memory_to_host(void* device_ptr, void* host_memory, size_t size)
+{
+    checkCudaErrors(cudaMemcpy(host_memory, device_ptr, size, cudaMemcpyDeviceToHost));
+    
+}
+
+void cuda_free(void* device_ptr)
+{
+    checkCudaErrors(cudaFree(device_ptr));
+}
+
 class cuda_stream_manager
 {
 private:
@@ -74,6 +102,11 @@ private:
 
 static cuda_stream_manager static_cuda_stream_manager(4);
 
+bool get_device_support_async_mem_management()
+{
+    return static_cuda_stream_manager.get_device_support_async_mem_management();
+}
+
 void sync_all_cuda_stream()
 {
     static_cuda_stream_manager.all_stream_synchronize();
@@ -94,6 +127,23 @@ void allocate_and_copy_device_memory(float** temp_device_ptr, const float* host_
         checkCudaErrors(cudaMemcpy(*temp_device_ptr, host_data, size, cudaMemcpyHostToDevice));
         checkCudaErrors(cudaStreamSynchronize(cudaStream_t(0)));
     }
+}
+
+void run_kernel_2(float* lhs_device_data, float* rhs_device_data, float* output_device_data, size_t output_loc, size_t output_size)
+{
+    auto cuda_stream = static_cuda_stream_manager.get_cuda_stream();
+    
+    uint32_t block_count = output_size / BLOCK_SIZE + 1;
+    if (static_cuda_stream_manager.get_device_support_async_mem_management())
+    {
+        calculate_square_of_value_with_single_output_region<float><<<block_count, BLOCK_SIZE, 0, cuda_stream>>>(output_device_data, output_loc, lhs_device_data, rhs_device_data, output_size);
+    }
+    else
+    {
+        calculate_square_of_value_with_single_output_region<float><<<block_count, BLOCK_SIZE>>>(output_device_data, output_loc, lhs_device_data, rhs_device_data, output_size);
+    }
+    
+    getLastCudaError("fail to start kernel <<<calculate_square_of_value>>>");
 }
 
 std::vector<float> run_kernel(const std::vector<float>& weight_l, float* lhs_device_data, float* rhs_device_data)
