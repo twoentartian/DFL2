@@ -15,6 +15,7 @@
 #include <boost_serialization_wrapper.hpp>
 
 std::mutex cout_mutex;
+bool flag_use_faster_cuda_kernel;
 
 void calculate_distance(float* output, const std::vector<float>& data0, const std::vector<float>& data1)
 {
@@ -53,7 +54,7 @@ extern bool get_device_support_async_mem_management();
 ///
 /// *////
 
-std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calculate_model_distance_of_each_model_pair_gpu_kernel(const std::map<std::string, std::map<std::string, std::vector<float>>>& node_layer_weight)
+std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calculate_model_distance_of_each_model_pair_gpu_kernel_with_fixed_memory(const std::map<std::string, std::map<std::string, std::vector<float>>>& node_layer_weight)
 {
     std::map<std::pair<std::string, std::string>, std::map<std::string, float>> output;
     std::mutex output_lck;
@@ -138,7 +139,7 @@ std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calc
 ///
 /// *////
 
-std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calculate_model_distance_of_each_model_pair_gpu_kernel_for_no_mem_management(const std::map<std::string, std::map<std::string, std::vector<float>>>& node_layer_weight)
+std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calculate_model_distance_of_each_model_pair_gpu_kernel_hungry_for_memory(const std::map<std::string, std::map<std::string, std::vector<float>>>& node_layer_weight)
 {
     std::map<std::pair<std::string, std::string>, std::map<std::string, float>> output;
     std::mutex output_lck;
@@ -372,14 +373,24 @@ std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calc
     std::map<std::pair<std::string, std::string>, std::map<std::string, float>> result;
     if (use_cuda)
     {
-        if (get_device_support_async_mem_management)
+        static bool print_kernel_info = true;
+        if (flag_use_faster_cuda_kernel)
         {
-            result = calculate_model_distance_of_each_model_pair_gpu_kernel(node_layer_weight);
-//            result = calculate_model_distance_of_each_model_pair_gpu_kernel_for_no_mem_management(node_layer_weight);
+            if (print_kernel_info)
+            {
+                print_kernel_info = false;
+                LOG(INFO) << "use the faster GPU kernel with more memory consumption";
+            }
+            result = calculate_model_distance_of_each_model_pair_gpu_kernel_hungry_for_memory(node_layer_weight);
         }
         else
         {
-            result = calculate_model_distance_of_each_model_pair_gpu_kernel_for_no_mem_management(node_layer_weight);
+            if (print_kernel_info)
+            {
+                print_kernel_info = false;
+                LOG(INFO) << "use the GPU kernel with stable memory consumption";
+            }
+            result = calculate_model_distance_of_each_model_pair_gpu_kernel_with_fixed_memory(node_layer_weight);
         }
     }
     else
@@ -404,6 +415,7 @@ int main(int argc, char** argv)
             ("model_path,m", boost::program_options::value<std::string>(&models_path_str)->default_value("./models"), "model folder path")
             ("output_path,o", boost::program_options::value<std::string>(&output_path_str)->default_value("./analyze_models_output"), "output folder path")
             ("cuda,c", "use cuda accelerator")
+            ("fast_kernel,f", "use faster cuda kernel with more memory consumption")
             ;
     boost::program_options::variables_map vm;
     boost::program_options::store(boost::program_options::parse_command_line(argc, argv, desc), vm);
@@ -424,6 +436,15 @@ int main(int argc, char** argv)
 #else
         LOG(FATAL) << "CUDA is not supported when compiling";
 #endif
+    }
+    
+    if (vm.count("fast_kernel"))
+    {
+        flag_use_faster_cuda_kernel = true;
+    }
+    else
+    {
+        flag_use_faster_cuda_kernel = false;
     }
     
     std::filesystem::path models_path;
