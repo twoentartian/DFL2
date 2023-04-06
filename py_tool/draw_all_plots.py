@@ -67,12 +67,12 @@ if flag_generate_whole:
     number_of_plot_per_row = 1
     if draw_model_weight_diff:
         figsize_row = figsize_row + figsize_row
-        plot_row = plot_row + 1
-        number_of_plot_per_row = plot_row
+        plot_row = plot_row + row
+        number_of_plot_per_row = number_of_plot_per_row + 1
     if draw_topology_map:
         figsize_row = figsize_row + figsize_row
-        plot_row = plot_row + 1
-        number_of_plot_per_row = plot_row
+        plot_row = plot_row + row
+        number_of_plot_per_row = number_of_plot_per_row + 1
 
     whole_fig, whole_axs = plt.subplots(plot_row, plot_col, figsize=(figsize_col, figsize_row), squeeze=False)
     topology_graphs = []
