@@ -87,7 +87,6 @@ std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calc
         }
     }
     
-    
     boost::asio::thread_pool pool(4);
     for (auto iter_l = node_layer_weight.begin(); iter_l != node_layer_weight.end() ; ++iter_l)
     {
@@ -171,86 +170,92 @@ std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calc
                 node_layer_to_device_memory.emplace(node_name+layer, temp_device_ptr);
             }
         }
+        sync_all_cuda_stream();
     }
     
+    
+    boost::asio::thread_pool pool(4);
     for (auto iter_l = node_layer_weight.begin(); iter_l != node_layer_weight.end() ; ++iter_l)
     {
-        size_t total_calculation_count = node_layer_weight.size() * iter_l->second.size();
-        std::vector<size_t> output_start_index; output_start_index.reserve(total_calculation_count);
-        size_t output_size_byte = 0;
-        size_t output_size = 0;
-        std::vector<size_t> output_data_size_for_single_calculation; output_data_size_for_single_calculation.reserve(total_calculation_count);
-
-        for (auto iter_r = iter_l; iter_r != node_layer_weight.end(); ++iter_r)
-        {
-            if (iter_r == iter_l) continue;
+        boost::asio::post(pool, [iter_l, &node_layer_weight, &node_layer_to_device_memory, &output_lck, &output](){
+            size_t total_calculation_count = node_layer_weight.size() * iter_l->second.size();
+            std::vector<size_t> output_start_index; output_start_index.reserve(total_calculation_count);
+            size_t output_size_byte = 0;
+            size_t output_size = 0;
+            std::vector<size_t> output_data_size_for_single_calculation; output_data_size_for_single_calculation.reserve(total_calculation_count);
             
-            for (const auto& [layer_name, weight_r] : iter_r->second)
-            {
-                output_start_index.push_back(output_size);
-                size_t temp_output_size_byte = sizeof(weight_r[0]) * weight_r.size();
-                output_size_byte += temp_output_size_byte;
-                output_data_size_for_single_calculation.push_back(weight_r.size());
-                output_size += weight_r.size();
-            }
-        }
-        
-        //allocate output memory
-        float* device_output_ptr;
-        cuda_malloc((void**)&device_output_ptr, output_size_byte);
-        
-        {
-            size_t index = 0;
             for (auto iter_r = iter_l; iter_r != node_layer_weight.end(); ++iter_r)
             {
                 if (iter_r == iter_l) continue;
                 
-                for (const auto& [layer_name, weight_l] : iter_l->second)
+                for (const auto& [layer_name, weight_r] : iter_r->second)
                 {
-                    auto lhs_device_data_iter = node_layer_to_device_memory.find(iter_l->first + layer_name);
-                    if (lhs_device_data_iter == node_layer_to_device_memory.end()) throw std::logic_error("logic_error");
-                    float* lhs_device_data = lhs_device_data_iter->second;
-                    
-                    auto rhs_device_data_iter = node_layer_to_device_memory.find(iter_r->first + layer_name);
-                    if (rhs_device_data_iter == node_layer_to_device_memory.end()) throw std::logic_error("logic_error");
-                    float* rhs_device_data = rhs_device_data_iter->second;
-                    
-                    run_kernel_2(lhs_device_data, rhs_device_data, device_output_ptr, output_start_index[index], output_data_size_for_single_calculation[index]);
-                    index++;
+                    output_start_index.push_back(output_size);
+                    size_t temp_output_size_byte = sizeof(weight_r[0]) * weight_r.size();
+                    output_size_byte += temp_output_size_byte;
+                    output_data_size_for_single_calculation.push_back(weight_r.size());
+                    output_size += weight_r.size();
                 }
             }
-        }
-        
-        //wait for finish processing
-        sync_all_cuda_stream();
-        
-        {
-            std::vector<float> output_data;
-            output_data.resize(output_size);
-            cuda_copy_device_memory_to_host(device_output_ptr, output_data.data(), output_size_byte);
             
-            size_t index = 0;
-            for (auto iter_r = iter_l; iter_r != node_layer_weight.end(); ++iter_r)
+            //allocate output memory
+            float* device_output_ptr;
+            cuda_malloc((void**)&device_output_ptr, output_size_byte);
+            
             {
-                if (iter_r == iter_l) continue;
-                
-                for (const auto& [layer_name, weight_l] : iter_l->second)
+                size_t index = 0;
+                for (auto iter_r = iter_l; iter_r != node_layer_weight.end(); ++iter_r)
                 {
-                    float v = 0;
-                    for (size_t i = output_start_index[index]; i < output_data_size_for_single_calculation[index]; ++i)
+                    if (iter_r == iter_l) continue;
+                    
+                    for (const auto& [layer_name, weight_l] : iter_l->second)
                     {
-                        v += output_data[i];
-                    }
-                    auto node_pair = std::make_pair(iter_l->first, iter_r->first);
-                    {
-                        std::lock_guard guard(output_lck);
-                        output.at(node_pair).at(layer_name) = std::sqrt(v);
+                        auto lhs_device_data_iter = node_layer_to_device_memory.find(iter_l->first + layer_name);
+                        if (lhs_device_data_iter == node_layer_to_device_memory.end()) throw std::logic_error("logic_error");
+                        float* lhs_device_data = lhs_device_data_iter->second;
+                        
+                        auto rhs_device_data_iter = node_layer_to_device_memory.find(iter_r->first + layer_name);
+                        if (rhs_device_data_iter == node_layer_to_device_memory.end()) throw std::logic_error("logic_error");
+                        float* rhs_device_data = rhs_device_data_iter->second;
+                        
+                        run_kernel_2(lhs_device_data, rhs_device_data, device_output_ptr, output_start_index[index], output_data_size_for_single_calculation[index]);
+                        index++;
                     }
                 }
             }
-        }
-        cuda_free(device_output_ptr);
+            
+            //wait for finish processing
+            sync_all_cuda_stream();
+            
+            {
+                std::vector<float> output_data;
+                output_data.resize(output_size);
+                cuda_copy_device_memory_to_host(device_output_ptr, output_data.data(), output_size_byte);
+                
+                size_t index = 0;
+                for (auto iter_r = iter_l; iter_r != node_layer_weight.end(); ++iter_r)
+                {
+                    if (iter_r == iter_l) continue;
+                    
+                    for (const auto& [layer_name, weight_l] : iter_l->second)
+                    {
+                        float v = 0;
+                        for (size_t i = output_start_index[index]; i < output_data_size_for_single_calculation[index]; ++i)
+                        {
+                            v += output_data[i];
+                        }
+                        auto node_pair = std::make_pair(iter_l->first, iter_r->first);
+                        {
+                            std::lock_guard guard(output_lck);
+                            output.at(node_pair).at(layer_name) = std::sqrt(v);
+                        }
+                    }
+                }
+            }
+            cuda_free(device_output_ptr);
+        });
     }
+    pool.join();
     
     //clear gpu memory
     clear_gpu_memory(node_layer_to_device_memory);
@@ -370,6 +375,7 @@ std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calc
         if (get_device_support_async_mem_management)
         {
             result = calculate_model_distance_of_each_model_pair_gpu_kernel(node_layer_weight);
+//            result = calculate_model_distance_of_each_model_pair_gpu_kernel_for_no_mem_management(node_layer_weight);
         }
         else
         {

@@ -117,15 +117,14 @@ void allocate_and_copy_device_memory(float** temp_device_ptr, const float* host_
 {
     if (static_cuda_stream_manager.get_device_support_async_mem_management())
     {
+        auto cuda_stream = static_cuda_stream_manager.get_cuda_stream();
         checkCudaErrors(cudaMallocAsync((void **)temp_device_ptr, size, cudaStream_t(0)));
-        checkCudaErrors(cudaMemcpyAsync(*temp_device_ptr, host_data, size, cudaMemcpyHostToDevice, cudaStream_t(0)));
-        checkCudaErrors(cudaStreamSynchronize(cudaStream_t(0)));
+        checkCudaErrors(cudaMemcpyAsync(*temp_device_ptr, host_data, size, cudaMemcpyHostToDevice, cuda_stream));
     }
     else
     {
         checkCudaErrors(cudaMalloc((void **)temp_device_ptr, size));
         checkCudaErrors(cudaMemcpy(*temp_device_ptr, host_data, size, cudaMemcpyHostToDevice));
-        checkCudaErrors(cudaStreamSynchronize(cudaStream_t(0)));
     }
 }
 
