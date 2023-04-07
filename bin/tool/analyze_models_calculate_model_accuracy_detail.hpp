@@ -10,9 +10,7 @@ std::filesystem::path generate_output_file_path(const std::string& node_name, co
     return output_folder / (node_name + ".csv");
 }
 
-
-using model_datatype = float;
-//template<typename model_datatype>
+template<typename model_datatype>
 void calculate_model_accuracy_details(const std::string& models_path_str, const std::string& output_path_str, Ml::data_converter<model_datatype>& train_dataset, Ml::data_converter<model_datatype>& test_dataset, const std::string& solver_path_str, size_t test_size)
 {
     std::filesystem::path models_path;
@@ -35,7 +33,7 @@ void calculate_model_accuracy_details(const std::string& models_path_str, const 
         if (std::filesystem::exists(output_path))
         {
             LOG(INFO) << "skip analyze model accuracy details";
-//            return;
+            return;
         }
         else
         {
