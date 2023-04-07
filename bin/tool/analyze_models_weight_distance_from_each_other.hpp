@@ -1,3 +1,5 @@
+#pragma once
+
 #include <iostream>
 #include <filesystem>
 #include <map>
@@ -36,11 +38,9 @@ extern void sync_all_cuda_stream();
 
 extern void allocate_and_copy_device_memory(float **temp_device_ptr, const float *host_data, size_t size);
 
-extern void run_kernel_2(float *lhs_device_data, float *rhs_device_data, float *output_device_data, size_t output_loc,
-                         size_t output_size);
+extern void run_kernel_2(float *lhs_device_data, float *rhs_device_data, float *output_device_data, size_t output_loc, size_t output_size);
 
-extern std::vector<float>
-run_kernel(const std::vector<float> &weight_l, float *lhs_device_data, float *rhs_device_data);
+extern std::vector<float> run_kernel(const std::vector<float> &weight_l, float *lhs_device_data, float *rhs_device_data);
 
 extern void clear_gpu_memory(const std::map<std::string, float *> &node_layer_to_device_memory);
 
@@ -51,8 +51,7 @@ extern bool get_device_support_async_mem_management();
 ///
 /// *////
 
-std::map<std::pair<std::string, std::string>, std::map<std::string, float>>
-calculate_model_distance_of_each_model_pair_gpu_kernel_with_fixed_memory(const std::map<std::string, std::map<std::string, std::vector<float>>> &node_layer_weight)
+std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calculate_model_distance_of_each_model_pair_gpu_kernel_with_fixed_memory(const std::map<std::string, std::map<std::string, std::vector<float>>> &node_layer_weight)
 {
     std::map<std::pair<std::string, std::string>, std::map<std::string, float>> output;
     std::mutex output_lck;
@@ -137,8 +136,7 @@ calculate_model_distance_of_each_model_pair_gpu_kernel_with_fixed_memory(const s
 ///
 /// *////
 
-std::map<std::pair<std::string, std::string>, std::map<std::string, float>>
-calculate_model_distance_of_each_model_pair_gpu_kernel_hungry_for_memory(const std::map<std::string, std::map<std::string, std::vector<float>>> &node_layer_weight)
+std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calculate_model_distance_of_each_model_pair_gpu_kernel_hungry_for_memory(const std::map<std::string, std::map<std::string, std::vector<float>>> &node_layer_weight)
 {
     std::map<std::pair<std::string, std::string>, std::map<std::string, float>> output;
     std::mutex output_lck;
@@ -227,7 +225,7 @@ calculate_model_distance_of_each_model_pair_gpu_kernel_hungry_for_memory(const s
                 }
             }
 
-//wait for finish processing
+            //wait for finish processing
             sync_all_cuda_stream();
             
             {
@@ -273,9 +271,7 @@ calculate_model_distance_of_each_model_pair_gpu_kernel_hungry_for_memory(const s
 /// return: map < <smaller_node, larger_node> : <layer_name : value> >
 ///
 /// *////
-std::map<std::pair<std::string, std::string>, std::map<std::string, float>>
-calculate_model_distance_of_each_model_pair_cpu_kernel(
-        const std::map<std::string, std::map<std::string, std::vector<float>>> &node_layer_weight, int tick)
+std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calculate_model_distance_of_each_model_pair_cpu_kernel(const std::map<std::string, std::map<std::string, std::vector<float>>> &node_layer_weight, int tick)
 {
     std::map<std::pair<std::string, std::string>, std::map<std::string, float>> output;
     boost::asio::thread_pool pool(std::thread::hardware_concurrency());
@@ -414,7 +410,7 @@ std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calc
     return result;
 }
 
-void calculate_weight_distance_at_each_tick(const std::string& models_path_str, const std::string& output_path_str, bool use_cuda, bool use_faster_cuda_kernel)
+void calculate_weight_distance_from_each_other(const std::string& models_path_str, const std::string& output_path_str, bool use_cuda, bool use_faster_cuda_kernel)
 {
     std::filesystem::path models_path;
     {
@@ -422,10 +418,6 @@ void calculate_weight_distance_at_each_tick(const std::string& models_path_str, 
         if (!std::filesystem::exists(models_path))
         {
             LOG(FATAL) << models_path.string() << " doesn't exist";
-        }
-        else
-        {
-            LOG(INFO) << "processing model path: " << models_path.string();
         }
     }
     
@@ -437,12 +429,19 @@ void calculate_weight_distance_at_each_tick(const std::string& models_path_str, 
             std::filesystem::create_directory(output_path);
         }
         output_path = output_path / "weight_distance_from_each_other";
-        if (!std::filesystem::exists(output_path))
+        if (std::filesystem::exists(output_path))
+        {
+            //skip this procedure
+            LOG(INFO) << "skip analyze model weight distance";
+            return;
+        }
+        else
         {
             std::filesystem::create_directory(output_path);
         }
     }
     
+    LOG(INFO) << "processing analyzing model weight distance, path: " << models_path.string();
     std::map<std::string, std::filesystem::path> ticks_to_directories;
     for (const auto & entry : std::filesystem::directory_iterator(models_path))
     {
