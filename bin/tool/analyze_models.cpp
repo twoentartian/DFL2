@@ -15,6 +15,7 @@
 
 #include "analyze_models_weight_distance_from_each_other.hpp"
 #include "analyze_models_calculate_model_accuracy_detail.hpp"
+#include "analyze_models_weight_distance_from_starting_point_and_origin.hpp"
 
 using model_datatype = float;
 
@@ -34,7 +35,7 @@ int main(int argc, char** argv)
             ("fast_kernel,f", "use faster cuda kernel with more memory consumption")
             ("accuracy_test_size,s", boost::program_options::value<size_t>(&test_size)->default_value(200), "specify the tes batch size")
             ("no_mutual_distance", "disable: calculate mutual distance between any two nodes")
-            ("no_distance_from_starting_position", "disable: calculate the distance from the starting point")
+            ("no_distance_from_starting_position_origin", "disable: calculate the distance from the starting point")
             ("no_accuracy_detail", "disable: calculate accuracy details")
             ("dataset_path", boost::program_options::value<std::string>(&dataset_path_str)->default_value("../../../dataset/MNIST/"), "specify dataset path")
             ("caffe_solver_path", boost::program_options::value<std::string>(&solver_path_str)->default_value("../../../dataset/MNIST/lenet_solver_memory.prototxt"), "specify the ML solver path")
@@ -92,13 +93,13 @@ int main(int argc, char** argv)
     {
         calculate_weight_distance_from_each_other(models_path_str, output_path_str, use_cuda, use_faster_cuda_kernel);
     }
-    if (!vm.count("no_accuracy_detail"))
+    if (!vm.count("no_distance_from_starting_position_origin"))
     {
-        calculate_model_accuracy_details(models_path_str, output_path_str, train_dataset, test_dataset, solver_path_str, test_size);
+        calculate_weight_distance_from_starting_point_and_origin(models_path_str, output_path_str, use_cuda);
     }
     if (!vm.count("no_accuracy_detail"))
     {
-    
+        calculate_model_accuracy_details(models_path_str, output_path_str, train_dataset, test_dataset, solver_path_str, test_size);
     }
 
 

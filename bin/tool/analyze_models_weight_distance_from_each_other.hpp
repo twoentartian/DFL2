@@ -7,23 +7,12 @@
 
 #include <glog/logging.h>
 #include <boost/asio.hpp>
-
-#include <ml_layer.hpp>
 #include <boost_serialization_wrapper.hpp>
 
-#include "analyze_models.hpp"
+#include <ml_layer.hpp>
+#include <measure_time.hpp>
 
-void calculate_distance(float *output, const std::vector<float> &data0, const std::vector<float> &data1)
-{
-    LOG_IF(FATAL, data0.size() != data1.size()) << "data sizes not equal";
-    float v = 0;
-    for (size_t index = 0; index < data0.size(); ++index)
-    {
-        auto t = data0[index] - data1[index];
-        v += t * t;
-    }
-    *output = std::sqrt(v);
-}
+#include "analyze_models.hpp"
 
 
 #if ANALYZE_MODEL_USE_CUDA
@@ -38,9 +27,9 @@ extern void sync_all_cuda_stream();
 
 extern void allocate_and_copy_device_memory(float **temp_device_ptr, const float *host_data, size_t size);
 
-extern void run_kernel_2(float *lhs_device_data, float *rhs_device_data, float *output_device_data, size_t output_loc, size_t output_size);
+extern void run_kernel_hungry_for_memory(float *lhs_device_data, float *rhs_device_data, float *output_device_data, size_t output_loc, size_t output_size);
 
-extern std::vector<float> run_kernel(const std::vector<float> &weight_l, float *lhs_device_data, float *rhs_device_data);
+extern std::vector<float> run_kernel_fixed_memory(const std::vector<float> &weight_l, float *lhs_device_data, float *rhs_device_data);
 
 extern void clear_gpu_memory(const std::map<std::string, float *> &node_layer_to_device_memory);
 
@@ -103,7 +92,7 @@ std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calc
                                       if (rhs_device_data_iter == node_layer_to_device_memory.end()) throw std::logic_error("logic_error");
                                       float *rhs_device_data = rhs_device_data_iter->second;
                                       
-                                      std::vector<float> host_buffer = run_kernel(weight_l, lhs_device_data,rhs_device_data);
+                                      std::vector<float> host_buffer = run_kernel_fixed_memory(weight_l, lhs_device_data, rhs_device_data);
                                       
                                       float v = 0;
                                       for (const auto &i: host_buffer)
@@ -218,8 +207,8 @@ std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calc
                         if (rhs_device_data_iter == node_layer_to_device_memory.end()) throw std::logic_error("logic_error");
                         float *rhs_device_data = rhs_device_data_iter->second;
                         
-                        run_kernel_2(lhs_device_data, rhs_device_data, device_output_ptr, output_start_index[index],
-                                     output_data_size_for_single_calculation[index]);
+                        run_kernel_hungry_for_memory(lhs_device_data, rhs_device_data, device_output_ptr, output_start_index[index],
+                                                     output_data_size_for_single_calculation[index]);
                         index++;
                     }
                 }
@@ -259,7 +248,7 @@ std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calc
     }
     pool.join();
 
-//clear gpu memory
+    //clear gpu memory
     clear_gpu_memory(node_layer_to_device_memory);
     
     return output;
@@ -278,8 +267,7 @@ std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calc
     
     std::atomic_uint64_t finished_task = 0;
     std::atomic_uint32_t current_percentage = 0;
-    size_t total_tasks =
-            node_layer_weight.size() * (node_layer_weight.size() - 1) / 2 * node_layer_weight.begin()->second.size();
+    size_t total_tasks = node_layer_weight.size() * (node_layer_weight.size() - 1) / 2 * node_layer_weight.begin()->second.size();
     for (auto iter_l = node_layer_weight.begin(); iter_l != node_layer_weight.end(); ++iter_l)
     {
         for (auto iter_r = iter_l; iter_r != node_layer_weight.end(); ++iter_r)
@@ -308,8 +296,7 @@ std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calc
                                           current_percentage = temp_current_percentage;
                                           {
                                               std::lock_guard guard(cout_mutex);
-                                              std::cout << "processing tick " << tick << ":" << current_percentage
-                                                        << "%" << std::endl;
+                                              std::cout << "processing tick " << tick << ":" << current_percentage << "%" << std::endl;
                                           }
                                       }
                                   });
@@ -323,31 +310,27 @@ std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calc
 
 std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calculate_model_distance_of_each_model_pair(const std::map<std::string, std::filesystem::path> &node_name_and_model,bool use_cuda, bool use_faster_cuda_kernel, int tick)
 {
-    std::map<std::string, Ml::caffe_parameter_net<float>> models;
-    for (const auto &[node_name, model_path]: node_name_and_model)
-    {
-        std::ifstream model_file;
-        model_file.open(model_path);
-        LOG_IF(FATAL, model_file.bad()) << "cannot open file: " << model_path.string();
-        std::stringstream buffer;
-        buffer << model_file.rdbuf();
-        auto model = deserialize_wrap<boost::archive::binary_iarchive, Ml::caffe_parameter_net<float>>(buffer.str());
-        models.emplace(node_name, std::move(model));
-    }
-    
     std::map<std::string, std::map<std::string, std::vector<float>>> node_layer_weight;
-    for (const auto &[node_name, model]: models)
     {
-        std::map<std::string, std::vector<float>> layer_weight;
-        for (const auto &single_layer: model.getLayers())
+        for (const auto &[node_name, model_path]: node_name_and_model)
         {
-            const auto &layer_p = single_layer.getBlob_p();
-            if (!layer_p) continue;
-            const auto &data = layer_p->getData();
-            if (data.empty()) continue;
-            layer_weight.emplace(single_layer.getName(), data);
+            std::ifstream model_file;
+            model_file.open(model_path);
+            LOG_IF(FATAL, model_file.bad()) << "cannot open file: " << model_path.string();
+            std::stringstream buffer;
+            buffer << model_file.rdbuf();
+            auto model = deserialize_wrap<boost::archive::binary_iarchive, Ml::caffe_parameter_net<float>>(buffer.str());
+            std::map<std::string, std::vector<float>> layer_weight;
+            for (const auto &single_layer: model.getLayers())
+            {
+                const auto &layer_p = single_layer.getBlob_p();
+                if (!layer_p) continue;
+                const auto &data = layer_p->getData();
+                if (data.empty()) continue;
+                layer_weight.emplace(single_layer.getName(), data);
+            }
+            node_layer_weight.emplace(node_name, layer_weight);
         }
-        node_layer_weight.emplace(node_name, layer_weight);
     }
     
     //check all models have the same size
@@ -432,7 +415,7 @@ void calculate_weight_distance_from_each_other(const std::string& models_path_st
         if (std::filesystem::exists(output_path))
         {
             //skip this procedure
-            LOG(INFO) << "skip analyze model weight distance";
+            LOG(INFO) << "skip analyze mutual model weight distance";
             return;
         }
         else
@@ -441,7 +424,7 @@ void calculate_weight_distance_from_each_other(const std::string& models_path_st
         }
     }
     
-    LOG(INFO) << "processing analyzing model weight distance, path: " << models_path.string();
+    LOG(INFO) << "processing analyzing mutual model weight distance, path: " << models_path.string();
     std::map<std::string, std::filesystem::path> ticks_to_directories;
     for (const auto & entry : std::filesystem::directory_iterator(models_path))
     {
