@@ -98,7 +98,6 @@ void cuda_malloc(void** device_ptr, size_t size)
 void cuda_copy_device_memory_to_host(void* device_ptr, void* host_memory, size_t size)
 {
     checkCudaErrors(cudaMemcpy(host_memory, device_ptr, size, cudaMemcpyDeviceToHost));
-    
 }
 
 void cuda_free(void* device_ptr)
@@ -117,7 +116,7 @@ void sync_all_cuda_stream()
     checkCudaErrors(cudaStreamSynchronize(cudaStream_t(0)));
 }
 
-void allocate_and_copy_device_memory(float** temp_device_ptr, const float* host_data, size_t size)
+void allocate_and_copy_const_device_memory(float** temp_device_ptr, const float* host_data, size_t size)
 {
     if (static_cuda_stream_manager.get_device_support_async_mem_management())
     {
@@ -130,6 +129,7 @@ void allocate_and_copy_device_memory(float** temp_device_ptr, const float* host_
         checkCudaErrors(cudaMalloc((void **)temp_device_ptr, size));
         checkCudaErrors(cudaMemcpy(*temp_device_ptr, host_data, size, cudaMemcpyHostToDevice));
     }
+//    checkCudaErrors(cudaMemcpyToSymbol((void **)temp_device_ptr, host_data, size, 0, cudaMemcpyHostToDevice));
 }
 
 void clear_gpu_memory(const std::map<std::string, float*>& node_layer_to_device_memory)

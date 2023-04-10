@@ -25,7 +25,7 @@ void cuda_free(void *device_ptr);
 
 extern void sync_all_cuda_stream();
 
-extern void allocate_and_copy_device_memory(float **temp_device_ptr, const float *host_data, size_t size);
+extern void allocate_and_copy_const_device_memory(float **temp_device_ptr, const float *host_data, size_t size);
 
 extern void run_kernel_hungry_for_memory(float *lhs_device_data, float *rhs_device_data, float *output_device_data, size_t output_loc, size_t output_size);
 
@@ -68,7 +68,7 @@ std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calc
             for (const auto &[layer, weight]: layer_weight)
             {
                 float *temp_device_ptr;
-                allocate_and_copy_device_memory(&temp_device_ptr, weight.data(), weight.size() * sizeof(weight[0]));
+                allocate_and_copy_const_device_memory(&temp_device_ptr, weight.data(), weight.size() * sizeof(weight[0]));
                 node_layer_to_device_memory.emplace(node_name + layer, temp_device_ptr);
             }
         }
@@ -153,7 +153,7 @@ std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calc
             for (const auto &[layer, weight]: layer_weight)
             {
                 float *temp_device_ptr;
-                allocate_and_copy_device_memory(&temp_device_ptr, weight.data(), weight.size() * sizeof(weight[0]));
+                allocate_and_copy_const_device_memory(&temp_device_ptr, weight.data(), weight.size() * sizeof(weight[0]));
                 node_layer_to_device_memory.emplace(node_name + layer, temp_device_ptr);
             }
         }
