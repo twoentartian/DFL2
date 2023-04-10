@@ -387,7 +387,7 @@ std::map<std::pair<std::string, std::string>, std::map<std::string, float>> calc
         result = calculate_model_distance_of_each_model_pair_cpu_kernel(node_layer_weight, tick);
     }
 #else
-    auto result = calculate_model_distance_of_each_model_pair_cpu_kernel(node_layer_weight);
+    auto result = calculate_model_distance_of_each_model_pair_cpu_kernel(node_layer_weight, tick);
 #endif
     
     return result;
