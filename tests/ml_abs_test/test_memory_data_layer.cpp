@@ -2,6 +2,8 @@
 // Created by tyd.
 //
 
+#include <measure_time.hpp>
+
 #include <caffe/util/io.hpp>
 #include <ml_layer/ml_abs.hpp>
 #include <ml_layer/caffe.hpp>
@@ -220,8 +222,8 @@ int main()
 	
 	for (int repeat = 0; repeat < 5; ++repeat)
 	{
-		model1.TrainDataset(data_blob, label_blob);
-		auto results = model1.TestDataset(test_data_blob, test_label_blob);
+        MEASURE_TIME(model1.TrainDataset(data_blob, label_blob));
+        MEASURE_TIME(auto results = model1.TestDataset(test_data_blob, test_label_blob));
 		for (auto&& result : results)
 		{
 			auto& [accuracy,loss] = result;
