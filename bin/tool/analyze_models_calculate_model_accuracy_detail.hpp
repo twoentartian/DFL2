@@ -59,7 +59,7 @@ void calculate_model_accuracy_details(const std::string& models_path_str, const 
     }
     
     //// map <node_name, map < tick , map< label-test/train, path > > >
-    std::map<std::string, std::map<std::string, std::map<std::string, float>>> output_accuracy_detail;
+    std::map<std::string, std::map<int, std::map<std::string, float>>> output_accuracy_detail;
     std::mutex output_accuracy_detail_lock;
     
     {
@@ -79,7 +79,7 @@ void calculate_model_accuracy_details(const std::string& models_path_str, const 
                 continue; // skip because the output is already generated
             }
             
-            auto& output_node_tick = output_accuracy_detail[node_name][tick];
+            auto& output_node_tick = output_accuracy_detail[node_name][std::stoi(tick)];
             
             boost::asio::post(pool,[solver_for_testing, concurrent_index, &model_path, &train_dataset, &test_dataset, &output_accuracy_detail_lock, &output_node_tick, tick, node_name, test_size](){
                 auto& solver = solver_for_testing[concurrent_index];
