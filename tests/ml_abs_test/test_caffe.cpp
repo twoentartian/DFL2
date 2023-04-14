@@ -2,13 +2,13 @@
 // Created by tyd.
 //
 
-#include <lmdb.h>
-
 #include <caffe/util/io.hpp>
 #include <caffe/sgd_solvers.hpp>
 
 #define BOOST_TEST_MAIN
 #include <boost/test/included/unit_test.hpp>
+
+#include <measure_time.hpp>
 
 #include <ml_layer/ml_abs.hpp>
 #include <ml_layer/caffe.hpp>
@@ -275,10 +275,14 @@ BOOST_AUTO_TEST_CASE (caffe_ext_predict)
 	
 	for (int repeat = 0; repeat < 50; ++repeat)
 	{
-		auto [train_x, train_y] = dataset.get_random_data(128);
-		model1.TrainDataset(train_x, train_y);
-		auto [test_x, test_y] = dataset.get_random_data(200);
-		auto results = model1.TestDataset(test_x, test_y);
+        measure_time timer;
+        timer.start();
+        auto [train_x, train_y] = dataset.get_random_data(128);
+        timer.stop();
+        std::cout << "get 128 data costs " << timer.measure_ms() << "ms" << std::endl;
+        MEASURE_TIME(model1.TrainDataset(train_x, train_y));
+        auto [test_x, test_y] = dataset.get_random_data(200);
+        MEASURE_TIME(auto results = model1.TestDataset(test_x, test_y));
 		for (auto&& result : results)
 		{
 			auto& [accuracy,loss] = result;
