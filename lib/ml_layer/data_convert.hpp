@@ -117,6 +117,11 @@ namespace Ml{
         {
             return _label;
         }
+        
+        const std::unordered_map<std::string, std::vector<tensor_blob_like<DType>>>& get_container_by_label() const
+        {
+            return _container_by_label;
+        }
 
         //return: <data,label>
         std::tuple<std::vector<tensor_blob_like<DType>>, std::vector<tensor_blob_like<DType>>> get_random_data(size_t size)

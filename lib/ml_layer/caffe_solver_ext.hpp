@@ -112,7 +112,7 @@ namespace Ml
 				}
 				CHECK(data_length == data[0].getData().size()) << "data shape and data size mismatch";
 			}
-			CHECK(data.size() == label.size()) << "data size does not equal label size";
+			CHECK(data.size() == label.size()) << "data size does not equal label size: " << data.size() << "!=" << label.size();
 			CHECK(checkValidFirstLayer_memoryLayer()) << "the first layer is not MemoryData layer";
 			
 			const std::vector<boost::shared_ptr<caffe::Net<DType>>>& test_nets = this->test_nets();
