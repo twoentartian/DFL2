@@ -204,7 +204,7 @@ for items in os.listdir(analyze_models_output_path):
                 _current_axis.legend(ncol=5, fontsize=5)
                 if len(_data.columns) > 10:
                     _current_axis.legend().remove()
-                _current_axis.set_title("node %x distance to %s" % (_node_name, _type))
+                _current_axis.set_title("node %d distance to %s" % (_node_name, _type))
                 _current_axis.set_xlabel('time (tick)')
                 _current_axis.set_ylabel('distance')
                 _current_axis.set_yscale('log')
