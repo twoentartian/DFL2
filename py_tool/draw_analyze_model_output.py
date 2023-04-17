@@ -147,6 +147,7 @@ for items in os.listdir(analyze_models_output_path):
             whole_fig.tight_layout()
             print("save figure for node " + str(node_0))
             whole_fig.savefig(save_path)
+            plt.close("all")
 
     if items == weight_distance_from_start_point_origin_file_name:      # weight_distance_from_start_point_origin.zip
         distance_files = os.listdir(cache_path)
