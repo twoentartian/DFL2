@@ -113,8 +113,14 @@ configuration_file::json get_default_simulation_configuration()
         network_topology_manager_service_rebuild_scale_free_network["gamma"] = 3.0;
         network_topology_manager_service_rebuild_scale_free_network["min_peer"] = 3;
         network_topology_manager_service_rebuild_scale_free_network["buffer_to_peer_ratio"] = 1.0;
-        network_topology_manager_service_rebuild_scale_free_network["interval"] = 8;
+        network_topology_manager_service_rebuild_scale_free_network["interval"] = 200;
         network_topology_manager_service["scale_free_network"] = network_topology_manager_service_rebuild_scale_free_network;
+
+        configuration_file::json network_topology_manager_service_connection_pair_swap = configuration_file::json::object();
+        network_topology_manager_service_connection_pair_swap["enable"] = false;
+        network_topology_manager_service_connection_pair_swap["percentage"] = 0.5;
+        network_topology_manager_service_connection_pair_swap["interval"] = 200;
+        network_topology_manager_service["connection_pair_swap"] = network_topology_manager_service_connection_pair_swap;
 
         services["network_topology_manager"] = network_topology_manager_service;
     }

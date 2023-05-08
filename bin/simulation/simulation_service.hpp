@@ -669,6 +669,10 @@ private:
     float scale_free_network_buffer_to_peer_ratio;
     int scale_free_network_interval;
 
+    bool enable_connection_pair_swap_config;
+    float connection_pair_swap_percentage;
+    int connection_pair_swap_interval;
+
     std::filesystem::path output_file_path;
     std::ofstream output_file;
     int last_topology_update_tick;
@@ -695,11 +699,21 @@ public:
             scale_free_network_min_peer = scale_free_network_config["min_peer"];
             scale_free_network_buffer_to_peer_ratio = scale_free_network_config["buffer_to_peer_ratio"];
             scale_free_network_interval = scale_free_network_config["interval"];
+
+            auto connection_pair_swap_config = config["connection_pair_swap"];
+            enable_connection_pair_swap_config = connection_pair_swap_config["enable"];
+            connection_pair_swap_percentage = connection_pair_swap_config["percentage"];
+            connection_pair_swap_interval = connection_pair_swap_config["interval"];
+
         }
 
         LOG_IF(FATAL, enable_read_from_file) << "read from file is not implemented yet";
 
-        this->enable = enable_read_from_file || enable_scale_free_network;
+        this->enable = enable_read_from_file || enable_scale_free_network || enable_connection_pair_swap_config;
+        if (static_cast<int>(enable_read_from_file) + static_cast<int>(enable_scale_free_network) + static_cast<int>(enable_connection_pair_swap_config) > 1)
+        {
+            LOG(FATAL) << "cannot enable multiple network_topology_manager services";
+        }
 
         return {record_service_status::success, ""};
     }
@@ -714,13 +728,18 @@ public:
         output_file.open(output_file_path);
         output_file << "{\n";
 
-
         return {record_service_status::success, ""};
     }
 
     std::tuple<record_service_status, std::string> process_per_tick(int tick) override
     {
         if (this->enable == false) return {record_service_status::skipped, "not enabled"};
+
+        ////read from file
+        if (enable_read_from_file)
+        {
+            LOG(FATAL) << "[network_topology_manager]: \"read_from_file\" not implement";
+        }
 
         ////scale free network
         if (enable_scale_free_network)
@@ -732,12 +751,23 @@ public:
             }
         }
 
+        ////connection pair swap
+        if (enable_connection_pair_swap_config)
+        {
+            if (tick >= last_topology_update_tick + connection_pair_swap_interval)
+            {
+                connection_pair_swap(tick);
+                last_topology_update_tick = tick;
+            }
+        }
+
         return {record_service_status::success, ""};
     }
 
     std::tuple<record_service_status, std::string> destruction_service() override
     {
         output_file << "\n}\n";
+
         return {record_service_status::success, ""};
     }
 
@@ -889,5 +919,95 @@ private:
             output_file << ",\n" << "\"tick-" << std::to_string(tick) << "\":" << output.dump();
         }
 
+    }
+
+    void connection_pair_swap(int tick)
+    {
+        //get all connection pair
+        std::vector<std::pair<std::string, std::string>> all_connections;
+        for (const auto& [node_name, node] : *(this->node_container)) {
+            for (const auto& [peer_name, peer_node] : node->peers) {
+                int node_name_int = std::stoi(node_name);
+                int peer_name_int = std::stoi(peer_name);
+                auto node_small = node_name_int < peer_name_int ? node_name : peer_name;
+                auto node_large = node_name_int > peer_name_int ? node_name : peer_name;
+                all_connections.push_back(std::make_pair(node_small, node_large));
+            }
+        }
+
+        //find pairs to swap peers
+        std::vector<std::pair<size_t, size_t>> swap_pairs;
+        {
+            size_t target_swap_count = all_connections.size() * this->connection_pair_swap_percentage / 2;
+            std::set<size_t> available_connection_index;
+            for (int i = 0; i < all_connections.size(); ++i) {
+                available_connection_index.insert(i);
+            }
+
+            size_t find_suitable_swap_pair_count = 0;
+            while (find_suitable_swap_pair_count < target_swap_count)
+            {
+                auto select_0 = util::select_randomly(available_connection_index.begin(), available_connection_index.end());
+                auto select_1 = util::select_randomly(available_connection_index.begin(), available_connection_index.end());
+                if (select_0 == select_1) continue; //same pick
+                auto pair_0_lhs = all_connections[*select_0].first;
+                auto pair_0_rhs = all_connections[*select_0].second;
+                auto pair_1_lhs = all_connections[*select_1].first;
+                auto pair_1_rhs = all_connections[*select_1].second;
+                std::set<std::string> duplicate_check;
+                duplicate_check.insert(pair_0_lhs);duplicate_check.insert(pair_0_rhs);
+                duplicate_check.insert(pair_1_lhs);duplicate_check.insert(pair_1_rhs);
+                if (duplicate_check.size() != 4) continue; //duplicate node
+
+                find_suitable_swap_pair_count++;
+                swap_pairs.emplace_back(*select_0, *select_1);
+
+                available_connection_index.erase(select_0);
+                available_connection_index.erase(select_1);
+            }
+        }
+
+        //swap peers
+        for (const auto& [connection_0, connection_1]: swap_pairs) {
+            auto connection_0_lhs_node = this->node_container->find(all_connections[connection_0].first)->second;
+            auto connection_0_rhs_node = this->node_container->find(all_connections[connection_0].second)->second;
+            auto connection_1_lhs_node = this->node_container->find(all_connections[connection_1].first)->second;
+            auto connection_1_rhs_node = this->node_container->find(all_connections[connection_1].second)->second;
+
+            //remove connections
+            auto erase_connections = [](node<model_datatype> * node, std::string erase_node_name){
+                auto erase_iter = node->peers.find(erase_node_name);
+                LOG_IF(FATAL, erase_iter == node->peers.end()) << "logic error";
+                node->peers.erase(erase_iter);
+            };
+            {
+                erase_connections(connection_0_lhs_node, connection_0_rhs_node->name);
+                erase_connections(connection_0_rhs_node, connection_0_lhs_node->name);
+                erase_connections(connection_1_lhs_node, connection_1_rhs_node->name);
+                erase_connections(connection_1_rhs_node, connection_1_lhs_node->name);
+            }
+
+            //add connections
+            auto add_connections = [this](node<model_datatype> * node, std::string add_node_name){
+                auto add_iter = this->node_container->find(add_node_name);
+                LOG_IF(FATAL, add_iter == this->node_container->end()) << "logic error";
+                node->peers.emplace(add_iter->first, add_iter->second);
+            };
+            {
+                add_connections(connection_0_lhs_node, connection_1_rhs_node->name);
+                add_connections(connection_0_rhs_node, connection_1_lhs_node->name);
+                add_connections(connection_1_lhs_node, connection_0_rhs_node->name);
+                add_connections(connection_1_rhs_node, connection_0_lhs_node->name);
+            }
+
+            //record
+            output_file << "\"tick-" << std::to_string(tick) << "\":" << "\"" <<
+                    "{" << all_connections[connection_0].first << "--" << all_connections[connection_0].second << "}" <<
+                    "{" << all_connections[connection_1].first << "--" << all_connections[connection_1].second << "}" <<
+                    " ===>>> " <<
+                    "{" << all_connections[connection_0].first << "--" << all_connections[connection_1].second << "}" <<
+                    "{" << all_connections[connection_1].first << "--" << all_connections[connection_0].second << "}" <<
+                    "\"," << std::endl;
+        }
     }
 };
