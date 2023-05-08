@@ -81,7 +81,7 @@ configuration_file::json get_default_simulation_configuration()
 	}
 	{
 		configuration_file::json peer_control_service = configuration_file::json::object();
-		peer_control_service["enable"] = true;
+		peer_control_service["enable"] = false;
 		peer_control_service["least_peer_change_interval"] = 50;
 		peer_control_service["fedavg_buffer_size"] = "linear"; //// candidates: static, linear
 		peer_control_service["accuracy_threshold_high"] = 0.8;
@@ -90,12 +90,12 @@ configuration_file::json get_default_simulation_configuration()
 	}
     {
         configuration_file::json reputation_record_service = configuration_file::json::object();
-        reputation_record_service["enable"] = true;
+        reputation_record_service["enable"] = false;
         services["reputation_record"] = reputation_record_service;
     }
     {
         configuration_file::json model_record_service = configuration_file::json::object();
-        model_record_service["enable"] = true;
+        model_record_service["enable"] = false;
         model_record_service["path"] = "./models";
         model_record_service["interval"] = 1000;
         services["model_record"] = model_record_service;

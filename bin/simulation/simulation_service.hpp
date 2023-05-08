@@ -925,15 +925,22 @@ private:
     {
         //get all connection pair
         std::vector<std::pair<std::string, std::string>> all_connections;
-        for (const auto& [node_name, node] : *(this->node_container)) {
-            for (const auto& [peer_name, peer_node] : node->peers) {
-                int node_name_int = std::stoi(node_name);
-                int peer_name_int = std::stoi(peer_name);
-                auto node_small = node_name_int < peer_name_int ? node_name : peer_name;
-                auto node_large = node_name_int > peer_name_int ? node_name : peer_name;
-                all_connections.push_back(std::make_pair(node_small, node_large));
+        {
+            std::set<std::pair<std::string, std::string>> all_connections_set;
+            for (const auto& [node_name, node] : *(this->node_container)) {
+                for (const auto& [peer_name, peer_node] : node->peers) {
+                    int node_name_int = std::stoi(node_name);
+                    int peer_name_int = std::stoi(peer_name);
+                    auto node_small = node_name_int < peer_name_int ? node_name : peer_name;
+                    auto node_large = node_name_int > peer_name_int ? node_name : peer_name;
+                    all_connections_set.insert(std::make_pair(node_small, node_large));
+                }
+            }
+            for (const auto& target: all_connections_set) {
+                all_connections.push_back(target);
             }
         }
+
 
         //find pairs to swap peers
         std::vector<std::pair<size_t, size_t>> swap_pairs;
