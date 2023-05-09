@@ -22,6 +22,10 @@ configuration_file::json get_default_simulation_configuration()
 	output["ml_test_batch_size"] = 100;
 	output["ml_non_iid_normal_weight"] = configuration_file::json::array({10.0, 15.0});
 	output["ml_dataset_all_possible_labels"] = configuration_file::json::array({0,1,2,3,4,5,6,7,8,9});
+
+    output["early_stop_enable"] = false;
+    output["early_stop_threshold_accuracy"] = 0.9;
+    output["early_stop_threshold_node_ratio"] = 0.9;
 	
 	if (os_info::get_os_type() == os_info::os_type::linux_series)
 	{

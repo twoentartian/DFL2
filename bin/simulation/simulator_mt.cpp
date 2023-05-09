@@ -82,6 +82,10 @@ int main(int argc, char *argv[])
 	auto ml_max_tick = *config.get<int>("ml_max_tick");
 	auto ml_train_batch_size = *config.get<int>("ml_train_batch_size");
 	auto ml_test_batch_size = *config.get<int>("ml_test_batch_size");
+
+    auto early_stop_enable = *config.get<bool>("early_stop_enable");
+    auto early_stop_threshold_accuracy = *config.get<float>("early_stop_threshold_accuracy");
+    auto early_stop_threshold_node_ratio = *config.get<float>("early_stop_threshold_node_ratio");
 	
 	auto report_time_remaining_per_tick_elapsed = *config.get<int>("report_time_remaining_per_tick_elapsed");
 	
@@ -506,6 +510,8 @@ int main(int argc, char *argv[])
     }
     
 	////////////  BEGIN SIMULATION  ////////////
+	std::mutex accuracy_container_lock;
+	std::map<std::string, float> accuracy_container;
 	{
 		auto last_time_point = std::chrono::system_clock::now();
 		
@@ -641,6 +647,12 @@ int main(int argc, char *argv[])
 					
 					//clear buffer and start new loop
 					single_node->parameter_buffer.clear();
+
+					//add self accuracy to accuracy container
+					{
+						std::lock_guard guard(accuracy_container_lock);
+                        accuracy_container.emplace_back()
+					}
 				}
                 else
                 {
