@@ -511,7 +511,12 @@ int main(int argc, char *argv[])
     
 	////////////  BEGIN SIMULATION  ////////////
 	std::mutex accuracy_container_lock;
-	std::map<std::string, float> accuracy_container;
+    std::map<std::string, float> accuracy_container;
+    for (const auto& [node_name, node]: node_container)
+    {
+        accuracy_container[node_name] = 0.0;
+    }
+    
 	{
 		auto last_time_point = std::chrono::system_clock::now();
 		
@@ -592,7 +597,7 @@ int main(int argc, char *argv[])
 			}, node_pointer_vector_container.size(), node_pointer_vector_container.data());
 			
 			////check fedavg buffer full
-			tmt::ParallelExecution_StepIncremental([&tick,&test_dataset,&ml_test_batch_size,&ml_dataset_all_possible_labels,&solver_for_testing](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
+			tmt::ParallelExecution_StepIncremental([&tick,&test_dataset,&ml_test_batch_size,&ml_dataset_all_possible_labels,&solver_for_testing, &accuracy_container_lock, &accuracy_container](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
 				if (single_node->parameter_buffer.size() >= single_node->buffer_size) {
                     single_node->model_averaged = true;
                     
@@ -651,7 +656,7 @@ int main(int argc, char *argv[])
 					//add self accuracy to accuracy container
 					{
 						std::lock_guard guard(accuracy_container_lock);
-                        accuracy_container.emplace_back()
+                        accuracy_container[single_node->name] = self_accuracy;
 					}
 				}
                 else
@@ -666,6 +671,26 @@ int main(int argc, char *argv[])
 			{
 				service_instance->process_per_tick(tick);
 			}
+            
+            //early stop?
+            {
+                size_t counter_above_threshold = 0;
+                for (const auto& [node_name, accuracy]: accuracy_container)
+                {
+                    if (accuracy >= early_stop_threshold_accuracy)
+                    {
+                        counter_above_threshold++;
+                    }
+                }
+                auto node_ratio = static_cast<float>(counter_above_threshold) / static_cast<float>(accuracy_container.size());
+                if (node_ratio > early_stop_threshold_node_ratio)
+                {
+                    //early stop
+                    LOG(INFO) << "early stop, " << node_ratio << " of the nodes' accuracy is above " << early_stop_threshold_node_ratio;
+                    break;
+                }
+            }
+
 			
 			tick++;
 		}
