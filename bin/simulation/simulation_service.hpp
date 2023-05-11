@@ -965,6 +965,14 @@ private:
                 duplicate_check.insert(pair_0_lhs);duplicate_check.insert(pair_0_rhs);
                 duplicate_check.insert(pair_1_lhs);duplicate_check.insert(pair_1_rhs);
                 if (duplicate_check.size() != 4) continue; //duplicate node
+                
+                auto connection_0_lhs_node = this->node_container->find(all_connections[*select_0].first)->second;
+                auto connection_0_rhs_node = this->node_container->find(all_connections[*select_0].second)->second;
+                auto connection_1_lhs_node = this->node_container->find(all_connections[*select_1].first)->second;
+                auto connection_1_rhs_node = this->node_container->find(all_connections[*select_1].second)->second;
+                
+                if (connection_0_lhs_node->peers.find(pair_1_rhs) != connection_0_lhs_node->peers.end()) continue; //the target node is already connected.
+                if (connection_1_lhs_node->peers.find(pair_0_lhs) != connection_0_lhs_node->peers.end()) continue; //the target node is already connected.
 
                 find_suitable_swap_pair_count++;
                 swap_pairs.emplace_back(*select_0, *select_1);
