@@ -673,6 +673,7 @@ int main(int argc, char *argv[])
 			}
             
             //early stop?
+            if (early_stop_enable)
             {
                 size_t counter_above_threshold = 0;
                 for (const auto& [node_name, accuracy]: accuracy_container)
