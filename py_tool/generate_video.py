@@ -47,7 +47,7 @@ if __name__ == "__main__":
     config_file_content = config_file.read()
     config_file_json = json.loads(config_file_content)
     topology = config_file_json['node_topology']
-    peer_control_enabled = config_file_json['services']['peer_control_service']['enable']
+    peer_control_enabled = config_file_json['services']['time_based_hierarchy_service']['enable']
     nodes = config_file_json['nodes']
 
     accuracy_df = pandas.read_csv(accuracy_file_path, index_col=0, header=0)
