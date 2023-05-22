@@ -5,8 +5,10 @@
 #include <sstream>
 #include <filesystem>
 
+#if USE_BACKTRACE
 #define BOOST_STACKTRACE_USE_BACKTRACE
 #include <boost/stacktrace.hpp>
+#endif
 
 #include <time_util.hpp>
 #include <byte_buffer.hpp>
@@ -117,19 +119,30 @@ BOOST_AUTO_TEST_SUITE (miscellaneous_test)
         BOOST_CHECK(pass);
     }
 
+#if USE_BACKTRACE
     void signalHandler(int sig_num)
     {
         std::cerr << boost::stacktrace::stacktrace();
         exit(sig_num);
     }
 
-    BOOST_AUTO_TEST_CASE(signal_SIGSEGV_test)
+    BOOST_AUTO_TEST_CASE (signal_SIGSEGV_test)
     {
         signal(SIGSEGV, signalHandler);
         signal(SIGABRT, signalHandler);
 
         int *foo = (int*)-1; // make a bad pointer
         printf("%d\n", *foo);
+
+    }
+#endif
+
+#include "CNet/CNet.hpp"
+    BOOST_AUTO_TEST_CASE (CNet)
+    {
+        CNetwork<> net(20000); //Create a network of max size 20000 nodes
+        net.create_albert_barabasi(1000, 10, 21354647); //Fill this size with AB model
+        std::cout << net.mean_degree() << std::endl; //Compute mean degree
 
     }
 
