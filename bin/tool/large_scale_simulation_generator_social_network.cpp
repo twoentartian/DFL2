@@ -14,6 +14,7 @@
 #include <set>
 #include <glog/logging.h>
 #include <configure_file.hpp>
+#include <tmt.hpp>
 
 #include "../simulation/simulation_config_format.hpp"
 #include "simulation_config_generator_common_functions.hpp"
@@ -218,35 +219,73 @@ int main(int argc, char *argv[])
                 }
     
                 ////begin generating the network topology
-                int try_count = 0;
                 bool whole_success = false;
-                while (try_count < 10000)
-                {
+                std::atomic_uint try_count = 0;
+                const size_t try_maximum = 1000;
+                std::atomic_bool stop = false;
+                std::mutex set_output_lock;
+                tmt::ParallelExecution_StepIncremental([&](int thread_index, int total_thread){
+                    if (stop) return;
+
                     try_count++;
-        
+                    if (try_count > try_maximum) {
+                        stop = true;
+                        return;
+                    }
+
                     auto connection_optional = generate_network_topology(node_count, peer_per_node);
                     if (connection_optional.has_value()) //success
                     {
-                        connections = *connection_optional;
-                        
+                        auto& temp_connections = *connection_optional;
+
                         ////check whether we get a network with islands
                         std::map<int, std::set<int>> peer_map;
-                        for (auto &[node, peer]: connections)
+                        for (auto &[node, peer]: temp_connections)
                         {
                             peer_map[node].emplace(peer);
                             peer_map[peer].emplace(node);
                         }
-                        
+
                         ////check islands
                         std::set<int> mainland;
                         add_to_mainland(peer_map.begin()->first, peer_map, mainland);
                         if (mainland.size() == peer_map.size())
                         {
+                            std::lock_guard guard(set_output_lock);
                             whole_success = true;
-                            break;
+                            stop = true;
+                            connections = temp_connections;
                         }
                     }
-                }
+                }, try_maximum);
+
+//                while (try_count < 100)
+//                {
+//                    try_count++;
+//
+//                    auto connection_optional = generate_network_topology(node_count, peer_per_node);
+//                    if (connection_optional.has_value()) //success
+//                    {
+//                        connections = *connection_optional;
+//
+//                        ////check whether we get a network with islands
+//                        std::map<int, std::set<int>> peer_map;
+//                        for (auto &[node, peer]: connections)
+//                        {
+//                            peer_map[node].emplace(peer);
+//                            peer_map[peer].emplace(node);
+//                        }
+//
+//                        ////check islands
+//                        std::set<int> mainland;
+//                        add_to_mainland(peer_map.begin()->first, peer_map, mainland);
+//                        if (mainland.size() == peer_map.size())
+//                        {
+//                            whole_success = true;
+//                            break;
+//                        }
+//                    }
+//                }
     
                 if (whole_success)
                 {
