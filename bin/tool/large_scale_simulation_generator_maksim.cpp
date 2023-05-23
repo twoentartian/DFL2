@@ -37,7 +37,7 @@ int main(int argc, char* argv[])
 {
 	configuration_file generator_config;
 	generator_config.SetDefaultConfiguration(get_default_simulation_configuration());
-	auto load_config_rc = generator_config.LoadConfiguration("large_scale_config.json");
+	auto load_config_rc = generator_config.LoadConfiguration("large_scale_config_maksim.json");
 	if (load_config_rc < 0)
 	{
 		LOG(FATAL) << "cannot load large scale configuration file, wrong format?";
