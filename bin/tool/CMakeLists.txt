@@ -16,6 +16,9 @@ target_link_libraries(large_scale_simulation_generator ${DFL_LINKER_LIBS})
 add_executable(large_scale_simulation_generator_social_network large_scale_simulation_generator_social_network.cpp)
 target_link_libraries(large_scale_simulation_generator_social_network ${DFL_LINKER_LIBS})
 
+add_executable(large_scale_simulation_generator_maksim large_scale_simulation_generator_maksim.cpp)
+target_link_libraries(large_scale_simulation_generator_maksim ${DFL_LINKER_LIBS})
+
 add_executable(inject_interval_generator inject_interval_generator.cpp)
 target_link_libraries(inject_interval_generator ${DFL_LINKER_LIBS})
 
