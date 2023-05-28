@@ -265,7 +265,7 @@ if __name__ == "__main__":
         axs.set_ylabel('herd effect delay (tick)')
         axs.set_xlim([herd_effect_delay_df.index.min(), herd_effect_delay_df.index.max()])
         fig.savefig('herd_effect_delay.pdf')
-        fig.savefig('herd_effect_delay.jpg')
+        fig.savefig('herd_effect_delay.jpg', dpi=800)
 
 
     flag_generate_for_each_result = query_yes_no(

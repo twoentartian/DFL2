@@ -71,4 +71,4 @@ if __name__ == "__main__":
         current_axis = whole_axis[current_row, current_col]
         draw_single_degree_distribution(simulation_config_file, current_axis)
     fig.savefig(save_name + ".pdf")
-    fig.savefig(save_name + ".jpg")
+    fig.savefig(save_name + ".jpg", dpi=800)
