@@ -172,8 +172,8 @@ if __name__ == "__main__":
 
             # calculate herd effect delay
             herd_effect_delay = calculate_herd_effect_delay(final_accuracy_df, final_weight_diff_df)
-            number_of_nodes = len(final_accuracy_df.columns)
-            herd_effect_delay_df.loc[number_of_nodes] = {'herd_effect_delay': herd_effect_delay}
+            simulation_name = folders[folder_index]
+            herd_effect_delay_df.loc[simulation_name] = {'herd_effect_delay': herd_effect_delay}
             print("herd effect delay = " + str(herd_effect_delay))
 
             accuracy_x = final_accuracy_df.index
@@ -214,7 +214,7 @@ if __name__ == "__main__":
             if len(final_accuracy_df.columns) > 10:
                 accuracy_axis.legend().remove()
             accuracy_axis.set_title('Subplot ' + str(folder_index + 1) + 'a - accuracy: ' + titles[folder_index])
-            accuracy_axis.set_xlabel('time (tick)')
+            accuracy_axis.set_xlabel('time (tick), herd_effect=' + str(herd_effect_delay) + " #node=" + str(len(final_accuracy_df.columns)))
             accuracy_axis.set_ylabel('accuracy (0-1)')
             # accuracy_axis.set_xlim([0, final_accuracy_df.index[end_accuracy_x]])
             accuracy_axis.set_xlim([0, maximum_tick])
@@ -238,7 +238,7 @@ if __name__ == "__main__":
                 weight_diff_axis.legend(ncol=4, prop={'size': 8})
                 weight_diff_axis.set_title(
                     'Subplot ' + str(folder_index + 1) + 'b - model weight diff: ' + titles[folder_index])
-                weight_diff_axis.set_xlabel('time (tick)')
+                weight_diff_axis.set_xlabel('time (tick), herd_effect=' + str(herd_effect_delay) + " #node=" + str(len(final_accuracy_df.columns)))
                 weight_diff_axis.set_ylabel('weight diff')
                 weight_diff_axis.set_yscale('log')
                 weight_diff_axis.set_xlim([0, maximum_tick])
@@ -261,9 +261,8 @@ if __name__ == "__main__":
         #plot the herd effect
         fig, axs = plt.subplots(1, 1)
         axs.plot(herd_effect_delay_df.index, herd_effect_delay_df['herd_effect_delay'])
-        axs.set_xlabel('network size')
+        axs.set_xlabel('network name')
         axs.set_ylabel('herd effect delay (tick)')
-        axs.set_xlim([herd_effect_delay_df.index.min(), herd_effect_delay_df.index.max()])
         fig.savefig('herd_effect_delay.pdf')
         fig.savefig('herd_effect_delay.jpg', dpi=800)
 
@@ -301,7 +300,7 @@ if __name__ == "__main__":
                 if len(axs[0].columns) > 10:
                     axs[0].legend().remove()
                 axs[0].set_title('accuracy')
-                axs[0].set_xlabel('time (tick)')
+                axs[0].set_xlabel('time (tick), herd_effect_delay=' + str())
                 axs[0].set_ylabel('accuracy (0-1)')
                 axs[0].set_xlim([0, accuracy_df.index[accuracy_df_len - 1]])
                 axs[0].set_ylim([0, 1])
