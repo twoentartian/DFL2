@@ -40,6 +40,19 @@ else()
     add_compile_definitions(BLOCK_GENERATION=0)
 endif ()
 
+# OpenSSL
+#find_package(OpenSSL)
+if (OPENSSL_FOUND)
+    message(STATUS "Find OpenSSL ${OPENSSL_VERSION} in system")
+    include_directories(${OPENSSL_INCLUDE_DIRS})
+    list(APPEND DFL_LINKER_LIBS ${OPENSSL_CRYPTO_LIBRARIES})
+else()
+    message(STATUS "OpenSSL not found, use hunter")
+    hunter_add_package(OpenSSL)
+    find_package(OpenSSL REQUIRED)
+    list(APPEND DFL_LINKER_LIBS OpenSSL::Crypto)
+endif ()
+
 # Boost
 if (USE_HUNTER_BOOST)
     hunter_add_package(Boost COMPONENTS system filesystem serialization thread program_options)
@@ -68,14 +81,6 @@ else()
     add_compile_definitions(Backtrace_enable=0)
 endif()
 
-
-# Caffe cmake
-add_subdirectory(3rd/caffe)
-include_directories(3rd/caffe/include)
-include_directories(${CMAKE_BINARY_DIR}/3rd/caffe/include)
-include(cmake/CaffeHeader.cmake)
-list(APPEND DFL_LINKER_LIBS caffe)
-
 ## hunter Caffe
 #include(hunter_add_version)
 #set(HUNTER_Caffe_VERSION 0.0.5)
@@ -91,19 +96,6 @@ list(APPEND DFL_LINKER_LIBS caffe)
 # Nlohmann Json
 hunter_add_package(nlohmann_json)
 find_package(nlohmann_json CONFIG REQUIRED)
-
-# OpenSSL
-find_package(OpenSSL)
-if (OPENSSL_FOUND)
-    message(STATUS "Find OpenSSL ${OPENSSL_VERSION} in system")
-    include_directories(${OPENSSL_INCLUDE_DIRS})
-    list(APPEND DFL_LINKER_LIBS ${OPENSSL_CRYPTO_LIBRARIES})
-else()
-    message(STATUS "OpenSSL not found, use hunter")
-    hunter_add_package(OpenSSL)
-    find_package(OpenSSL REQUIRED)
-    list(APPEND DFL_LINKER_LIBS OpenSSL::Crypto)
-endif ()
 
 # glog
 find_package(GLOG)
@@ -181,6 +173,12 @@ elseif(APPLE)
     list(APPEND DFL_LINKER_LIBS ${vecLib_LINKER_LIBS})
 endif()
 
+# Caffe cmake
+add_subdirectory(3rd/caffe)
+include_directories(3rd/caffe/include)
+include_directories(${CMAKE_BINARY_DIR}/3rd/caffe/include)
+include(cmake/CaffeHeader.cmake)
+list(APPEND DFL_LINKER_LIBS caffe)
 
 include_directories(lib)
 
