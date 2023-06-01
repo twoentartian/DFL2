@@ -163,7 +163,7 @@ namespace Ml {
         
         void random(DType min, DType max)
         {
-        	std::random_device rd;
+        	static std::random_device rd;
         	std::uniform_real_distribution distribution(min, max);
 	        for (auto& single_value: _data)
 	        {
