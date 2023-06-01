@@ -44,7 +44,7 @@ int main(int argc, char* argv[])
 	std::vector<int> all_labels = *config.get_vec<int>("ml_dataset_all_possible_labels");
 	
 	//nodes
-	std::random_device rd;
+	static std::random_device rd;
 	std::gamma_distribution<double> gamma(a,10000/a);
 	configuration_file::json& nodes_json = config.get_json()["nodes"];
  

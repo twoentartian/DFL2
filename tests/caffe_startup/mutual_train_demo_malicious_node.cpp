@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
 			{
 				for (int i = 0; i < train_label.size(); ++i)
 				{
-					std::random_device dev;
+					static std::random_device dev;
 					std::mt19937 rng(dev());
 					std::uniform_int_distribution<int> distribution(1,9);
 					

@@ -204,7 +204,7 @@ namespace Ml{
     private:
         std::vector<tensor_blob_like<DType>> _data;
         std::vector<tensor_blob_like<DType>> _label;
-        std::random_device _dev;
+        static std::random_device _dev;
 	
         std::unordered_map<std::string, std::vector<tensor_blob_like<DType>>> _container_by_label;
 	

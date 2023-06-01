@@ -78,7 +78,7 @@ std::tuple<bool, std::string> reputation_dll_same_reputation_test(dll_loader<rep
 template<typename DType>
 std::tuple<bool, std::string> reputation_dll_same_model_test(dll_loader<reputation_interface<DType>>& reputation_dll, Ml::caffe_parameter_net<DType> net)
 {
-	std::random_device rd;
+	static std::random_device rd;
 	std::uniform_real_distribution distribution(0.1,0.9);
 	
 	constexpr int node_count = 5;

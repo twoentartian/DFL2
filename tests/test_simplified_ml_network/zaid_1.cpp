@@ -44,7 +44,7 @@ BOOST_AUTO_TEST_SUITE (simplified_ml_network)
         float conservative = 0.5;
         
         //init
-        std::random_device rd{};
+        static std::random_device rd{};
         std::mt19937 gen{rd()};
         
         //set node topology

@@ -449,7 +449,7 @@ public:
 			if (node_pointer->last_measured_accuracy <= accuracy_threshold_low && node_pointer->peers.size() != 0)
 			{
 				//try delete a peer
-				std::random_device rd;
+				static std::random_device rd;
 				std::uniform_int_distribution<int> distribution(0, node_pointer->peers.size()-1);
 				int delete_index = distribution(rd);
 				std::string delete_peer_name;

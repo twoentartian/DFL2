@@ -48,7 +48,7 @@ int main(int argc, char* argv[])
     config.LoadConfiguration(config_file);
 
     //nodes
-    std::random_device rd;
+    static std::random_device rd;
     std::mt19937 gen{rd()};
     std::normal_distribution<double> normal_dis(mean, stddev);
     configuration_file::json& nodes_json = config.get_json()["nodes"];

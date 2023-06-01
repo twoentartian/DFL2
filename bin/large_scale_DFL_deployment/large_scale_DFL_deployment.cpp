@@ -362,7 +362,7 @@ int main(int argc, char **argv)
 	//apply simulation node information to node deployment
 	{
 		auto nodes_json = simulation_config_json["nodes"];
-        std::random_device rd;
+        static std::random_device rd;
         std::mt19937 gen(rd());
 		for (auto& single_node : nodes_json)
 		{

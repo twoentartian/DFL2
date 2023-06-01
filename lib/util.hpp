@@ -67,7 +67,7 @@ namespace util
 	std::string get_random_str(int length = 20)
 	{
 		std::string randomStr;
-		std::random_device randomDevice;
+		static std::random_device randomDevice;
 		std::default_random_engine randomEngine(randomDevice());
 		std::uniform_int_distribution<int> distribution(0, 10+26+26-1);
 		

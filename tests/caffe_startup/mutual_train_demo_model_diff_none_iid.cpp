@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
 //			std::vector<Ml::tensor_blob_like<float>> train_label = util::vector_concatenate(train_label_0, train_label_1);
 //			util::vector_twin_shuffle(train_data,train_label);
 			
-			std::random_device dev;
+			static std::random_device dev;
 			std::mt19937 rng(dev());
 			std::uniform_real_distribution<float> distribution(0.1,0.3);
 			std::uniform_real_distribution<float> dense_distribution(0.8,1.2);

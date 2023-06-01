@@ -1107,7 +1107,7 @@ void DirectedCNetwork<T,B>::create_configurational(int n, int mink, double gamma
         }
     }
 
-    std::random_device rd;
+    static std::random_device rd;
     std::mt19937 g(rd());
     std::shuffle(link_vector.begin(), link_vector.end(), g); //Make a shuffle
 
