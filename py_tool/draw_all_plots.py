@@ -90,6 +90,7 @@ def calculate_herd_effect_delay(arg_accuracy_df: pandas.DataFrame, arg_model_wei
     average_accuracy: pandas.Series = arg_accuracy_df.mean(axis=1)
     average_accuracy_diff = average_accuracy.diff()
     average_accuracy_diff.dropna(inplace=True)
+    average_accuracy_diff = average_accuracy_diff.rolling(window=5).mean()
     herd_effect_delay_tick = average_accuracy_diff.idxmax()
 
     return herd_effect_delay_tick
