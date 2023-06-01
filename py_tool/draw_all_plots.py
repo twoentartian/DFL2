@@ -81,10 +81,17 @@ def calculate_herd_effect_delay(arg_accuracy_df: pandas.DataFrame, arg_model_wei
     # if herd_effect_delay_tick != 0:
     #     return herd_effect_delay_tick
 
-    # calculate the average of accuracy graph
-    min_accuracy: pandas.Series = arg_accuracy_df.min(axis=1)
-    min_accuracy_averaged = min_accuracy.rolling(window=7).mean()
-    herd_effect_delay_tick = min_accuracy_averaged[min_accuracy_averaged > 0.1].first_valid_index()
+    # # try the min accuracy method
+    # min_accuracy: pandas.Series = arg_accuracy_df.min(axis=1)
+    # min_accuracy_averaged = min_accuracy.rolling(window=7).mean()
+    # herd_effect_delay_tick = min_accuracy_averaged[min_accuracy_averaged > 0.1].first_valid_index()
+
+    # try the maximum of derivative
+    average_accuracy: pandas.Series = arg_accuracy_df.mean(axis=1)
+    average_accuracy_diff = average_accuracy.diff()
+    average_accuracy_diff.dropna(inplace=True)
+    herd_effect_delay_tick = average_accuracy_diff.idxmax()
+
     return herd_effect_delay_tick
 
 
