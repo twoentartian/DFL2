@@ -65,7 +65,7 @@ if __name__ == "__main__":
 
         # copy run script and simulator to output folder
         shutil.copyfile(os.path.join(simulation_folder_path, "DFL_simulator_mt"), os.path.join(output_folder_dir, "DFL_simulator_mt"))
-        shutil.copyfile(os.path.join(simulation_folder_path, "run_simulator.sh"), os.path.join(output_folder_dir, "run_simulator.sh"))
+        shutil.copyfile(os.path.join(simulation_folder_path, "run_simulator_mt.sh"), os.path.join(output_folder_dir, "run_simulator_mt.sh"))
 
     # generator run script
     run_script_content = """
@@ -73,7 +73,7 @@ from subprocess import call
 
 $network_size$
 
-run_simulator_command = "sh ./run_simulator.sh"
+run_simulator_command = "sh ./run_simulator_mt.sh"
 
 if __name__ == "__main__":
     for single_network_size in network_size:
