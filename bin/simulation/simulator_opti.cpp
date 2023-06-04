@@ -575,7 +575,7 @@ int main(int argc, char *argv[])
 			
 			////check fedavg buffer full
 			tmt::ParallelExecution_StepIncremental([&tick,&test_dataset,&ml_test_batch_size,&ml_dataset_all_possible_labels,&solver_for_testing, &accuracy_container_lock, &accuracy_container](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
-				if (single_node->parameter_buffer.size() >= single_node->buffer_size) {
+				if (node_model_update[single_node->name]->get_model_count() >= single_node->buffer_size) {
 					single_node->model_averaged = true;
 					
 					//update model

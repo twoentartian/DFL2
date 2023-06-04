@@ -9,6 +9,7 @@ public:
 	
 	virtual Ml::caffe_parameter_net<model_datatype> get_output_model(const Ml::caffe_parameter_net<model_datatype>& self_model, const std::vector<Ml::tensor_blob_like<model_datatype>>& test_data, const std::vector<Ml::tensor_blob_like<model_datatype>>& test_label) = 0;
 	
+	virtual size_t get_model_count() = 0;
 };
 
 template <typename model_datatype>
@@ -37,6 +38,10 @@ public:
 		_model_count = 0;
 		_is_first_model = true;
 		return output;
+	}
+	
+	size_t get_model_count() override {
+		return _model_count;
 	}
 	
 private:
