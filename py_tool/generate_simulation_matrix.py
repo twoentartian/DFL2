@@ -13,6 +13,9 @@ non_iid_generator_arg = "0.5"
 simulator_config_file_name = "simulator_config.json"
 network_generator_config_file_name = "large_scale_config_social_network.json"
 
+simulator_name = "DFL_simulator_mt"
+simulator_script_name = "run_simulator_mt.sh"
+
 simulation_folder_name = "simulation"
 tool_folder_name = "tool"
 
@@ -64,8 +67,8 @@ if __name__ == "__main__":
         shutil.copyfile(simulator_config_path, os.path.join(output_folder_dir, simulator_config_file_name))
 
         # copy run script and simulator to output folder
-        shutil.copyfile(os.path.join(simulation_folder_path, "DFL_simulator_mt"), os.path.join(output_folder_dir, "DFL_simulator_mt"))
-        shutil.copyfile(os.path.join(simulation_folder_path, "run_simulator_mt.sh"), os.path.join(output_folder_dir, "run_simulator_mt.sh"))
+        shutil.copyfile(os.path.join(simulation_folder_path, simulator_name), os.path.join(output_folder_dir, simulator_name))
+        shutil.copyfile(os.path.join(simulation_folder_path, simulator_script_name), os.path.join(output_folder_dir, simulator_script_name))
 
     # generator run script
     run_script_content = """
@@ -73,7 +76,7 @@ from subprocess import call
 
 $network_size$
 
-run_simulator_command = "sh ./run_simulator_mt.sh"
+run_simulator_command = "sh ./!!simulator_script_name!!"
 
 if __name__ == "__main__":
     for single_network_size in network_size:
@@ -82,6 +85,7 @@ if __name__ == "__main__":
         status = call(run_simulator_command, cwd=folder, shell=True)
         assert status == 0
     """
+    run_script_content.replace("!!simulator_script_name!!", simulator_script_name)
     network_size_array_elements = ", ".join(str(i) for i in network_size)
     network_size_line = f"network_size = [{network_size_array_elements}]"
     run_script_content = run_script_content.replace("$network_size$", network_size_line)
