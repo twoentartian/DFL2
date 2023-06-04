@@ -1,5 +1,6 @@
 #pragma once
 
+#include <mutex>
 #include <ml_layer.hpp>
 
 template <typename model_datatype>
@@ -21,6 +22,7 @@ public:
 	}
 
 	void add_model(const Ml::caffe_parameter_net<model_datatype>& model) override {
+		std::lock_guard guard(_lock);
 		_model_count++;
 		if (_is_first_model) {
 			_is_first_model = false;
@@ -34,6 +36,7 @@ public:
 	}
 	
 	Ml::caffe_parameter_net<model_datatype> get_output_model(const Ml::caffe_parameter_net<model_datatype>& self_model, const std::vector<Ml::tensor_blob_like<model_datatype>>& test_data, const std::vector<Ml::tensor_blob_like<model_datatype>>& test_label) override {
+		std::lock_guard guard(_lock);
 		auto output = self_model * 0.5 + _buffered_model/_model_count * 0.5;
 		_model_count = 0;
 		_is_first_model = true;
@@ -45,6 +48,7 @@ public:
 	}
 	
 private:
+	std::mutex _lock;
 	bool _is_first_model;
 	Ml::caffe_parameter_net<model_datatype> _buffered_model;
 	size_t _model_count;
