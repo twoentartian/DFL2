@@ -76,7 +76,7 @@ from subprocess import call
 
 $network_size$
 
-run_simulator_command = "sh ./!!simulator_script_name!!"
+run_simulator_command = "sh ./$simulator_script_name$"
 
 if __name__ == "__main__":
     for single_network_size in network_size:
@@ -85,7 +85,7 @@ if __name__ == "__main__":
         status = call(run_simulator_command, cwd=folder, shell=True)
         assert status == 0
     """
-    run_script_content.replace("!!simulator_script_name!!", simulator_script_name)
+    run_script_content = run_script_content.replace("$simulator_script_name$", simulator_script_name)
     network_size_array_elements = ", ".join(str(i) for i in network_size)
     network_size_line = f"network_size = [{network_size_array_elements}]"
     run_script_content = run_script_content.replace("$network_size$", network_size_line)
