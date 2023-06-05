@@ -1,7 +1,3 @@
-//
-// Originally created by tyd, the malicious part is by jxzhang on 09-08-21.
-//
-
 #include <thread>
 #include <unordered_map>
 #include <fstream>
@@ -388,14 +384,6 @@ int main(int argc, char *argv[])
 		node_pointer_vector_container.push_back(single_node.second);
 	}
 	
-	//caffe solver for fedAvg process
-	size_t solver_for_testing_size = std::thread::hardware_concurrency();
-	auto* solver_for_testing = new Ml::MlCaffeModel<float, caffe::SGDSolver>[solver_for_testing_size];
-	for (int i = 0; i < solver_for_testing_size; ++i)
-	{
-		solver_for_testing[i].load_caffe_model(ml_solver_proto);
-	}
-	
 	////services
 	std::unordered_map<std::string, std::shared_ptr<service<model_datatype>>> services;
 	{
@@ -574,7 +562,7 @@ int main(int argc, char *argv[])
 			}, node_pointer_vector_container.size(), node_pointer_vector_container.data());
 			
 			////check fedavg buffer full
-			tmt::ParallelExecution_StepIncremental([&tick,&test_dataset,&ml_test_batch_size,&ml_dataset_all_possible_labels,&solver_for_testing, &accuracy_container_lock, &accuracy_container](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
+			tmt::ParallelExecution_StepIncremental([&tick,&test_dataset,&ml_test_batch_size,&ml_dataset_all_possible_labels, &accuracy_container_lock, &accuracy_container](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
 				if (node_model_update[single_node->name]->get_model_count() >= single_node->buffer_size) {
 					single_node->model_averaged = true;
 					
@@ -643,8 +631,6 @@ int main(int argc, char *argv[])
 	{
 		service_instance->destruction_service();
 	}
-	
-	delete[] solver_for_testing;
 	
 	return 0;
 }
