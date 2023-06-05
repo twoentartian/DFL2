@@ -506,7 +506,7 @@ int main(int argc, char *argv[])
 				std::chrono::milliseconds time_remain_ms(int(float(ml_max_tick - tick) * speed_ms_per_tick));
 				std::time_t est_finish_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now() + time_remain_ms);
 				std::tm est_finish_time_tm = *std::localtime(&est_finish_time);
-				std::cout << "est finish at: " << std::put_time( &est_finish_time_tm, "%Y-%m-%d %H:%M:%S") << std::endl;
+				std::cout << "speed: " << std::setprecision(2) << speed_ms_per_tick/1000 << "s/tick, est finish at: " << std::put_time( &est_finish_time_tm, "%Y-%m-%d %H:%M:%S") << std::endl;
 			}
 			
 			////train the model
@@ -574,7 +574,7 @@ int main(int argc, char *argv[])
 					
 					single_node->last_measured_tick = tick;
 					std::string log_msg = (boost::format("tick: %1%, node: %2%, accuracy: %3%") % tick % single_node->name % self_accuracy).str();
-					std::cout << log_msg << std::endl;
+					printf("%s\n", log_msg.data());
 					LOG(INFO) << log_msg;
 					
 					parameter = node_model_update[single_node->name]->get_output_model(parameter, test_data, test_label);
