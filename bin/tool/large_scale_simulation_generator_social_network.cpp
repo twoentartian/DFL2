@@ -298,11 +298,11 @@ int main(int argc, char *argv[])
                 }
             }
             
-            ////print number of peers
-            for (const auto &[node, peer_count]: peer_per_node)
-            {
-                std::cout << "node " << node << " should have " << peer_count << " peers" << std::endl;
-            }
+//            ////print number of peers
+//            for (const auto &[node, peer_count]: peer_per_node)
+//            {
+//                std::cout << "node " << node << " should have " << peer_count << " peers" << std::endl;
+//            }
             
             ////write model buffer size back to configuration file
             for (const auto &[node, peer_count]: peer_per_node)
@@ -315,7 +315,7 @@ int main(int argc, char *argv[])
             
             for (auto &[node0, node1]: connections)
             {
-                std::cout << std::to_string(node0) << node_peer_connection_type << std::to_string(node1) << std::endl;
+//                std::cout << std::to_string(node0) << node_peer_connection_type << std::to_string(node1) << std::endl;
                 node_topology_json.push_back(std::to_string(node0) + node_peer_connection_type + std::to_string(node1));
             }
         }
