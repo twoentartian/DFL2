@@ -222,9 +222,10 @@ int main(int argc, char *argv[])
                 bool whole_success = false;
                 std::atomic_uint try_count = 0;
                 const size_t try_maximum = 1000;
-                std::atomic_bool stop = false;
+                bool stop = false;
                 std::mutex set_output_lock;
-                tmt::ParallelExecution_StepIncremental([&](int thread_index, int total_thread){
+                std::mt19937_64 gen(rd());
+                tmt::ParallelExecution_StepIncremental(8, [&gen, &stop, &try_count, &set_output_lock, node_count, peer_per_node, &whole_success, &connections](int thread_index, int total_thread){
                     if (stop) return;
 
                     try_count++;
@@ -233,7 +234,7 @@ int main(int argc, char *argv[])
                         return;
                     }
 
-                    auto connection_optional = generate_network_topology(node_count, peer_per_node);
+                    auto connection_optional = generate_network_topology(node_count, peer_per_node, true, gen);
                     if (connection_optional.has_value()) //success
                     {
                         auto& temp_connections = *connection_optional;
