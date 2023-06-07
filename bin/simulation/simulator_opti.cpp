@@ -358,18 +358,6 @@ int main(int argc, char *argv[])
 		}
 	}
 	
-	//load node reputation
-	for (auto &target_node : node_container)
-	{
-		for (auto &reputation_node : node_container)
-		{
-			if (target_node.second->name != reputation_node.second->name)
-			{
-				target_node.second->reputation_map[reputation_node.second->name] = 1;
-			}
-		}
-	}
-	
 	//load dataset
 	Ml::data_converter<model_datatype> train_dataset;
 	train_dataset.load_dataset_mnist(ml_train_dataset, ml_train_dataset_label);
@@ -397,13 +385,14 @@ int main(int argc, char *argv[])
 		auto services_json = config_json["services"];
 		LOG_IF(FATAL, services_json.is_null()) << "services are not defined in configuration file";
 		
-		//accuracy service
 		{
 			auto check_and_get_config = [&services_json](const std::string& service_name) -> auto{
 				auto json_config = services_json[service_name];
 				LOG_IF(FATAL, json_config.is_null()) << "service: \"" << service_name << "\" config item is empty";
 				return json_config;
 			};
+			
+			//accuracy service
 			{
 				auto service_iter = services.find("accuracy");
 				
@@ -579,9 +568,6 @@ int main(int argc, char *argv[])
 					
 					parameter = node_model_update[single_node->name]->get_output_model(parameter, test_data, test_label);
 					single_node->solver->set_parameter(parameter);
-					
-					//clear buffer and start new loop
-					single_node->parameter_buffer.clear();
 					
 					//add self accuracy to accuracy container
 					{
