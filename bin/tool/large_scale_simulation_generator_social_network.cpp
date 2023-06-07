@@ -222,7 +222,7 @@ int main(int argc, char *argv[])
                 bool whole_success = false;
                 std::atomic_uint try_count = 0;
                 const size_t try_maximum = 1000;
-                std::atomic_bool stop = false;
+                bool stop = false;
                 std::mutex set_output_lock;
                 tmt::ParallelExecution_StepIncremental([&](int thread_index, int total_thread){
                     if (stop) return;
