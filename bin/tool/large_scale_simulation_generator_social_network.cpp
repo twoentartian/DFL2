@@ -224,7 +224,7 @@ int main(int argc, char *argv[])
                 const size_t try_maximum = 1000;
                 bool stop = false;
                 std::mutex set_output_lock;
-                std::mt19937 gen(rd());
+                std::mt19937_64 gen(rd());
                 tmt::ParallelExecution_StepIncremental([&gen, &stop, &try_count, &set_output_lock, node_count, peer_per_node, &whole_success, &connections](int thread_index, int total_thread){
                     if (stop) return;
 
