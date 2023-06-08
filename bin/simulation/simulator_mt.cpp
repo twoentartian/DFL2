@@ -782,6 +782,19 @@ int main(int argc, char *argv[])
 	
 	drop_rate.flush();
 	drop_rate.close();
+    
+    //destruction
+    for (auto& [name, service_instance]: services)
+    {
+        service_instance->destruction_service();
+    }
+    
+    for (auto& [_, ptr]: node_container)
+    {
+        delete ptr;
+    }
+    
+    node<model_datatype>::deregister_all_node_types();
 	
 	return 0;
 }
