@@ -55,3 +55,25 @@ private:
 	Ml::caffe_parameter_net<model_datatype> _buffered_model;
 	size_t _model_count;
 };
+
+template <typename model_datatype>
+class train_100_average_0 : public opti_model_update<model_datatype> {
+public:
+	train_100_average_0() {
+		_model_count = 0;
+	}
+	
+	void add_model(const Ml::caffe_parameter_net<model_datatype>& model) override {
+	}
+	
+	Ml::caffe_parameter_net<model_datatype> get_output_model(const Ml::caffe_parameter_net<model_datatype>& self_model, const std::vector<Ml::tensor_blob_like<model_datatype>>& test_data, const std::vector<Ml::tensor_blob_like<model_datatype>>& test_label) override {
+		return self_model;
+	}
+	
+	size_t get_model_count() override {
+		return _model_count;
+	}
+
+private:
+	size_t _model_count;
+};
