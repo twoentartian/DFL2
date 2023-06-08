@@ -33,11 +33,12 @@
  */
 
 using model_datatype = float;
-
-std::unordered_map<std::string, node<model_datatype> *> node_container;
-std::unordered_map<std::string, std::shared_ptr<opti_model_update<model_datatype>>> node_model_update;
 ////set model updating algorithm
 using model_updating_algorithm = train_50_average_50<model_datatype>;
+
+
+std::unordered_map<std::string, node<model_datatype> *> node_container;
+std::unordered_map<std::string, model_updating_algorithm*> node_model_update;
 
 int main(int argc, char *argv[])
 {
@@ -129,8 +130,7 @@ int main(int argc, char *argv[])
 		
 		auto[iter, status] = node_container.emplace(node_name, temp_node);
 		//add to model update buffer
-		auto model_buffer = std::make_shared<model_updating_algorithm>();
-		node_model_update.emplace(node_name, model_buffer);
+		node_model_update.emplace(node_name, new model_updating_algorithm());
 		
 		//load models solver
 		iter->second->solver->load_caffe_model(ml_solver_proto);
@@ -541,7 +541,9 @@ int main(int argc, char *argv[])
 					//add ML network to FedAvg buffer
 					for (auto [updating_node_name, updating_node] : single_node->peers)
 					{
-						node_model_update[updating_node_name]->add_model(parameter_output);
+						auto iter = node_model_update.find(updating_node_name);
+						assert(iter!= node_model_update.end());
+						iter->second->add_model(parameter_output);
 					}
 				}
 				else
@@ -552,7 +554,9 @@ int main(int argc, char *argv[])
 			
 			////check fedavg buffer full
 			tmt::ParallelExecution_StepIncremental([&tick,&test_dataset,&ml_test_batch_size,&ml_dataset_all_possible_labels, &accuracy_container_lock, &accuracy_container](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
-				if (node_model_update[single_node->name]->get_model_count() >= single_node->buffer_size) {
+				auto node_model_update_iter = node_model_update.find(single_node->name);
+				assert(node_model_update_iter != node_model_update.end());
+				if (node_model_update_iter->second->get_model_count() >= single_node->buffer_size) {
 					single_node->model_averaged = true;
 					
 					//update model
@@ -566,7 +570,7 @@ int main(int argc, char *argv[])
 					printf("%s\n", log_msg.data());
 					LOG(INFO) << log_msg;
 					
-					parameter = node_model_update[single_node->name]->get_output_model(parameter, test_data, test_label);
+					parameter = node_model_update_iter->second->get_output_model(parameter, test_data, test_label);
 					single_node->solver->set_parameter(parameter);
 					
 					//add self accuracy to accuracy container
@@ -608,7 +612,6 @@ int main(int argc, char *argv[])
 				}
 			}
 			
-			
 			tick++;
 		}
 	}
@@ -616,6 +619,11 @@ int main(int argc, char *argv[])
 	for (auto& [name, service_instance]: services)
 	{
 		service_instance->destruction_service();
+	}
+	
+	for (auto& [_, ptr]: node_model_update)
+	{
+		delete ptr;
 	}
 	
 	return 0;

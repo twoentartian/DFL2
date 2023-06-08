@@ -1,2 +1,5 @@
 add_executable(TEST_miscellaneous miscellaneous_test_main.cpp)
 target_link_libraries(TEST_miscellaneous ${DFL_LINKER_LIBS})
+
+add_executable(TEST_miscellaneous_no_boost miscellaneous_test_main_no_boost.cpp)
+target_link_libraries(TEST_miscellaneous_no_boost ${DFL_LINKER_LIBS})

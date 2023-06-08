@@ -6,6 +6,8 @@
 template <typename model_datatype>
 class opti_model_update {
 public:
+	opti_model_update() = default;
+	
 	virtual void add_model(const Ml::caffe_parameter_net<model_datatype>& model) = 0;
 	
 	virtual Ml::caffe_parameter_net<model_datatype> get_output_model(const Ml::caffe_parameter_net<model_datatype>& self_model, const std::vector<Ml::tensor_blob_like<model_datatype>>& test_data, const std::vector<Ml::tensor_blob_like<model_datatype>>& test_label) = 0;
