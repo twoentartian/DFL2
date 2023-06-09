@@ -18,6 +18,7 @@
 #include <dll_importer.hpp>
 #include <boost/format.hpp>
 #include <utility>
+#include <nadeau.hpp>
 
 #include "../reputation_sdk.hpp"
 #include "./default_simulation_config.hpp"
@@ -36,6 +37,13 @@ using model_datatype = float;
 ////set model updating algorithm
 using model_updating_algorithm = train_50_average_50<model_datatype>;
 
+void print_pages() {
+    static size_t pagesize = sysconf(_SC_PAGESIZE);
+    int64_t bytes = getCurrentRSS();
+    assert((bytes % pagesize) == 0);
+    size_t pages = bytes / pagesize;
+    std::cout << "MB: " << bytes / 1024 << "\t";
+}
 
 std::unordered_map<std::string, node<model_datatype> *> node_container;
 std::unordered_map<std::string, model_updating_algorithm*> node_model_update;
@@ -485,6 +493,11 @@ int main(int argc, char *argv[])
 		{
 			std::cout << "tick: " << tick << " (" << ml_max_tick << ")" << std::endl;
 			LOG(INFO) << "tick: " << tick << " (" << ml_max_tick << ")";
+            print_pages();
+            std::cout << "node_container size: " << node_container.size() << std::endl;
+            std::cout << "node_model_update size: " << node_model_update.size() << std::endl;
+            std::cout << "accuracy_container size: " << accuracy_container.size() << std::endl;
+
 			
 			if (tick != 0 && tick % report_time_remaining_per_tick_elapsed == 0)
 			{
