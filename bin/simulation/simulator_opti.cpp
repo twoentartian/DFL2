@@ -19,6 +19,7 @@
 #include <dll_importer.hpp>
 #include <boost/format.hpp>
 #include <utility>
+#include <nadeau.hpp>
 
 #include "../reputation_sdk.hpp"
 #include "./default_simulation_config.hpp"
@@ -497,7 +498,7 @@ int main(int argc, char *argv[])
 		{
 			std::cout << "tick: " << tick << " (" << ml_max_tick << ")" << std::endl;
 			LOG(INFO) << "tick: " << tick << " (" << ml_max_tick << ")";
-			
+            
 			if (tick != 0 && tick % report_time_remaining_per_tick_elapsed == 0)
 			{
 				auto now = std::chrono::system_clock::now();
@@ -509,7 +510,9 @@ int main(int argc, char *argv[])
 				std::tm est_finish_time_tm = *std::localtime(&est_finish_time);
 				std::cout << "speed: " << std::setprecision(2) << speed_ms_per_tick/1000 << "s/tick, est finish at: " << std::put_time( &est_finish_time_tm, "%Y-%m-%d %H:%M:%S") << std::endl;
 			}
-			
+            
+            LOG(INFO) << "memory consumption (before training): " << get_memory_consumption_byte() / 1024 << " MB";
+            
 			////train the model
 //			tmt::ParallelExecution_StepIncremental([&tick, &train_dataset, &ml_train_batch_size, &ml_dataset_all_possible_labels](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
 //				if (tick >= single_node->next_train_tick)
@@ -628,7 +631,9 @@ int main(int argc, char *argv[])
                 ioService.stop();
                 threadpool.join_all();
             }
-			
+            
+            LOG(INFO) << "memory consumption (after training, before averaging): " << get_memory_consumption_byte() / 1024 << " MB";
+            
 			////check fedavg buffer full
 //			tmt::ParallelExecution_StepIncremental([&tick,&test_dataset,&ml_test_batch_size,&ml_dataset_all_possible_labels, &accuracy_container_lock, &accuracy_container](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
 //				if (node_model_update[single_node->name]->get_model_count() >= single_node->buffer_size) {
@@ -714,7 +719,7 @@ int main(int argc, char *argv[])
                 threadpool.join_all();
             }
             
-            
+            LOG(INFO) << "memory consumption (after averaging): " << get_memory_consumption_byte() / 1024 << " MB";
             
 			//services
 			for (auto& [name, service_instance]: services)
@@ -741,8 +746,9 @@ int main(int argc, char *argv[])
 					break;
 				}
 			}
-			
-			
+            
+            LOG(INFO) << "memory consumption (end of tick " << tick << "): " << get_memory_consumption_byte() / 1024 << " MB";
+            
 			tick++;
 		}
 	}
