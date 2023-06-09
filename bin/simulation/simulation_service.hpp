@@ -8,6 +8,8 @@
 
 #include "boost_serialization_wrapper.hpp"
 
+#include <tmt.hpp>
+
 #include "./node.hpp"
 #include "./simulation_util.hpp"
 

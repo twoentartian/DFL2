@@ -5,19 +5,19 @@
 #include <atomic>
 #include <chrono>
 
+#include <boost/asio/thread_pool.hpp>
+#include <boost/asio/post.hpp>
+#include <boost/format.hpp>
+
 #include <glog/logging.h>
 
-#include <tmt.hpp>
-#include <tmt_boost.hpp>
 #include <configure_file.hpp>
 #include <crypto.hpp>
-#include <auto_multi_thread.hpp>
 #include <util.hpp>
 #include <time_util.hpp>
 #include <ml_layer.hpp>
 #include <thread_pool.hpp>
 #include <dll_importer.hpp>
-#include <boost/format.hpp>
 #include <utility>
 #include <nadeau.hpp>
 
@@ -360,18 +360,6 @@ int main(int argc, char *argv[])
 		}
 	}
 	
-	//load node reputation
-	for (auto &target_node : node_container)
-	{
-		for (auto &reputation_node : node_container)
-		{
-			if (target_node.second->name != reputation_node.second->name)
-			{
-				target_node.second->reputation_map[reputation_node.second->name] = 1;
-			}
-		}
-	}
-	
 	//load dataset
 	Ml::data_converter<model_datatype> train_dataset;
 	train_dataset.load_dataset_mnist(ml_train_dataset, ml_train_dataset_label);
@@ -399,13 +387,14 @@ int main(int argc, char *argv[])
 		auto services_json = config_json["services"];
 		LOG_IF(FATAL, services_json.is_null()) << "services are not defined in configuration file";
 		
-		//accuracy service
 		{
 			auto check_and_get_config = [&services_json](const std::string& service_name) -> auto{
 				auto json_config = services_json[service_name];
 				LOG_IF(FATAL, json_config.is_null()) << "service: \"" << service_name << "\" config item is empty";
 				return json_config;
 			};
+			
+			//accuracy service
 			{
 				auto service_iter = services.find("accuracy");
 				
@@ -498,7 +487,7 @@ int main(int argc, char *argv[])
 		{
 			std::cout << "tick: " << tick << " (" << ml_max_tick << ")" << std::endl;
 			LOG(INFO) << "tick: " << tick << " (" << ml_max_tick << ")";
-            
+   
 			if (tick != 0 && tick % report_time_remaining_per_tick_elapsed == 0)
 			{
 				auto now = std::chrono::system_clock::now();
@@ -566,17 +555,10 @@ int main(int argc, char *argv[])
 //			}, node_pointer_vector_container.size(), node_pointer_vector_container.data());
             
             {
-                boost::asio::io_service ioService;
-                boost::thread_group threadpool;
-                boost::asio::io_service::work work(ioService);
-                auto concurrency = std::thread::hardware_concurrency();
-                for (int i = 0; i < concurrency; ++i)
-                {
-                    threadpool.create_thread([ObjectPtr = &ioService] { ObjectPtr->run(); });
-                }
+                boost::asio::thread_pool pool(std::thread::hardware_concurrency());
                 for (int i = 0; i < node_pointer_vector_container.size(); ++i)
                 {
-                    ioService.post([&node_pointer_vector_container, tick, i, &train_dataset, &ml_train_batch_size, &ml_dataset_all_possible_labels](){
+                    boost::asio::post(pool, [&node_pointer_vector_container, tick, i, &train_dataset, &ml_train_batch_size, &ml_dataset_all_possible_labels](){
                         auto& single_node = node_pointer_vector_container[i];
                         if (tick >= single_node->next_train_tick)
                         {
@@ -628,8 +610,7 @@ int main(int argc, char *argv[])
                         }
                     });
                 }
-                ioService.stop();
-                threadpool.join_all();
+                pool.join();
             }
             
             LOG(INFO) << "memory consumption (after training, before averaging): " << get_memory_consumption_byte() / 1024 << " MB";
@@ -670,17 +651,10 @@ int main(int argc, char *argv[])
 //			}, node_pointer_vector_container.size(), node_pointer_vector_container.data());
             
             {
-                boost::asio::io_service ioService;
-                boost::thread_group threadpool;
-                boost::asio::io_service::work work(ioService);
-                auto concurrency = std::thread::hardware_concurrency();
-                for (int i = 0; i < concurrency; ++i)
-                {
-                    threadpool.create_thread([ObjectPtr = &ioService] { ObjectPtr->run(); });
-                }
+                boost::asio::thread_pool pool(std::thread::hardware_concurrency());
                 for (int i = 0; i < node_pointer_vector_container.size(); ++i)
                 {
-                    ioService.post([&test_dataset, &node_pointer_vector_container, tick, i, ml_test_batch_size, &ml_dataset_all_possible_labels, &accuracy_container_lock, &accuracy_container](){
+                    boost::asio::post(pool, [&test_dataset, &node_pointer_vector_container, tick, i, ml_test_batch_size, &ml_dataset_all_possible_labels, &accuracy_container_lock, &accuracy_container](){
                         auto& single_node = node_pointer_vector_container[i];
                         if (node_model_update[single_node->name]->get_model_count() >= single_node->buffer_size) {
                             single_node->model_averaged = true;
@@ -715,8 +689,7 @@ int main(int argc, char *argv[])
                         }
                     });
                 }
-                ioService.stop();
-                threadpool.join_all();
+                pool.join();
             }
             
             LOG(INFO) << "memory consumption (after averaging): " << get_memory_consumption_byte() / 1024 << " MB";
