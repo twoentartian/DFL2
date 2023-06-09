@@ -118,3 +118,7 @@ inline size_t getCurrentRSS() {
   return (size_t)0L; /* Unsupported. */
 #endif
 }
+
+size_t get_memory_consumption_byte() {
+    return getCurrentRSS();
+}
