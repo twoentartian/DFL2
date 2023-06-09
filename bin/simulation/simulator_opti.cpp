@@ -8,6 +8,7 @@
 #include <glog/logging.h>
 
 #include <tmt.hpp>
+#include <tmt_boost.hpp>
 #include <configure_file.hpp>
 #include <crypto.hpp>
 #include <auto_multi_thread.hpp>
@@ -510,92 +511,211 @@ int main(int argc, char *argv[])
 			}
 			
 			////train the model
-			tmt::ParallelExecution_StepIncremental([&tick, &train_dataset, &ml_train_batch_size, &ml_dataset_all_possible_labels](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
-				if (tick >= single_node->next_train_tick)
-				{
-					single_node->model_trained = true;
-					
-					std::vector<Ml::tensor_blob_like<model_datatype>> train_data, train_label;
-					std::tie(train_data, train_label) = get_dataset_by_node_type(train_dataset, *single_node, ml_train_batch_size, ml_dataset_all_possible_labels);
-					
-					static std::random_device dev;
-					static std::mt19937 rng(dev());
-					std::uniform_int_distribution<int> distribution(0, int(single_node->training_interval_tick.size()) - 1);
-					single_node->next_train_tick += single_node->training_interval_tick[distribution(rng)];
-					
-					auto parameter_before = single_node->solver->get_parameter();
-					single_node->train_model(train_data, train_label, true);
-					auto output_opt = single_node->generate_model_sent();
-					if (!output_opt)
-					{
-						LOG(INFO) << "ignore output for node " << single_node->name << " at tick " << tick;
-						return;// Ignore the observer node since it does not train or send model to other nodes.
-					}
-					auto parameter_after = *output_opt;
-					auto parameter_output = parameter_after;
-					
-					Ml::model_compress_type type;
-					if (single_node->model_generation_type == Ml::model_compress_type::compressed_by_diff)
-					{
-						//drop models
-						size_t total_weight = 0, dropped_count = 0;
-						auto compressed_model = Ml::model_compress::compress_by_diff_get_model(parameter_before, parameter_after, single_node->filter_limit, &total_weight, &dropped_count);
-						std::string compress_model_str = Ml::model_compress::compress_by_diff_lz_compress(compressed_model);
-						parameter_output = compressed_model;
-						type = Ml::model_compress_type::compressed_by_diff;
-					}
-					else
-					{
-						type = Ml::model_compress_type::normal;
-					}
-					
-					//add ML network to FedAvg buffer
-					for (auto [updating_node_name, updating_node] : single_node->peers)
-					{
-						node_model_update[updating_node_name]->add_model(parameter_output);
-					}
-				}
-				else
-				{
-					single_node->model_trained = false;
-				}
-			}, node_pointer_vector_container.size(), node_pointer_vector_container.data());
+//			tmt::ParallelExecution_StepIncremental([&tick, &train_dataset, &ml_train_batch_size, &ml_dataset_all_possible_labels](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
+//				if (tick >= single_node->next_train_tick)
+//				{
+//					single_node->model_trained = true;
+//
+//					std::vector<Ml::tensor_blob_like<model_datatype>> train_data, train_label;
+//					std::tie(train_data, train_label) = get_dataset_by_node_type(train_dataset, *single_node, ml_train_batch_size, ml_dataset_all_possible_labels);
+//
+//					static std::random_device dev;
+//					static std::mt19937 rng(dev());
+//					std::uniform_int_distribution<int> distribution(0, int(single_node->training_interval_tick.size()) - 1);
+//					single_node->next_train_tick += single_node->training_interval_tick[distribution(rng)];
+//
+//					auto parameter_before = single_node->solver->get_parameter();
+//					single_node->train_model(train_data, train_label, true);
+//					auto output_opt = single_node->generate_model_sent();
+//					if (!output_opt)
+//					{
+//						LOG(INFO) << "ignore output for node " << single_node->name << " at tick " << tick;
+//						return;// Ignore the observer node since it does not train or send model to other nodes.
+//					}
+//					auto parameter_after = *output_opt;
+//					auto parameter_output = parameter_after;
+//
+//					Ml::model_compress_type type;
+//					if (single_node->model_generation_type == Ml::model_compress_type::compressed_by_diff)
+//					{
+//						//drop models
+//						size_t total_weight = 0, dropped_count = 0;
+//						auto compressed_model = Ml::model_compress::compress_by_diff_get_model(parameter_before, parameter_after, single_node->filter_limit, &total_weight, &dropped_count);
+//						std::string compress_model_str = Ml::model_compress::compress_by_diff_lz_compress(compressed_model);
+//						parameter_output = compressed_model;
+//						type = Ml::model_compress_type::compressed_by_diff;
+//					}
+//					else
+//					{
+//						type = Ml::model_compress_type::normal;
+//					}
+//
+//					//add ML network to FedAvg buffer
+//					for (auto [updating_node_name, updating_node] : single_node->peers)
+//					{
+//						node_model_update[updating_node_name]->add_model(parameter_output);
+//					}
+//				}
+//				else
+//				{
+//					single_node->model_trained = false;
+//				}
+//			}, node_pointer_vector_container.size(), node_pointer_vector_container.data());
+            
+            {
+                boost::asio::io_service ioService;
+                boost::thread_group threadpool;
+                boost::asio::io_service::work work(ioService);
+                auto concurrency = std::thread::hardware_concurrency();
+                for (int i = 0; i < concurrency; ++i)
+                {
+                    threadpool.create_thread([ObjectPtr = &ioService] { ObjectPtr->run(); });
+                }
+                for (int i = 0; i < node_pointer_vector_container.size(); ++i)
+                {
+                    ioService.post([&node_pointer_vector_container, tick, i, &train_dataset, &ml_train_batch_size, &ml_dataset_all_possible_labels](){
+                        auto& single_node = node_pointer_vector_container[i];
+                        if (tick >= single_node->next_train_tick)
+                        {
+                            single_node->model_trained = true;
+                
+                            std::vector<Ml::tensor_blob_like<model_datatype>> train_data, train_label;
+                            std::tie(train_data, train_label) = get_dataset_by_node_type(train_dataset, *single_node, ml_train_batch_size, ml_dataset_all_possible_labels);
+                
+                            static std::random_device dev;
+                            static std::mt19937 rng(dev());
+                            std::uniform_int_distribution<int> distribution(0, int(single_node->training_interval_tick.size()) - 1);
+                            single_node->next_train_tick += single_node->training_interval_tick[distribution(rng)];
+                
+                            auto parameter_before = single_node->solver->get_parameter();
+                            single_node->train_model(train_data, train_label, true);
+                            auto output_opt = single_node->generate_model_sent();
+                            if (!output_opt)
+                            {
+                                LOG(INFO) << "ignore output for node " << single_node->name << " at tick " << tick;
+                                return;// Ignore the observer node since it does not train or send model to other nodes.
+                            }
+                            auto parameter_after = *output_opt;
+                            auto parameter_output = parameter_after;
+                
+                            Ml::model_compress_type type;
+                            if (single_node->model_generation_type == Ml::model_compress_type::compressed_by_diff)
+                            {
+                                //drop models
+                                size_t total_weight = 0, dropped_count = 0;
+                                auto compressed_model = Ml::model_compress::compress_by_diff_get_model(parameter_before, parameter_after, single_node->filter_limit, &total_weight, &dropped_count);
+                                std::string compress_model_str = Ml::model_compress::compress_by_diff_lz_compress(compressed_model);
+                                parameter_output = compressed_model;
+                                type = Ml::model_compress_type::compressed_by_diff;
+                            }
+                            else
+                            {
+                                type = Ml::model_compress_type::normal;
+                            }
+                
+                            //add ML network to FedAvg buffer
+                            for (auto [updating_node_name, updating_node] : single_node->peers)
+                            {
+                                node_model_update[updating_node_name]->add_model(parameter_output);
+                            }
+                        }
+                        else
+                        {
+                            single_node->model_trained = false;
+                        }
+                    });
+                }
+                ioService.stop();
+                threadpool.join_all();
+            }
 			
 			////check fedavg buffer full
-			tmt::ParallelExecution_StepIncremental([&tick,&test_dataset,&ml_test_batch_size,&ml_dataset_all_possible_labels, &accuracy_container_lock, &accuracy_container](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
-				if (node_model_update[single_node->name]->get_model_count() >= single_node->buffer_size) {
-					single_node->model_averaged = true;
-					
-					//update model
-					auto parameter = single_node->solver->get_parameter();
-					
-					auto[test_data, test_label] = get_dataset_by_node_type(test_dataset, *single_node, ml_test_batch_size, ml_dataset_all_possible_labels);
-					float self_accuracy = single_node->solver->evaluation(test_data, test_label);
-					
-					single_node->last_measured_tick = tick;
-					std::string log_msg = (boost::format("tick: %1%, node: %2%, accuracy: %3%") % tick % single_node->name % self_accuracy).str();
-					printf("%s\n", log_msg.data());
-					LOG(INFO) << log_msg;
-					
-					parameter = node_model_update[single_node->name]->get_output_model(parameter, test_data, test_label);
-					single_node->solver->set_parameter(parameter);
-					
-					//clear buffer and start new loop
-					single_node->parameter_buffer.clear();
-					
-					//add self accuracy to accuracy container
-					{
-						std::lock_guard guard(accuracy_container_lock);
-						accuracy_container[single_node->name] = self_accuracy;
-					}
-				}
-				else
-				{
-					//do nothing
-					single_node->model_averaged = false;
-				}
-			}, node_pointer_vector_container.size(), node_pointer_vector_container.data());
-			
+//			tmt::ParallelExecution_StepIncremental([&tick,&test_dataset,&ml_test_batch_size,&ml_dataset_all_possible_labels, &accuracy_container_lock, &accuracy_container](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
+//				if (node_model_update[single_node->name]->get_model_count() >= single_node->buffer_size) {
+//					single_node->model_averaged = true;
+//
+//					//update model
+//					auto parameter = single_node->solver->get_parameter();
+//
+//					auto[test_data, test_label] = get_dataset_by_node_type(test_dataset, *single_node, ml_test_batch_size, ml_dataset_all_possible_labels);
+//					float self_accuracy = single_node->solver->evaluation(test_data, test_label);
+//
+//					single_node->last_measured_tick = tick;
+//					std::string log_msg = (boost::format("tick: %1%, node: %2%, accuracy: %3%") % tick % single_node->name % self_accuracy).str();
+//					printf("%s\n", log_msg.data());
+//					LOG(INFO) << log_msg;
+//
+//					parameter = node_model_update[single_node->name]->get_output_model(parameter, test_data, test_label);
+//					single_node->solver->set_parameter(parameter);
+//
+//					//clear buffer and start new loop
+//					single_node->parameter_buffer.clear();
+//
+//					//add self accuracy to accuracy container
+//					{
+//						std::lock_guard guard(accuracy_container_lock);
+//						accuracy_container[single_node->name] = self_accuracy;
+//					}
+//				}
+//				else
+//				{
+//					//do nothing
+//					single_node->model_averaged = false;
+//				}
+//			}, node_pointer_vector_container.size(), node_pointer_vector_container.data());
+            
+            {
+                boost::asio::io_service ioService;
+                boost::thread_group threadpool;
+                boost::asio::io_service::work work(ioService);
+                auto concurrency = std::thread::hardware_concurrency();
+                for (int i = 0; i < concurrency; ++i)
+                {
+                    threadpool.create_thread([ObjectPtr = &ioService] { ObjectPtr->run(); });
+                }
+                for (int i = 0; i < node_pointer_vector_container.size(); ++i)
+                {
+                    ioService.post([&test_dataset, &node_pointer_vector_container, tick, i, ml_test_batch_size, &ml_dataset_all_possible_labels, &accuracy_container_lock, &accuracy_container](){
+                        auto& single_node = node_pointer_vector_container[i];
+                        if (node_model_update[single_node->name]->get_model_count() >= single_node->buffer_size) {
+                            single_node->model_averaged = true;
+        
+                            //update model
+                            auto parameter = single_node->solver->get_parameter();
+        
+                            auto[test_data, test_label] = get_dataset_by_node_type(test_dataset, *single_node, ml_test_batch_size, ml_dataset_all_possible_labels);
+                            float self_accuracy = single_node->solver->evaluation(test_data, test_label);
+        
+                            single_node->last_measured_tick = tick;
+                            std::string log_msg = (boost::format("tick: %1%, node: %2%, accuracy: %3%") % tick % single_node->name % self_accuracy).str();
+                            printf("%s\n", log_msg.data());
+                            LOG(INFO) << log_msg;
+        
+                            parameter = node_model_update[single_node->name]->get_output_model(parameter, test_data, test_label);
+                            single_node->solver->set_parameter(parameter);
+        
+                            //clear buffer and start new loop
+                            single_node->parameter_buffer.clear();
+        
+                            //add self accuracy to accuracy container
+                            {
+                                std::lock_guard guard(accuracy_container_lock);
+                                accuracy_container[single_node->name] = self_accuracy;
+                            }
+                        }
+                        else
+                        {
+                            //do nothing
+                            single_node->model_averaged = false;
+                        }
+                    });
+                }
+                ioService.stop();
+                threadpool.join_all();
+            }
+            
+            
+            
 			//services
 			for (auto& [name, service_instance]: services)
 			{
