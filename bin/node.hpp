@@ -138,6 +138,14 @@ public:
 			return {iter->second->type};
 		}
 	}
+    
+    static void deregister_all_node_types()
+    {
+        for (const auto& [_, ptr] : RegisteredNodeType)
+        {
+            delete ptr;
+        }
+    }
 
 private:
 	static std::unordered_map<std::string, node<model_datatype> *> RegisteredNodeType;
@@ -556,5 +564,22 @@ static void register_node_types()
 	malicious_data_poisoning_shuffle_label_biased_1_node<model_datatype>::registerNodeType();
 	malicious_data_poisoning_random_data_node<model_datatype>::registerNodeType();
 }
+
+template<typename model_datatype>
+static void deregister_node_types()
+{
+    //register node types
+    normal_node<model_datatype>::registerNodeType();
+    observer_node<model_datatype>::registerNodeType();
+    malicious_model_poisoning_random_model_node<model_datatype>::registerNodeType();
+    malicious_model_poisoning_random_model_by_turn_node<model_datatype>::registerNodeType();
+    malicious_model_poisoning_random_model_biased_0_1_node<model_datatype>::registerNodeType();
+    malicious_duplication_attack_node<model_datatype>::registerNodeType();
+    malicious_data_poisoning_shuffle_label_node<model_datatype>::registerNodeType();
+    malicious_data_poisoning_shuffle_label_biased_1_node<model_datatype>::registerNodeType();
+    malicious_data_poisoning_random_data_node<model_datatype>::registerNodeType();
+}
+
+
 
 #endif //DFL_NODE_HPP

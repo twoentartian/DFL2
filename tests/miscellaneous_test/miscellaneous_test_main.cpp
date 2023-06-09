@@ -146,4 +146,30 @@ BOOST_AUTO_TEST_SUITE (miscellaneous_test)
 
     }
 
+#include <ml_layer.hpp>
+#include "../../bin/simulation/simulator_opti_model_update.hpp"
+
+	BOOST_AUTO_TEST_CASE (opti_model_update_test)
+	{
+		train_50_average_50<float> buffer;
+		
+		Ml::MlCaffeModel<float,caffe::SGDSolver> model0;
+		model0.load_caffe_model("../../../dataset/MNIST/lenet_solver_memory.prototxt");
+		Ml::caffe_parameter_net<float> net0 = model0.get_parameter();
+		
+		for (int loop = 0; loop < 10; ++loop)
+		{
+			for (int i = 0; i < 10000; ++i)
+			{
+				buffer.add_model(net0);
+			}
+			
+			auto output_net = buffer.get_output_model(net0, {}, {});
+			
+			BOOST_CHECK(output_net.roughly_equal(net0, 0.001));
+		}
+	
+	}
+
+
 BOOST_AUTO_TEST_SUITE_END()

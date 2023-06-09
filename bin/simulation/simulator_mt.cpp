@@ -428,13 +428,14 @@ int main(int argc, char *argv[])
 	auto services_json = config_json["services"];
 	LOG_IF(FATAL, services_json.is_null()) << "services are not defined in configuration file";
 	
-	//accuracy service
     {
         auto check_and_get_config = [&services_json](const std::string& service_name) -> auto{
             auto json_config = services_json[service_name];
             LOG_IF(FATAL, json_config.is_null()) << "service: \"" << service_name << "\" config item is empty";
             return json_config;
         };
+	    
+	    //accuracy service
         {
             auto service_iter = services.find("accuracy");
 
@@ -781,6 +782,19 @@ int main(int argc, char *argv[])
 	
 	drop_rate.flush();
 	drop_rate.close();
+    
+    //destruction
+    for (auto& [name, service_instance]: services)
+    {
+        service_instance->destruction_service();
+    }
+    
+    for (auto& [_, ptr]: node_container)
+    {
+        delete ptr;
+    }
+    
+    node<model_datatype>::deregister_all_node_types();
 	
 	return 0;
 }
