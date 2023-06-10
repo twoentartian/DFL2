@@ -1,4 +1,5 @@
 #include <ml_layer.hpp>
+#include <memory_consumption.hpp>
 #include "../../bin/simulation/simulator_opti_model_update.hpp"
 
 int main() {
@@ -6,8 +7,10 @@ int main() {
 	
 	Ml::MlCaffeModel<float,caffe::SGDSolver> model0;
 	model0.load_caffe_model("../../../dataset/MNIST/lenet_solver_memory.prototxt");
-	
-	for (int loop = 0; loop < 10000; ++loop)
+    
+    std::cout << get_memory_consumption_byte() / 1024 / 1024 << std::endl;
+    
+	for (int loop = 0; loop < 100; ++loop)
 	{
 		Ml::caffe_parameter_net<float> net0 = model0.get_parameter();
 		for (int i = 0; i < 100; ++i)
@@ -24,4 +27,7 @@ int main() {
 		
 		printf("finish %d\n", loop);
 	}
+    
+    std::cout << get_memory_consumption_byte() / 1024 / 1024 << std::endl;
+ 
 }

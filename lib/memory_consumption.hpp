@@ -1,6 +1,8 @@
 #pragma once
 
-#include <iostream>
+#include <regex>
+#include <fstream>
+#include <sstream>
 
 #if defined(_WIN32)
 /* Windows -------------------------------------------------- */
@@ -30,32 +32,23 @@ size_t get_memory_consumption_byte() {
     
 #elif defined(__linux__) || defined(__linux) || defined(linux) || defined(__gnu_linux__)
 /* Linux ---------------------------------------------------- */
-#include "stdlib.h"
-#include "stdio.h"
-#include "string.h"
-
-int parseLine(char* line){
-    // This assumes that a digit will be found and the line ends in " Kb".
-    int i = strlen(line);
-    const char* p = line;
-    while (*p <'0' || *p > '9') p++;
-    line[i-3] = '\0';
-    i = atoi(p);
-    return i;
-}
 
 size_t get_memory_consumption_byte(){ //Note: this value is in KB!
-    FILE* file = fopen("/proc/self/status", "r");
-    int result = -1;
-    char line[128];
+    size_t result = 0;
     
-    while (fgets(line, 128, file) != NULL){
-        if (strncmp(line, "VmSize:", 7) == 0){
-            result = parseLine(line);
-            break;
+    std::ifstream file("/proc/self/status");
+    std::string line;
+    while (std::getline(file, line))
+    {
+        if (line.starts_with("VmSize"))
+        {
+            std::regex e ("\\d+");
+            std::sregex_iterator iter(line.begin(), line.end(), e);
+            std::sregex_iterator end;
+            result = std::stoull((*iter)[0]);
         }
     }
-    fclose(file);
+    
     return result*1024;
 }
 

@@ -171,5 +171,4 @@ BOOST_AUTO_TEST_SUITE (miscellaneous_test)
 	
 	}
 
-
 BOOST_AUTO_TEST_SUITE_END()
