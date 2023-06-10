@@ -19,7 +19,7 @@
 #include <thread_pool.hpp>
 #include <dll_importer.hpp>
 #include <utility>
-#include <nadeau.hpp>
+#include <memory_consumption.hpp>
 
 #include "../reputation_sdk.hpp"
 #include "./default_simulation_config.hpp"
