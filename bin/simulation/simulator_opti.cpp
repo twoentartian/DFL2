@@ -500,7 +500,7 @@ int main(int argc, char *argv[])
 				std::cout << "speed: " << std::setprecision(2) << speed_ms_per_tick/1000 << "s/tick, est finish at: " << std::put_time( &est_finish_time_tm, "%Y-%m-%d %H:%M:%S") << std::endl;
 			}
             
-            LOG(INFO) << "memory consumption (before training): " << get_memory_consumption_byte() / 1024 << " MB";
+            LOG(INFO) << "memory consumption (before training): " << get_memory_consumption_byte() / 1024 / 1024 << " MB";
             
 			////train the model
 //			tmt::ParallelExecution_StepIncremental([&tick, &train_dataset, &ml_train_batch_size, &ml_dataset_all_possible_labels](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
@@ -613,7 +613,7 @@ int main(int argc, char *argv[])
                 pool.join();
             }
             
-            LOG(INFO) << "memory consumption (after training, before averaging): " << get_memory_consumption_byte() / 1024 << " MB";
+            LOG(INFO) << "memory consumption (after training, before averaging): " << get_memory_consumption_byte() / 1024 / 1024 << " MB";
             
 			////check fedavg buffer full
 //			tmt::ParallelExecution_StepIncremental([&tick,&test_dataset,&ml_test_batch_size,&ml_dataset_all_possible_labels, &accuracy_container_lock, &accuracy_container](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
@@ -692,7 +692,7 @@ int main(int argc, char *argv[])
                 pool.join();
             }
             
-            LOG(INFO) << "memory consumption (after averaging): " << get_memory_consumption_byte() / 1024 << " MB";
+            LOG(INFO) << "memory consumption (after averaging): " << get_memory_consumption_byte() / 1024 / 1024 << " MB";
             
 			//services
 			for (auto& [name, service_instance]: services)
@@ -720,7 +720,7 @@ int main(int argc, char *argv[])
 				}
 			}
             
-            LOG(INFO) << "memory consumption (end of tick " << tick << "): " << get_memory_consumption_byte() / 1024 << " MB";
+            LOG(INFO) << "memory consumption (end of tick " << tick << "): " << get_memory_consumption_byte() / 1024 / 1024 << " MB";
             
 			tick++;
 		}
