@@ -146,6 +146,7 @@ int main(int argc, char *argv[])
             static Ml::MlCaffeModel<model_datatype, caffe::SGDSolver> solver;
             solver.load_caffe_model(ml_solver_proto);
             iter->second->model = solver.get_parameter();
+            iter->second->train_iter = 0;
         }
 		
 		//dataset mode
@@ -528,6 +529,8 @@ int main(int argc, char *argv[])
                     single_node->next_train_tick += single_node->training_interval_tick[distribution(rng)];
                     
                     auto parameter_before = single_node->model;
+                    solvers[thread_index].set_iter(single_node->train_iter);    // set train iter
+                    single_node->train_iter++;                                  // bump iter
                     single_node->train_model(solvers[thread_index], train_data, train_label, true);
                     auto output_opt = single_node->generate_model_sent();
                     if (!output_opt)

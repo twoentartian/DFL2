@@ -96,6 +96,7 @@ public:
 	std::mutex parameter_buffer_lock;
 //	std::shared_ptr<Ml::MlCaffeModel<model_datatype, caffe::SGDSolver>> solver;
     Ml::caffe_parameter_net<model_datatype> model;
+    int train_iter;
 	std::unordered_map<std::string, double> reputation_map;
 	Ml::model_compress_type model_generation_type;
 	float filter_limit;

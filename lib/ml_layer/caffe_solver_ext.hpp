@@ -195,6 +195,11 @@ namespace Ml
 			return (type == "MemoryData") && (test_type == "MemoryData");
 		}
 		
+        void set_iter(int iter)
+        {
+            this->iter_ = iter;
+        }
+        
 	private:
 		void TrainDataset_Step(int iter, int average_loss, bool display = true)
 		{
@@ -224,7 +229,7 @@ namespace Ml
 				{
 					float lapse = this->iteration_timer_.Seconds();
 					float per_s = (this->iter_ - this->iterations_last_) / (lapse ? lapse : 1);
-//					LOG_IF(INFO, caffe::Caffe::root_solver()) << "Iteration " << this->iter_ << " (" << per_s << " iter/s, " << lapse << "s/" << this->param_.display() << " iters), loss = " << this->smoothed_loss_;
+					LOG_IF(INFO, caffe::Caffe::root_solver()) << "Iteration " << this->iter_ << " (" << per_s << " iter/s, " << lapse << "s/" << this->param_.display() << " iters), loss = " << this->smoothed_loss_;
 					this->iteration_timer_.Start();
 					this->iterations_last_ = this->iter_;
 					const std::vector<caffe::Blob<DType>*>& result = this->net_->output_blobs();

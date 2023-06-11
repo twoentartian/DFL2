@@ -187,6 +187,11 @@ namespace Ml
 		{
 			return _caffe_solver->iter();
 		}
+        
+        void set_iter(int iter)
+        {
+            _caffe_solver->set_iter(iter);
+        }
 		
 	private:
 		boost::shared_ptr<caffe::Net<DType>> getNet()
