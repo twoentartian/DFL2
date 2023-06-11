@@ -140,6 +140,13 @@ int main(int argc, char *argv[])
 		//add to model update buffer
 		auto model_buffer = std::make_shared<model_updating_algorithm>();
 		node_model_update.emplace(node_name, model_buffer);
+        
+        //set up init model
+        {
+            static Ml::MlCaffeModel<model_datatype, caffe::SGDSolver> solver;
+            solver.load_caffe_model(ml_solver_proto);
+            iter->second->model = solver.get_parameter();
+        }
 		
 		//dataset mode
 		const std::string dataset_mode_str = single_node["dataset_mode"];
