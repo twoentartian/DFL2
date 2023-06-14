@@ -79,6 +79,10 @@ if __name__ == "__main__":
         mapping[node_list[i]] = node_list_mapping[i]
     G = nx.relabel_nodes(G, mapping)
 
+    name = "n" + str(n) + "." + "avg" + str(round(m))
+    generate_topology_file(G, name)
+    save_network_info(G, name)
+
     if remove_hubs:
         for remove_hub_count in remove_hubs:
             G_temp = copy.deepcopy(G)
@@ -89,10 +93,5 @@ if __name__ == "__main__":
             name = "n" + str(n) + "." + "avg" + str(round(m)) + "." + "remove_hub" + str(remove_hub_count)
             generate_topology_file(G_temp, name)
             save_network_info(G_temp, name)
-    else:
-        name = "n" + str(n) + "." + "avg" + str(round(m))
-        generate_topology_file(G, name)
-        save_network_info(G, name)
-
 
 
