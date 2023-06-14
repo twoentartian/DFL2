@@ -42,12 +42,6 @@ def save_network_info(graph: networkx.Graph, save_file_name: str):
     fig.tight_layout()
     fig.savefig(save_file_name + ".pdf")
     plt.close()
-    
-
-def parse_array_argument(array_args: str) -> list[str]:
-    outputs = array_args.replace("\"", "")
-    outputs = array_args.split(",")
-    return outputs
 
 
 if __name__ == "__main__":
