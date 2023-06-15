@@ -119,7 +119,8 @@ public:
         tmt::ParallelExecution([&tick, this](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node)
                                {
                                    auto [test_data, test_label] = test_dataset->get_random_data(ml_test_batch_size);
-                                   solver_for_testing[thread_index].set_parameter(single_node->model);
+                                   auto model = single_node->solver->get_parameter();
+                                   solver_for_testing[thread_index].set_parameter(model);
                                    auto accuracy = solver_for_testing[thread_index].evaluation(test_data, test_label);
                                    single_node->nets_accuracy_only_record.emplace(tick, accuracy);
                                }, this->node_vector_container->size(), this->node_vector_container->data());
@@ -186,8 +187,8 @@ public:
 		
 		model_weights_file.reset(new std::ofstream(output_path / "model_weight_diff.csv", std::ios::binary));
 		*model_weights_file << "tick";
-		
-		auto weights = (*this->node_vector_container)[0]->model;
+        
+        auto weights = (*this->node_vector_container)[0]->solver->get_parameter();
 		auto layers = weights.getLayers();
 		
 		for (auto& single_layer: layers)
@@ -205,7 +206,8 @@ public:
 		
         if (tick % ml_model_weight_diff_record_interval_tick != 0) return {record_service_status::skipped, "not time yet"};
         
-        auto layers = (*this->node_vector_container)[0]->model.getLayers();
+        auto weights = (*this->node_vector_container)[0]->solver->get_parameter();
+        auto layers = weights.getLayers();
         size_t number_of_layers = layers.size();
         auto *weight_diff_sums = new std::atomic<float>[number_of_layers];
         for (int i = 0; i < number_of_layers; ++i) weight_diff_sums[i] = 0;
@@ -215,10 +217,10 @@ public:
                                    uint32_t index_next = index + 1;
                                    const uint32_t total_size = this->node_vector_container->size();
                                    if (index_next == total_size - 1) index_next = 0;
-                                   const auto& net1 = (*this->node_vector_container)[index]->model;
-                                   const auto& net2 = (*this->node_vector_container)[index_next]->model;
-                                   const auto& layers1 = net1.getLayers();
-                                   const auto& layers2 = net2.getLayers();
+                                   auto net1 = (*this->node_vector_container)[index]->solver->get_parameter();
+                                   auto net2 = (*this->node_vector_container)[index_next]->solver->get_parameter();
+                                   auto layers1 = net1.getLayers();
+                                   auto layers2 = net2.getLayers();
                                    for (int i = 0; i < number_of_layers; ++i)
                                    {
                                        auto diff = layers1[i] - layers2[i];
@@ -280,21 +282,21 @@ public:
 	std::tuple<record_service_status, std::string> process_per_tick(int tick) override
 	{
 		if (this->enable == false) return {record_service_status::skipped, "not enabled"};
-		
-		auto model_sum = (*this->node_vector_container)[0]->model;
+        
+        auto model_sum = (*this->node_vector_container)[0]->solver->get_parameter();
 		model_sum.set_all(0);
         if (tick % tick_to_broadcast == 0 && tick != 0)
 		{
 			LOG(INFO) << "force_broadcast_model triggered at tick: " << tick;
 			for (auto& node: *(this->node_container))
 			{
-				model_sum = model_sum + node.second->model;
+                model_sum = model_sum + node.second->solver->get_parameter();
 			}
 			model_sum = model_sum / this->node_container->size();
 			
 			for (auto& node: *(this->node_container))
 			{
-				node.second->model = model_sum;
+                node.second->solver->set_parameter(model_sum);
 			}
 		}
         else
@@ -400,7 +402,7 @@ public:
 		                       {
 			                       if (tick - single_node->last_measured_tick < least_peer_change_interval) return;
 			                       auto[test_data, test_label] = get_dataset_by_node_type(*test_dataset, *single_node, ml_test_batch_size, *ml_dataset_all_possible_labels);
-			                       const auto& model = single_node->model;
+                                   auto model = single_node->solver->get_parameter();
 			                       solver_for_testing[thread_index].set_parameter(model);
 			                       auto accuracy = solver_for_testing[thread_index].evaluation(test_data, test_label);
 			                       single_node->nets_accuracy_only_record.emplace(tick, accuracy);
@@ -621,7 +623,8 @@ public:
         
         //check available space
         const std::filesystem::space_info si = std::filesystem::space(this->storage_path);
-        const std::uintmax_t model_size = serialize_wrap<boost::archive::binary_oarchive>(_node_vector_container[0]->model).str().size();
+        auto model = _node_vector_container[0]->solver->get_parameter();
+        const std::uintmax_t model_size = serialize_wrap<boost::archive::binary_oarchive>(model).str().size();
         const std::uintmax_t space_required = model_size * (total_tick / ml_model_record_interval_tick + 1) * this->node_vector_container->size();
         if (si.available < space_required)
             LOG(FATAL) << "[model record service] not enough space in model record path, available: " << si.available/1024/1024 << "MB, required: " << space_required/1024/1024 << "MB";
@@ -640,7 +643,7 @@ public:
     
         tmt::ParallelExecution([&folder_of_this_tick](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node)
         {
-            auto model = single_node->model;
+            auto model = single_node->solver->get_parameter();
             std::ofstream output_file(folder_of_this_tick / (single_node->name + ".bin"));
             output_file << serialize_wrap<boost::archive::binary_oarchive>(model).str();
             output_file.close();
