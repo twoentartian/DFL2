@@ -29,20 +29,21 @@ def draw_single_degree_distribution(config_path, axis: plt.Axes):
             lhs_node = int(un_dir_link[0])
             rhs_node = int(un_dir_link[1])
             if lhs_node not in peer_count_of_each_node.keys():
-                peer_count_of_each_node[lhs_node] = 0
+                peer_count_of_each_node[lhs_node] = set()
             if rhs_node not in peer_count_of_each_node.keys():
-                peer_count_of_each_node[rhs_node] = 0
-            peer_count_of_each_node[lhs_node] += 1
-            peer_count_of_each_node[rhs_node] += 1
+                peer_count_of_each_node[rhs_node] = set()
+            peer_count_of_each_node[lhs_node].add(rhs_node)
+            peer_count_of_each_node[rhs_node].add(lhs_node)
         dir_link = singleItem.split('->')
         if len(dir_link) == 2:
             lhs_node = int(un_dir_link[0])
             if lhs_node not in peer_count_of_each_node.keys():
-                peer_count_of_each_node[lhs_node] = 0
-            peer_count_of_each_node[lhs_node] += 1
+                peer_count_of_each_node[lhs_node] = set()
+            peer_count_of_each_node[lhs_node].add(rhs_node)
 
     degree_count = {}
-    for (node_name, peer_count) in peer_count_of_each_node.items():
+    for (node_name, peers) in peer_count_of_each_node.items():
+        peer_count = len(peers)
         if peer_count not in degree_count.keys():
             degree_count[peer_count] = 0
         degree_count[peer_count] += 1
