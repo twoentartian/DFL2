@@ -107,9 +107,9 @@ public:
     bool model_trained;
     bool model_averaged;
 
-	virtual void train_model(const std::vector<Ml::tensor_blob_like<model_datatype>> &data, const std::vector<Ml::tensor_blob_like<model_datatype>> &label, bool display) = 0;
+	virtual void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) = 0;
     
-    virtual float evaluate_model(const std::vector<Ml::tensor_blob_like<model_datatype>> &data, const std::vector<Ml::tensor_blob_like<model_datatype>> &label)
+    virtual float evaluate_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label)
     {
         float accuracy = this->solver->evaluation(data, label);
         return accuracy;
@@ -197,7 +197,7 @@ public:
 		return new normal_node(_name, buf_size);
 	}
  
-	void train_model(const std::vector<Ml::tensor_blob_like<model_datatype>> &data, const std::vector<Ml::tensor_blob_like<model_datatype>> &label, bool display) override
+	void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
 	{
         this->solver->train(data, label, display);
 	}
@@ -232,7 +232,7 @@ public:
 		return new observer_node(_name, buf_size);
 	}
 	
-	void train_model(const std::vector<Ml::tensor_blob_like<model_datatype>> &data, const std::vector<Ml::tensor_blob_like<model_datatype>> &label, bool display) override
+	void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
 	{
 	
 	}
@@ -268,7 +268,7 @@ public:
 		return new malicious_model_poisoning_random_model_node(_name, buf_size);
 	}
     
-    void train_model(const std::vector<Ml::tensor_blob_like<model_datatype>> &data, const std::vector<Ml::tensor_blob_like<model_datatype>> &label, bool display) override
+    void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
     {
         this->solver->train(data, label, display);
     }
@@ -318,7 +318,7 @@ public:
 	
 	int turn;
     
-    void train_model(const std::vector<Ml::tensor_blob_like<model_datatype>> &data, const std::vector<Ml::tensor_blob_like<model_datatype>> &label, bool display) override
+    void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
     {
         this->solver->train(data, label, display);
     }
@@ -368,7 +368,7 @@ public:
 		return new malicious_model_poisoning_random_model_biased_0_1_node(_name, buf_size);
 	}
     
-    void train_model(const std::vector<Ml::tensor_blob_like<model_datatype>> &data, const std::vector<Ml::tensor_blob_like<model_datatype>> &label, bool display) override
+    void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
     {
         this->solver->train(data, label, display);
     }
@@ -409,7 +409,7 @@ public:
 		return new malicious_duplication_attack_node(_name, buf_size);
 	}
     
-    void train_model(const std::vector<Ml::tensor_blob_like<model_datatype>> &data, const std::vector<Ml::tensor_blob_like<model_datatype>> &label, bool display) override
+    void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
     {
     
     }
@@ -444,20 +444,32 @@ public:
 		return new malicious_data_poisoning_shuffle_label_node(_name, buf_size);
 	}
 	
-	void train_model(const std::vector<Ml::tensor_blob_like<model_datatype>> &data, const std::vector<Ml::tensor_blob_like<model_datatype>> &label, bool display) override
+	void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
 	{
-		std::vector<Ml::tensor_blob_like<model_datatype>> label_duplicate = label;
-		std::default_random_engine generator;
-		std::uniform_int_distribution<int> dist(0, 9);
-		for (int i = 0; i < label_duplicate.size(); ++i)
-		{
-			auto &labels = label_duplicate[i].getData();
-			for (auto &value: labels)
-			{
-				value = dist(generator);
-			}
-		}
+		std::vector<const Ml::tensor_blob_like<model_datatype>*> label_duplicate;
+        label_duplicate.reserve(label.size());
+        
+        static std::default_random_engine generator;
+        std::uniform_int_distribution<int> dist(0, 9);
+        for (const auto& single_Label: label)
+        {
+            auto* temp = new Ml::tensor_blob_like<model_datatype>();
+            *temp = *single_Label;
+            //shuffle_label
+            auto& labels = temp->getData();
+            for (auto&& value: labels)
+            {
+                value = dist(generator);
+            }
+            label_duplicate.push_back(temp);
+        }
+        
         this->solver->train(data, label_duplicate, display);
+        
+        for (const auto& single_label: label_duplicate)
+        {
+            delete single_label;
+        }
 	}
 	
 	std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() override
@@ -490,19 +502,31 @@ public:
 		return new malicious_data_poisoning_shuffle_label_biased_1_node(_name, buf_size);
 	}
     
-    void train_model(const std::vector<Ml::tensor_blob_like<model_datatype>> &data, const std::vector<Ml::tensor_blob_like<model_datatype>> &label, bool display) override
+    void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
 	{
-		std::vector<Ml::tensor_blob_like<model_datatype>> label_duplicate = label;
-		for (int i = 0; i < label_duplicate.size(); ++i)
-		{
-			auto &labels = label_duplicate[i].getData();
-			for (auto &&single_label : labels)
-			{
-				single_label++;
-				if (single_label == 10) single_label = 0;
-			}
-		}
+        std::vector<const Ml::tensor_blob_like<model_datatype>*> label_duplicate;
+        label_duplicate.reserve(label.size());
+        for (const auto& single_label: label)
+        {
+            auto* temp = new Ml::tensor_blob_like<model_datatype>();
+            *temp = *single_label;
+            //shuffle_label_biased_1
+            auto& labels = temp->getData();
+            for (auto&& malicious_label : labels)
+            {
+                malicious_label++;
+                if (malicious_label == 10) malicious_label = 0;
+            }
+            
+            label_duplicate.push_back(temp);
+        }
+        
         this->solver->train(data, label_duplicate, display);
+        
+        for (const auto& single_label: label_duplicate)
+        {
+            delete single_label;
+        }
 	}
 	
 	std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() override
@@ -535,14 +559,24 @@ public:
 		return new malicious_data_poisoning_random_data_node(_name, buf_size);
 	}
     
-    void train_model(const std::vector<Ml::tensor_blob_like<model_datatype>> &data, const std::vector<Ml::tensor_blob_like<model_datatype>> &label, bool display) override
+    void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
 	{
-		std::vector<Ml::tensor_blob_like<model_datatype>> data_duplicate = data;
-		for (int i = 0; i < data_duplicate.size(); ++i)
-		{
-			data_duplicate[i].random(0.0, 1.0);
-		}
+        std::vector<const Ml::tensor_blob_like<model_datatype>*> data_duplicate;
+        data_duplicate.reserve(data.size());
+        for (const auto& single_data: data)
+        {
+            auto* temp = new Ml::tensor_blob_like<model_datatype>();
+            *temp = *single_data;
+            temp->random(0.0, 1.0); //data poisoning
+            data_duplicate.push_back(temp);
+        }
+        
         this->solver->train(data_duplicate, label, display);
+        
+        for (const auto& single_data: data_duplicate)
+        {
+            delete single_data;
+        }
 	}
 	
 	std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() override

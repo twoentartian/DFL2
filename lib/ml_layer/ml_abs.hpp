@@ -39,9 +39,9 @@ namespace Ml
 
         virtual void deserialization(serialization_type type, std::stringstream & ss) = 0;
         
-        virtual void train(const std::vector<tensor_blob_like<DType>>& data, const std::vector<tensor_blob_like<DType>>& label, bool display = true) = 0;
+        virtual void train(const std::vector<const tensor_blob_like<DType>*>& data, const std::vector<const tensor_blob_like<DType>*>& label, bool display = true) = 0;
         
-        virtual DType evaluation(const std::vector<tensor_blob_like<DType>>& data, const std::vector<tensor_blob_like<DType>>& label) = 0;
+        virtual DType evaluation(const std::vector<const tensor_blob_like<DType>*>& data, const std::vector<const tensor_blob_like<DType>*>& label) = 0;
         
         virtual std::vector<tensor_blob_like<DType>> predict(const std::vector<tensor_blob_like<DType>>& data) = 0;
         

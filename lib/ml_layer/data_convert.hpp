@@ -91,18 +91,29 @@ namespace Ml{
 	        }
 	        delete[] temp_pixels;
 	        
-	        //generate _container_by_label
+	        //generate _data_tensor_by_label
 	        for (int index = 0; index < num_items; ++index)
 	        {
 	        	std::string key = _label[index].get_str();
-	        	auto key_iter = _container_by_label.find(key);
-		        if (key_iter == _container_by_label.end())
-		        {
-			        _container_by_label[key].reserve(num_items/5);
-		        }
-		        _container_by_label[key].push_back(_data[index]);
+                //add to data container
+                {
+                    auto key_iter = _data_tensor_by_label.find(key);
+                    if (key_iter == _data_tensor_by_label.end())
+                    {
+                        _data_tensor_by_label[key].reserve(num_items / 5);
+                    }
+                    _data_tensor_by_label[key].push_back(_data[index]);
+                }
+                //add to label container
+                {
+                    auto key_iter = _label_tensor_by_label.find(key);
+                    if (key_iter == _label_tensor_by_label.end())
+                    {
+                        _label_tensor_by_label[key] = _label[index];
+                    }
+                }
 	        }
-	        for(auto&& iter: _container_by_label)
+	        for(auto&& iter: _data_tensor_by_label)
 	        {
 		        iter.second.shrink_to_fit();
 	        }
@@ -120,45 +131,56 @@ namespace Ml{
         
         const std::unordered_map<std::string, std::vector<tensor_blob_like<DType>>>& get_container_by_label() const
         {
-            return _container_by_label;
+            return _data_tensor_by_label;
         }
 
         //return: <data,label>
-        std::tuple<std::vector<tensor_blob_like<DType>>, std::vector<tensor_blob_like<DType>>> get_random_data(size_t size)
+        std::tuple<std::vector<const tensor_blob_like<DType>*>, std::vector<const tensor_blob_like<DType>*>> get_random_data(size_t size)
         {
 	        return _get_random_data(size, _data, _label);
         }
 	
 	    //return: <data,label>
-	    std::tuple<std::vector<tensor_blob_like<DType>>, std::vector<tensor_blob_like<DType>>> get_random_data_by_Label(const tensor_blob_like<DType>& arg_label, size_t size)
+	    std::tuple<std::vector<const tensor_blob_like<DType>*>, std::vector<const tensor_blob_like<DType>*>> get_random_data_by_label(const tensor_blob_like<DType>& arg_label, size_t size)
 	    {
         	//does not exist key
         	const std::string key_str = arg_label.get_str();
-			auto iter = _container_by_label.find(key_str);
-			if(iter == _container_by_label.end())
+			auto iter = _data_tensor_by_label.find(key_str);
+			if(iter == _data_tensor_by_label.end())
 			{
 				return {{},{}};
 			}
+            
+            const auto _label_ptr_iter = _label_tensor_by_label.find(key_str);
+            if(_label_ptr_iter == _label_tensor_by_label.end())
+            {
+                return {{},{}};
+            }
 			
-		    std::vector<tensor_blob_like<DType>> data,label;
+		    std::vector<const tensor_blob_like<DType>*> data,label;
 		    data.resize(size);label.resize(size);
 		    for (int i = 0; i < size; ++i)
 		    {
 			    static std::mt19937 rng(_dev());
 			    std::uniform_int_distribution<int> distribution(0, iter->second.size()-1);
 			    int dice = distribution(rng);
-			    data[i] = iter->second[dice];
-			    label[i] = arg_label;
+			    data[i] = &iter->second[dice];
+			    label[i] = &_label_ptr_iter->second;
 		    }
 		    return {data,label};
 	    }
 
-        void get_random_data_by_label(const tensor_blob_like<DType>& arg_label, size_t size, std::vector<tensor_blob_like<DType>>& data, std::vector<tensor_blob_like<DType>>& label)
+        void append_random_data_by_label(const tensor_blob_like<DType>& arg_label, size_t size, std::vector<const tensor_blob_like<DType>*>& data, std::vector<const tensor_blob_like<DType>*>& label)
         {
             //does not exist key
             const std::string key_str = arg_label.get_str();
-            auto iter = _container_by_label.find(key_str);
-            if(iter == _container_by_label.end())
+            auto iter = _data_tensor_by_label.find(key_str);
+            if(iter == _data_tensor_by_label.end())
+            {
+                return;
+            }
+            auto label_ptr_iter = _label_tensor_by_label.find(key_str);
+            if (label_ptr_iter == _label_tensor_by_label.end())
             {
                 return;
             }
@@ -168,32 +190,45 @@ namespace Ml{
                 static std::mt19937 rng(_dev());
                 std::uniform_int_distribution<int> distribution(0, iter->second.size()-1);
                 int dice = distribution(rng);
-                data.push_back(iter->second[dice]);
-                label.push_back(arg_label);
+                data.push_back(&iter->second[dice]);
+                label.push_back(&label_ptr_iter->second);
             }
         }
 	
 	    //please ensure the dataset is larger than the size*100 to ensure the best randomness.
 	    //return: <data,label>
-	    std::tuple<std::vector<tensor_blob_like<DType>>, std::vector<tensor_blob_like<DType>>> get_random_non_iid_dataset(const non_iid_distribution<DType>& distribution, size_t size, int enlargement_factor = 100)
+	    std::tuple<std::vector<const tensor_blob_like<DType>*>, std::vector<const tensor_blob_like<DType>*>> get_random_non_iid_dataset(const non_iid_distribution<DType>& distribution, size_t size)
 	    {
-        	float total_weight = 0.0;
+            std::vector<const tensor_blob_like<DType>*> output_data, output_label;
+            
         	auto& distribution_map = distribution.get();
-		    for (auto iter = distribution_map.begin(); iter != distribution_map.end() ; iter++)
-		    {
-			    total_weight += iter->second;
-		    }
-		    std::vector<tensor_blob_like<DType>> data_pool, label_pool;
-		    for (auto iter = distribution_map.begin(); iter != distribution_map.end() ; iter++)
-		    {
-		    	tensor_blob_like<DType> label_blob;
-			    label_blob = deserialize_wrap<boost::archive::binary_iarchive, tensor_blob_like<DType>>(iter->first);
-//			    auto [data,label] = get_random_data_by_Label(label_blob, iter->second / total_weight * size * enlargement_factor);
-//			    data_pool.insert(data_pool.end(), data.begin(), data.end());
-//			    label_pool.insert(label_pool.end(), label.begin(), label.end());
-                get_random_data_by_label(label_blob, iter->second / total_weight * size * enlargement_factor, data_pool, label_pool);
-		    }
-		    return _get_random_data(size, data_pool, label_pool);
+            std::unordered_map<std::string, std::pair<float,float>> boundaries;
+            float counter = 0.0;
+            for (auto iter = distribution_map.begin(); iter != distribution_map.end() ; iter++)
+            {
+                boundaries[iter->first] = std::make_pair(counter, counter + iter->second);
+                counter += iter->second;
+            }
+            
+            std::uniform_real_distribution<float> float_distribution(0, counter);
+            for (int i = 0; i < size; ++i)
+            {
+                static std::mt19937 rng(_dev());
+                auto random_number = float_distribution(rng);
+                for (auto iter = boundaries.begin(); iter != boundaries.end() ; iter++)
+                {
+                    if (iter->second.second > random_number && random_number >= iter->second.first)
+                    {
+                        tensor_blob_like<DType> label_blob;
+                        label_blob = deserialize_wrap<boost::archive::binary_iarchive, tensor_blob_like<DType>>(iter->first);
+                        auto [data, label] = get_random_data_by_label(label_blob, 1);
+                        output_data.push_back(data[0]);
+                        output_label.push_back(label[0]);
+                        break;
+                    }
+                }
+            }
+		    return {output_data, output_label};
 	    }
 	
 	    std::tuple<const std::vector<tensor_blob_like<DType>>&, const std::vector<tensor_blob_like<DType>>& > get_whole_dataset()
@@ -206,21 +241,22 @@ namespace Ml{
         std::vector<tensor_blob_like<DType>> _label;
         std::random_device _dev;
 	
-        std::unordered_map<std::string, std::vector<tensor_blob_like<DType>>> _container_by_label;
+        std::unordered_map<std::string, std::vector<tensor_blob_like<DType>>> _data_tensor_by_label;
+        std::unordered_map<std::string, tensor_blob_like<DType>> _label_tensor_by_label;
 	
 	    //return: <data,label>
-	    std::tuple<std::vector<tensor_blob_like<DType>>, std::vector<tensor_blob_like<DType>>> _get_random_data(size_t size, const std::vector<tensor_blob_like<DType>>& data_pool, const std::vector<tensor_blob_like<DType>>& label_pool)
+	    std::tuple<std::vector<const tensor_blob_like<DType>*>, std::vector<const tensor_blob_like<DType>*>> _get_random_data(size_t size, const std::vector<tensor_blob_like<DType>>& data_pool, const std::vector<tensor_blob_like<DType>>& label_pool)
 	    {
 		    const size_t& total_size = data_pool.size();
-		    std::vector<tensor_blob_like<DType>> data,label;
+		    std::vector<const tensor_blob_like<DType>*> data,label;
 		    data.resize(size);label.resize(size);
 		    for (int i = 0; i < size; ++i)
 		    {
 			    static std::mt19937 rng(_dev());
 			    std::uniform_int_distribution<size_t> distribution(0,total_size-1);
                 auto dice = distribution(rng);
-			    data[i] = data_pool[dice];
-			    label[i] = label_pool[dice];
+			    data[i] = &data_pool[dice];
+			    label[i] = &label_pool[dice];
 		    }
 		    return {data,label};
 	    }

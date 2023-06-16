@@ -41,7 +41,65 @@ namespace Ml
 		{
 			SolverType<DType>::RestoreSolverStateFromBinaryProto(state_file);
 		}
-		
+        
+        void TrainDataset(const std::vector<const tensor_blob_like<DType>*>& data, const std::vector<const tensor_blob_like<DType>*>& label, bool display = true)
+        {
+            CHECK(!data.empty()) << "empty train data, data size == 0";
+            {
+                int data_length = 1;
+                for (auto&& dimension: data[0]->getShape())
+                {
+                    data_length *= dimension;
+                }
+                CHECK(data_length == data[0]->getData().size()) << "data shape and data size mismatch";
+            }
+            CHECK(data.size() == label.size()) << "data size does not equal label size";
+            CHECK(checkValidFirstLayer_memoryLayer()) << "the first layer is not MemoryData layer";
+            
+            auto first_layer_abs = this->net().get()->layers()[0];
+            auto first_layer = boost::dynamic_pointer_cast<caffe::MemoryDataLayer<DType>>(first_layer_abs);
+            auto batch_size = first_layer->batch_size();
+            
+            if (data.size() % batch_size != 0)
+            {
+                LOG(ERROR) << "train data size is not a multiple of train batch size";
+            }
+            
+            int current_train_index = 0;
+            std::vector<const tensor_blob_like<DType>*> iter_data,iter_label;
+            iter_data.resize(batch_size);iter_label.resize(batch_size);
+            
+            int average_loss = this->param_.average_loss();
+            this->losses_.clear();
+            this->smoothed_loss_ = 0;
+            this->iteration_timer_.Start();
+            
+            while (current_train_index < data.size())
+            {
+                //fill MemoryDataLayer
+                iter_data.clear();
+                iter_label.clear();
+                iter_data.reserve(batch_size);
+                iter_label.reserve(batch_size);
+                for (int i = 0; i < batch_size; i++)
+                {
+                    iter_data.push_back(data[current_train_index]);
+                    iter_label.push_back(label[current_train_index]);
+                    current_train_index++;
+                }
+                auto datums = ConvertTensorBlobLikeToDatum(iter_data,iter_label);
+
+//				for(auto&& datum: datums)
+//				{
+//					debug_tool::print_mnist_datum(datum);
+//				}
+                
+                first_layer->AddDatumVector(datums);
+                
+                TrainDataset_Step(1, average_loss, display);
+            }
+        }
+        
 		void TrainDataset(const std::vector<tensor_blob_like<DType>>& data, const std::vector<tensor_blob_like<DType>>& label, bool display = true)
 		{
 			CHECK(!data.empty()) << "empty train data, data size == 0";
@@ -99,6 +157,51 @@ namespace Ml
 				TrainDataset_Step(1, average_loss, display);
 			}
 		}
+        
+        //return: vector<accuracy,loss>, vector.size = #test nets
+        std::vector<std::tuple<DType,DType>> TestDataset(const std::vector<const tensor_blob_like<DType>*>& data, const std::vector<const tensor_blob_like<DType>*>& label)
+        {
+            CHECK(!data.empty()) << "empty test data, data size == 0";
+            {
+                int data_length = 1;
+                for (auto&& dimension: data[0]->getShape())
+                {
+                    data_length *= dimension;
+                }
+                CHECK(data_length == data[0]->getData().size()) << "data shape and data size mismatch";
+            }
+            CHECK(data.size() == label.size()) << "data size does not equal label size: " << data.size() << "!=" << label.size();
+            CHECK(checkValidFirstLayer_memoryLayer()) << "the first layer is not MemoryData layer";
+            
+            const std::vector<boost::shared_ptr<caffe::Net<DType>>>& test_nets = this->test_nets();
+            std::vector<std::tuple<DType,DType>> output;
+            output.reserve(test_nets.size());
+            for (int test_nets_index = 0; test_nets_index < test_nets.size(); test_nets_index++)
+            {
+                auto first_layer_abs = test_nets[test_nets_index]->layers()[0];
+                auto first_layer = boost::dynamic_pointer_cast<caffe::MemoryDataLayer<DType>>(first_layer_abs);
+                auto batch_size = first_layer->batch_size();
+                
+                if (data.size() % batch_size != 0)
+                {
+                    LOG(ERROR) << "test data size is not a multiple of test batch size";
+                }
+                
+                auto datums = ConvertTensorBlobLikeToDatum(data,label);
+                first_layer->AddDatumVector(datums);
+                DType accuracy_sum = 0, loss_sum = 0;
+                size_t counter = 0;
+                for (int i = 0; i < data.size() / batch_size; ++i)
+                {
+                    auto [accuracy,loss] = TestDataset_SingleNet(test_nets_index);
+                    accuracy_sum += accuracy;
+                    loss_sum += loss;
+                    counter++;
+                }
+                output.push_back({accuracy_sum/counter, loss_sum/counter});
+            }
+            return output;
+        }
 		
 		//return: vector<accuracy,loss>, vector.size = #test nets
 		std::vector<std::tuple<DType,DType>> TestDataset(const std::vector<tensor_blob_like<DType>>& data, const std::vector<tensor_blob_like<DType>>& label)
@@ -407,6 +510,33 @@ namespace Ml
 			
 			return std::move(output);
 		}
+        
+        std::vector<caffe::Datum> ConvertTensorBlobLikeToDatum(const std::vector<const tensor_blob_like<DType>*>& data, const std::vector<const tensor_blob_like<DType>*>& label)
+        {
+            std::vector<caffe::Datum> output;
+            output.resize(data.size());
+            char temp_label;
+            const auto& shape = data[0]->getShape();
+            const int& single_sample_length = data[0]->getData().size();
+            std::vector<char> temp_pixels;
+            temp_pixels.resize(single_sample_length);
+            for (int item_id = 0; item_id < data.size(); ++item_id)
+            {
+                output[item_id].set_channels(shape[0]);
+                output[item_id].set_height(shape[1]);
+                output[item_id].set_width(shape[2]);
+                
+                for(int i = 0; i < single_sample_length; i++)
+                {
+                    temp_pixels[i] = rint(data[item_id]->getData()[i]);
+                }
+                temp_label = rint(label[item_id]->getData()[0]);
+                output[item_id].set_data(temp_pixels.data(), single_sample_length);
+                output[item_id].set_label(temp_label);
+            }
+            
+            return std::move(output);
+        }
 		
 		std::vector<caffe::Datum> ConvertTensorBlobLikeToDatum(const std::vector<tensor_blob_like<DType>>& data)
 		{
@@ -431,6 +561,30 @@ namespace Ml
 			
 			return std::move(output);
 		}
+        
+        std::vector<caffe::Datum> ConvertTensorBlobLikeToDatum(const std::vector<const tensor_blob_like<DType>*>& data)
+        {
+            std::vector<caffe::Datum> output;
+            output.resize(data.size());
+            const auto& shape = data[0]->getShape();
+            const int& single_sample_length = data[0]->getData().size();
+            std::vector<char> temp_pixels;
+            temp_pixels.resize(single_sample_length);
+            for (int item_id = 0; item_id < data.size(); ++item_id)
+            {
+                output[item_id].set_channels(shape[0]);
+                output[item_id].set_height(shape[1]);
+                output[item_id].set_width(shape[2]);
+                
+                for(int i = 0; i < single_sample_length; i++)
+                {
+                    temp_pixels[i] = rint(data[item_id]->getData()[i]);
+                }
+                output[item_id].set_data(temp_pixels.data(), single_sample_length);
+            }
+            
+            return std::move(output);
+        }
 		
 		
 	};

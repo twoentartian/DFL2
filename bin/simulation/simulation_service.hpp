@@ -118,7 +118,7 @@ public:
         
         tmt::ParallelExecution([&tick, this](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node)
                                {
-                                   auto [test_data, test_label] = test_dataset->get_random_data(ml_test_batch_size);
+                                   const auto [test_data, test_label] = test_dataset->get_random_data(ml_test_batch_size);
                                    auto model = single_node->solver->get_parameter();
                                    solver_for_testing[thread_index].set_parameter(model);
                                    auto accuracy = solver_for_testing[thread_index].evaluation(test_data, test_label);

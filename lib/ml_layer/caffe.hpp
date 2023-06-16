@@ -105,13 +105,13 @@ namespace Ml
 			_caffe_solver.reset(new Ml::caffe_solver_ext<float, SolverType>(solver_param));
 		}
 		
-		void train(const std::vector<tensor_blob_like<DType>>& data, const std::vector<tensor_blob_like<DType>>& label, bool display = true) override
+		void train(const std::vector<const tensor_blob_like<DType>*>& data, const std::vector<const tensor_blob_like<DType>*>& label, bool display = true) override
 		{
 			std::lock_guard guard(_model_lock);
 			_caffe_solver->TrainDataset(data, label, display);
 		}
 		
-		DType evaluation(const std::vector<tensor_blob_like<DType>>& data, const std::vector<tensor_blob_like<DType>>& label) override
+		DType evaluation(const std::vector<const tensor_blob_like<DType>*>& data, const std::vector<const tensor_blob_like<DType>*>& label) override
 		{
 			std::lock_guard guard(_model_lock);
 			std::vector<std::tuple<DType,DType>> results = _caffe_solver->TestDataset(data, label);

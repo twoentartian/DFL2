@@ -4,12 +4,12 @@
 
 //return: train_data,train_label
 template<typename model_datatype>
-std::tuple<std::vector<Ml::tensor_blob_like<model_datatype>>, std::vector<Ml::tensor_blob_like<model_datatype>>>
+std::tuple<std::vector<const Ml::tensor_blob_like<model_datatype>*>, std::vector<const Ml::tensor_blob_like<model_datatype>*>>
 get_dataset_by_node_type(Ml::data_converter<model_datatype> &dataset, const node<model_datatype> &target_node, int size, const std::vector<int> &ml_dataset_all_possible_labels)
 {
 	Ml::tensor_blob_like<model_datatype> label;
 	label.getShape() = {1};
-	std::vector<Ml::tensor_blob_like<model_datatype>> train_data, train_label;
+	std::vector<const Ml::tensor_blob_like<model_datatype>*> train_data, train_label;
 	if (target_node.dataset_mode == dataset_mode_type::default_dataset)
 	{
 		//iid dataset
@@ -24,7 +24,7 @@ get_dataset_by_node_type(Ml::data_converter<model_datatype> &dataset, const node
 		{
 			int label_int = ml_dataset_all_possible_labels[distribution(rng)];
 			label.getData() = {model_datatype(label_int)};
-			auto[train_data_slice, train_label_slice] = dataset.get_random_data_by_Label(label, 1);
+			auto[train_data_slice, train_label_slice] = dataset.get_random_data_by_label(label, 1);
             assert(!train_data_slice.empty() && !train_label_slice.empty());
 			train_data.insert(train_data.end(), train_data_slice.begin(), train_data_slice.end());
 			train_label.insert(train_label.end(), train_label_slice.begin(), train_label_slice.end());
