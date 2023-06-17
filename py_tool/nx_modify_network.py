@@ -6,6 +6,7 @@ import numpy as np
 import re
 import os
 import copy
+from pathlib import Path
 
 
 def generate_topology_file(graph: networkx.Graph, save_file_name: str):
@@ -54,7 +55,7 @@ if __name__ == "__main__":
 
     # load the file
     G: nx.Graph = nx.Graph()
-    file_name = os.path.basename(config["input_file"])
+    file_name = Path(config["input_file"]).stem
     topology_file = open(config["input_file"], 'r')
     lines = topology_file.readlines()
     edge_list = []
