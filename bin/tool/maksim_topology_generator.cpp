@@ -1,3 +1,6 @@
+//This file is provided by Maksim Kitsak (https://www.tudelft.nl/staff/m.a.kitsak/), please contact the author to get license info.
+
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
