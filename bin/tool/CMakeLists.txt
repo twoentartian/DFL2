@@ -23,7 +23,7 @@ add_executable(inject_interval_generator inject_interval_generator.cpp)
 target_link_libraries(inject_interval_generator ${DFL_LINKER_LIBS})
 
 add_executable(maksim_topology_generator maksim_topology_generator.cpp)
-target_link_libraries(maksim_topology_generator)
+target_link_libraries(maksim_topology_generator ${DFL_LINKER_LIBS})
 
 # find CUDA
 include(CheckLanguage)

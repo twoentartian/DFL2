@@ -1,10 +1,10 @@
-
-
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
 
 #include <iostream>
+#include <sstream>
+#include <fstream>
 #include <cstdlib>
 #include <vector>
 #include <math.h>
@@ -14,6 +14,8 @@
 //#include <hash_set>
 //#include <hash_map>
 #include <time.h>
+
+#include <boost/program_options.hpp>
 
 
 #define max_nodes 5000001
@@ -33,63 +35,100 @@ float ran1(long *idum);
 inline double distH2(double r1, double angle1, double r2, double angle2, double zeta);
 inline double radial_generator(double k0, double kmax, double gamma, long * idum);
 inline double conn_prob(double aux, double mu, double T);
-void print(vector<double> vv1, vector<double> vv2, char filename[]);
+void print(vector<double> vv1, vector<double> vv2, std::string filename);
 
 int main(int argc, char *argv[])
 {
-    int i, j, k;
+    int n;
+    double R0, gamma, avg, T;
     long idum = -12;
+    
+    std::string output_path_coor;
+    namespace po = boost::program_options;
+    
+    po::options_description desc("Allowed options");
+    desc.add_options()
+            ("help", "produce help message")
+            ("n", po::value<int>(&n)->default_value(1000), "network size, number of node")
+            ("R0", po::value<double>(&R0)->default_value(1), "smallest radius")
+            ("gamma", po::value<double>(&gamma)->default_value(2.1), "gamma")
+            ("avg", po::value<double>(&avg)->default_value(10), "average degree")
+            ("T", po::value<double>(&T)->default_value(0.5), "temperature")
+            ("seed", po::value<long>(&idum)->default_value(-12), "random seed")
+            ("O", po::value<std::string>(&output_path_coor)->default_value(""), "output path")
+            ;
+    
+    po::positional_options_description p;
+    p.add("n", 1);
+    p.add("R0", 1);
+    p.add("gamma", 1);
+    p.add("avg", 1);
+    p.add("T", 1);
+    p.add("seed", 1);
+    p.add("O", 1);
+    
+    po::variables_map vm;
+    po::store(po::command_line_parser(argc, argv).options(desc).positional(p).run(), vm);
+    po::notify(vm);
+    
+    if (vm.count("help")) {
+        cout << desc << "\n";
+        return 1;
+    }
+    
+    std::stringstream ss;
+    ss.precision(2);
+    ss << "h2.n" << n << ".R0" << R0 << ".gamma" << gamma << ".avg" << avg << ".T" << T << ".seed" << idum;
+    std::string output_path = ss.str();
+    
+    int i, j, k;
     double Integral, c;
     double aux, delta;
-    double avg;
-    double gamma = 2.1, alpha;
-    double R0 = 1, Rh;
+    double alpha;
+    double Rh;
     double s0 = 1;
-    int N = 1000;
     double avg1 = 11.;
-    double T = 0.5;
     double mu, dist;
     double prob;
     vector<double> radial;
     vector<double> angle;
     
-    
-    if (argc > 0)
-    {
-        if (argc >= 7)
-        {
-            N = atoi(argv[1]);
-            //			cout << "N = " << N << endl;
-            R0 = atof(argv[2]);
-            //			cout << "k0 = " << k0 << endl;
-            gamma = atof(argv[3]);
-            //			cout << "gamma1 = " << gamma1 << endl;
-            avg = atof(argv[4]);
-            //			cout << "avg1 = " << avg1 << endl;
-            T = atof(argv[5]);
-            //			cout << "beta = " << beta << endl;
-            idum = atoi(argv[6]);
-            //			cout << "idum = " << idum << endl;
-        }
-        else
-        {
-            cout << "Program generates H2 model." << endl;
-            cout << "Program takes 8 parameters." << endl;
-            cout << "Entered " << argc << " parameters: "<< endl;
-            for (i = 0; i < argc; i++)
-            {
-                cout << argv[i] << endl;
-            }
-            cout << "1) number of nodes" << endl;
-            cout << "2) smallest radius" << endl;
-            cout << "3) gamma" << endl;
-            cout << "4) avg (target average degree)" << endl;
-            cout << "5) T temperature" << endl;
-            cout << "6) random seed" << endl;
-            cout << "7) variable output file (optional) " << endl;
-            return -1;
-        }
-    }
+//    if (argc > 0)
+//    {
+//        if (argc >= 7)
+//        {
+//            n = atoi(argv[1]);
+//            //			cout << "n = " << n << endl;
+//            R0 = atof(argv[2]);
+//            //			cout << "k0 = " << k0 << endl;
+//            gamma = atof(argv[3]);
+//            //			cout << "gamma1 = " << gamma1 << endl;
+//            avg = atof(argv[4]);
+//            //			cout << "avg1 = " << avg1 << endl;
+//            T = atof(argv[5]);
+//            //			cout << "beta = " << beta << endl;
+//            idum = atoi(argv[6]);
+//            //			cout << "idum = " << idum << endl;
+//        }
+//        else
+//        {
+//            cout << "Program generates H2 model." << endl;
+//            cout << "Program takes 8 parameters." << endl;
+//            cout << "Entered " << argc << " parameters: "<< endl;
+//            for (i = 0; i < argc; i++)
+//            {
+//                cout << argv[i] << endl;
+//            }
+//            cout << "1) number of nodes" << endl;
+//            cout << "2) smallest radius" << endl;
+//            cout << "3) gamma" << endl;
+//            cout << "4) avg (target average degree)" << endl;
+//            cout << "5) T temperature" << endl;
+//            cout << "6) random seed" << endl;
+//            cout << "7) variable output file (optional) " << endl;
+//            return -1;
+//        }
+//    }
     //*************************************
     // calculate parameters
     if (T < 1)
@@ -100,15 +139,15 @@ int main(int argc, char *argv[])
         {
             c = (avg * PI *(alpha - 0.5) * (alpha - 0.5)) / (2* Integral * alpha * alpha);
             assert(c > 0);
-            Rh = 2 * log(N/c);
+            Rh = 2 * log(n / c);
             mu = Rh;
         }
         else
         {
-            c = (avg * PI *(alpha - 0.5) * (alpha - 0.5)) / (2* Integral * alpha * alpha) * exp((2* alpha - 1) * log(N))* exp(R0*(0.5-alpha));
+            c = (avg * PI *(alpha - 0.5) * (alpha - 0.5)) / (2* Integral * alpha * alpha) * exp((2* alpha - 1) * log(n)) * exp(R0 * (0.5 - alpha));
             c = exp ((1./(2*alpha))*log(c));
             assert(c > 0);
-            Rh = 2 * log(N/c);
+            Rh = 2 * log(n / c);
             mu = 2*alpha*(Rh-R0)+R0;
 
 //		cout << "I = " << Integral << endl;
@@ -126,23 +165,23 @@ int main(int argc, char *argv[])
         assert(alpha > 0);
         //*************************************
         // assign coordinates
-        assert(N > 1);
-        radial.resize(N);
-        angle.resize(N);
-        for (i = 0; i < N; i++)
+        assert(n > 1);
+        radial.resize(n);
+        angle.resize(n);
+        for (i = 0; i < n; i++)
         {
             radial[i] = radial_generator(R0, Rh, alpha, &idum);
             angle[i] = 2 * PI * ran1(&idum);
         }
-        if (argc ==8)
+        if (!output_path_coor.empty())
         {
-            print(radial, angle, argv[7]);
+            print(radial, angle, output_path);
         }
         //*************************************
         // connection probabilities
 
 
-//    cout << "N = " << N << endl;
+//    cout << "n = " << n << endl;
 //    cout << "alpha = " << alpha << endl;
 //    cout << "I = " << Integral << endl;
 //    cout << "Rh = " << Rh << endl;
@@ -150,20 +189,22 @@ int main(int argc, char *argv[])
 //    cout << "mu = " << mu << endl;
 //    cout << "avg =  " << avg << endl;
         
-        
-        for (i = 0; i < N; i++)
+        std::ofstream output_file;
+        output_file.open(output_path + ".data", std::ios::binary);
+        for (i = 0; i < n; i++)
         {
-            for (j = i + 1; j  < N; j++)
+            for (j = i + 1; j < n; j++)
             {
                 aux = distH2(radial[i], angle[i], radial[j], angle[j], 1.);
 //            conn_prob(double dist, double mu, double T)
                 prob = conn_prob(aux, mu, T);
                 if (prob > ran1(&idum))
                 {
-                    cout << i <<  "\t" << j << endl;
+                    output_file << i <<  "\t" << j << endl;
                 }
             }
         }
+        output_file.close();
     }
     else // T > 1 hot regime
     {
@@ -178,16 +219,16 @@ int main(int argc, char *argv[])
         //cout << "c = " << c << endl;
         c = avg / c;
         //cout << "c = " << c << endl;
-        Rh = T * log(N /c);
+        Rh = T * log(n / c);
         mu = Rh;
         R0 = 0;
         
         
         
         //cout << "done with coordinate assignment" << endl;;
-        radial.resize(N);
-        angle.resize(N);
-        for (i = 0; i < N; i++)
+        radial.resize(n);
+        angle.resize(n);
+        for (i = 0; i < n; i++)
         {
             radial[i] = 2 * radial_generator(R0, Rh, alpha, &idum);
             angle[i] = 2 * PI * ran1(&idum);
@@ -196,24 +237,27 @@ int main(int argc, char *argv[])
         mu = Rh;
         //cout << "Rh = " << Rh << endl;
         //cout << "done with coordinate assignment" << endl;;
-        if (argc == 8)
+        if (!output_path_coor.empty())
         {
-            print(radial, angle, argv[7]);
+            print(radial, angle, output_path_coor);
         }
         //cout << "done with coordinate assignment" << endl;;
-        for (i = 0; i < N; i++)
+        
+        std::ofstream output_file;
+        output_file.open(output_path + ".data", std::ios::binary);
+        for (i = 0; i < n; i++)
         {
-            for (j = i + 1; j  < N; j++)
+            for (j = i + 1; j < n; j++)
             {
                 aux = distH2(radial[i], angle[i], radial[j], angle[j], 1.);
                 prob = conn_prob(aux, mu, T);
                 if (prob > ran1(&idum))
                 {
-                    cout << i <<  "\t" << j << endl;
+                    output_file << i <<  "\t" << j << endl;
                 }
             }
         }
-        
+        output_file.close();
         
         return 0;
     }
@@ -353,7 +397,7 @@ float ran1(long *idum)
     
 }
 
-void print(vector<double> vv1, vector<double> vv2, char filename[])
+void print(vector<double> vv1, vector<double> vv2, std::string path)
 {
     FILE * ff;
     int size;
@@ -365,10 +409,12 @@ void print(vector<double> vv1, vector<double> vv2, char filename[])
     {
         size = vv1.size();
     }
-    ff = fopen(filename, "w");
+    std::ofstream file;
+    file.open(path + ".coor", std::ios::binary);
+    assert(file);
     for (int i = 0; i < size; i++)
     {
-        fprintf(ff, "%d	%f	%f\n", i, vv1[i], vv2[i]);
+        file << i << " " << vv1[i] << "  " << vv2[i];
     }
-    fclose(ff);
+    file.close();
 }
