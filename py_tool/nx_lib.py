@@ -46,7 +46,8 @@ def load_graph(file_path: str) -> nx.Graph:
     edge_list = []
     for line in lines:
         matches = re.findall(r'(\d+)', line)
-        assert (len(matches) == 2)
+        if len(matches) != 2:
+            continue
         edge_list.append((int(matches[0]), int(matches[1])))
     G.add_edges_from(edge_list)
     return G
