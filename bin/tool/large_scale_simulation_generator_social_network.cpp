@@ -221,7 +221,7 @@ int main(int argc, char *argv[])
                 ////begin generating the network topology
                 bool whole_success = false;
                 std::atomic_uint try_count = 0;
-                const size_t try_maximum = node_count > 5000 ? 100 : 32;
+                const size_t try_maximum = node_count > 5000 ? 32 : 8;
                 bool stop = false;
                 std::mutex set_output_lock;
                 std::mt19937_64 gen(rd());
