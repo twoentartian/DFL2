@@ -35,8 +35,8 @@ if __name__ == "__main__":
     m_ceil = math.ceil(m)
     prob = m - m_floor
 
-    G: nx.Graph = nx.dual_barabasi_albert_graph(n=n, m1=m_floor, m2=m_ceil, p=1 - prob, seed=np.random,
-                                                initial_graph=None)
+    G: nx.Graph = nx.dual_barabasi_albert_graph(n=n, m1=m_floor, m2=m_ceil, p=1 - prob, seed=np.random)
+    # G: nx.Graph = nx.barabasi_albert_graph(n=n, m=m_floor, seed=np.random)
 
     # shuffle nodes
     G = nx_lib.shuffle_node(G)
