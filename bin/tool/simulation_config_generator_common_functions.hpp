@@ -217,6 +217,9 @@ std::optional<std::vector<std::tuple<int, int>>> generate_network_topology_no_ma
         if (!success) break;
     }
     
+    delete[] available_peer_count;
+    delete[] node_available_nodes;
+    
     if (success)
     {
         std::map<int, int> counter;

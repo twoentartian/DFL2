@@ -225,7 +225,7 @@ int main(int argc, char *argv[])
                 bool stop = false;
                 std::mutex set_output_lock;
                 std::mt19937_64 gen(rd());
-                tmt::ParallelExecution_StepIncremental(8, [&gen, &stop, &try_count, &set_output_lock, try_maximum, node_count, peer_per_node, &whole_success, &connections](int thread_index, int total_thread){
+                tmt::ParallelExecution_StepIncremental(2, [&gen, &stop, &try_count, &set_output_lock, try_maximum, node_count, peer_per_node, &whole_success, &connections](int thread_index, int total_thread){
                     if (stop) return;
                     
                     printf("(thread %d) tries for %d time\n", thread_index, (int)try_count);
