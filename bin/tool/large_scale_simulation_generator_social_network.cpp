@@ -322,6 +322,19 @@ int main(int argc, char *argv[])
 //                std::cout << std::to_string(node0) << node_peer_connection_type << std::to_string(node1) << std::endl;
                 node_topology_json.push_back(std::to_string(node0) + node_peer_connection_type + std::to_string(node1));
             }
+            
+            //write topology to topology file
+            std::ofstream file;
+            std::stringstream file_path;
+            file_path.precision(2);
+            file_path << "DFL_n" + std::to_string(node_count) + "_gamma" << social_network_node_peer_connection_gamma << "_minpeer" << social_network_node_peer_connection_min_peer << ".data";
+            file.open(file_path.str(), std::ios::binary);
+            for (const auto [node_0, node_1]: connections)
+            {
+                file << node_0 << "  " << node_1 << "\n";
+            }
+            file.flush();
+            file.close();
         }
         else if (node_peer_connection_generating_strategy == "rough")
         {
