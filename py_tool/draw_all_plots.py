@@ -23,7 +23,7 @@ draw_model_weight_diff = True
 draw_topology_map = True
 
 herd_effect_weight_diff_reference_layer = "conv2"
-
+herd_effect_draw_with_size = False
 
 def query_yes_no(question, default="yes"):
     """Ask a yes/no question via raw_input() and return their answer.
@@ -121,7 +121,7 @@ if __name__ == "__main__":
 
         whole_fig, whole_axs = plt.subplots(plot_row, plot_col, figsize=(figsize_col, figsize_row), squeeze=False)
         topology_graphs = []
-        herd_effect_delay_df = pandas.DataFrame(columns=['herd_effect_delay'])
+        herd_effect_delay_df = pandas.DataFrame(columns=['network_name', 'herd_effect_delay', 'size'])
         for folder_index in range(len(folders)):
             current_col = folder_index % col
             current_row = folder_index // col
@@ -180,7 +180,8 @@ if __name__ == "__main__":
             # calculate herd effect delay
             herd_effect_delay = calculate_herd_effect_delay(final_accuracy_df, final_weight_diff_df)
             number_of_nodes = len(final_accuracy_df.columns)
-            herd_effect_delay_df.loc[number_of_nodes] = {'herd_effect_delay': herd_effect_delay}
+            new_row = pandas.DataFrame({'herd_effect_delay': herd_effect_delay, "network_name": titles[folder_index], "size": number_of_nodes}, index=[0])
+            herd_effect_delay_df = pandas.concat([herd_effect_delay_df.loc[:], new_row]).reset_index(drop=True)
             print("herd effect delay = " + str(herd_effect_delay))
 
             accuracy_x = final_accuracy_df.index
@@ -267,20 +268,29 @@ if __name__ == "__main__":
         plt.close(whole_fig)
 
         #plot the herd effect
-        fig, axs = plt.subplots(2, 1, figsize=(10, 10))
-        axs[0].plot(herd_effect_delay_df.index, herd_effect_delay_df['herd_effect_delay'])
-        axs[0].set_xlabel('network size')
-        axs[0].set_ylabel('herd effect delay (tick)')
-        axs[0].set_xlim([herd_effect_delay_df.index.min(), herd_effect_delay_df.index.max()])
+        if herd_effect_draw_with_size:
+            fig, axs = plt.subplots(2, 1, figsize=(10, 10))
+            axs[0].plot(herd_effect_delay_df["size"], herd_effect_delay_df['herd_effect_delay'])
+            axs[0].set_xlabel('network size')
+            axs[0].set_ylabel('herd effect delay (tick)')
+            axs[0].set_xlim([herd_effect_delay_df.index.min(), herd_effect_delay_df.index.max()])
 
-        axs[1].plot(herd_effect_delay_df.index, herd_effect_delay_df['herd_effect_delay'])
-        axs[1].set_xlabel('network size(log)')
-        axs[1].set_xscale('log')
-        axs[1].set_ylabel('herd effect delay (tick)')
-        axs[1].set_xlim([herd_effect_delay_df.index.min(), herd_effect_delay_df.index.max()])
+            axs[1].plot(herd_effect_delay_df["size"], herd_effect_delay_df['herd_effect_delay'])
+            axs[1].set_xlabel('network size(log)')
+            axs[1].set_xscale('log')
+            axs[1].set_ylabel('herd effect delay (tick)')
+            axs[1].set_xlim([herd_effect_delay_df.index.min(), herd_effect_delay_df.index.max()])
 
-        fig.savefig('herd_effect_delay.pdf')
-        fig.savefig('herd_effect_delay.jpg')
+            fig.savefig('herd_effect_delay.pdf')
+            fig.savefig('herd_effect_delay.jpg')
+        else:
+            fig, axs = plt.subplots(1, 1, figsize=(10, 5))
+            axs.plot(herd_effect_delay_df["network_name"], herd_effect_delay_df['herd_effect_delay'])
+            axs.set_xlabel('network name')
+            axs.set_ylabel('herd effect delay (tick)')
+            fig.savefig('herd_effect_delay.pdf')
+            fig.savefig('herd_effect_delay.jpg')
+
 
 
     flag_generate_for_each_result = query_yes_no(
