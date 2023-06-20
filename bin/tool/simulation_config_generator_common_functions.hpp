@@ -222,17 +222,6 @@ std::optional<std::vector<std::tuple<int, int>>> generate_network_topology_no_ma
     
     if (success)
     {
-        std::map<int, int> counter;
-        for (const auto [n0, n1]: connections)
-        {
-            counter[n0]++;
-            counter[n1]++;
-        }
-        for (const auto [k, v]: counter)
-        {
-            printf("%d: %d\n", k, v);
-        }
-        
         return {connections};
     }
     else
