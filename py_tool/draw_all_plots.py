@@ -6,13 +6,7 @@ import pandas
 import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
 
-row = 3
-col = 4
-
-# folders = ["50_node_8_random_peers", "50_node_grid", "50_node_loop", "50_node_star"]
-folders = ["100_node", "200_node", "400_node", "800_node", "1600_node", "2400_node", "3200_node", "4800_node", "6400_node", "8000_node"]
-# titles = ["random network - 8 peers", "grid", "loop", "star"]
-titles = ["100_node", "200_node", "400_node", "800_node", "1600_node", "2400_node", "3200_node", "4800_node", "6400_node", "8000_node"]
+import draw_info
 
 reduce_image_file_size = True
 lines_limit_per_image = 50
@@ -96,37 +90,37 @@ def calculate_herd_effect_delay(arg_accuracy_df: pandas.DataFrame, arg_model_wei
 
 
 if __name__ == "__main__":
-    assert len(folders) <= row * col
+    assert len(draw_info.folders) <= draw_info.row * draw_info.col
     folder_names_set = set()
-    for folder_index in range(len(folders)):
-        folder = folders[folder_index]
+    for folder_index in range(len(draw_info.folders)):
+        folder = draw_info.folders[folder_index]
         assert not (folder in folder_names_set)
         folder_names_set.add(folder)
 
     flag_generate_whole = query_yes_no('do you want to generate the whole figure?')
     if flag_generate_whole:
-        figsize_col = 5 * col
-        figsize_row = 2.5 * row
-        plot_row = row
-        plot_col = col
+        figsize_col = 5 * draw_info.col
+        figsize_row = 2.5 * draw_info.row
+        plot_row = draw_info.row
+        plot_col = draw_info.col
         number_of_plot_per_row = 1
         if draw_model_weight_diff:
             figsize_row = figsize_row + figsize_row
-            plot_row = plot_row + row
+            plot_row = plot_row + draw_info.row
             number_of_plot_per_row = number_of_plot_per_row + 1
         if draw_topology_map:
             figsize_row = figsize_row + figsize_row
-            plot_row = plot_row + row
+            plot_row = plot_row + draw_info.row
             number_of_plot_per_row = number_of_plot_per_row + 1
 
         whole_fig, whole_axs = plt.subplots(plot_row, plot_col, figsize=(figsize_col, figsize_row), squeeze=False)
         topology_graphs = []
         herd_effect_delay_df = pandas.DataFrame(columns=['network_name', 'herd_effect_delay', 'size'])
-        for folder_index in range(len(folders)):
-            current_col = folder_index % col
-            current_row = folder_index // col
+        for folder_index in range(len(draw_info.folders)):
+            current_col = folder_index % draw_info.col
+            current_row = folder_index // draw_info.col
 
-            folder = folders[folder_index]
+            folder = draw_info.folders[folder_index]
 
             subfolders = [f.path for f in os.scandir(folder) if f.is_dir()]
             assert len(subfolders) != 0
@@ -180,7 +174,7 @@ if __name__ == "__main__":
             # calculate herd effect delay
             herd_effect_delay = calculate_herd_effect_delay(final_accuracy_df, final_weight_diff_df)
             number_of_nodes = len(final_accuracy_df.columns)
-            new_row = pandas.DataFrame({'herd_effect_delay': herd_effect_delay, "network_name": titles[folder_index], "size": number_of_nodes}, index=[0])
+            new_row = pandas.DataFrame({'herd_effect_delay': herd_effect_delay, "network_name": draw_info.titles[folder_index], "size": number_of_nodes}, index=[0])
             herd_effect_delay_df = pandas.concat([herd_effect_delay_df.loc[:], new_row]).reset_index(drop=True)
             print("herd effect delay = " + str(herd_effect_delay))
 
@@ -222,7 +216,7 @@ if __name__ == "__main__":
             accuracy_axis.legend(ncol=5)
             if len(final_accuracy_df.columns) > 10:
                 accuracy_axis.legend().remove()
-            accuracy_axis.set_title('Subplot ' + str(folder_index + 1) + 'a - accuracy: ' + titles[folder_index])
+            accuracy_axis.set_title('Subplot ' + str(folder_index + 1) + 'a - accuracy: ' + draw_info.titles[folder_index])
             accuracy_axis.set_xlabel('time (tick)')
             accuracy_axis.set_ylabel('accuracy (0-1)')
             # accuracy_axis.set_xlim([0, final_accuracy_df.index[end_accuracy_x]])
@@ -246,7 +240,7 @@ if __name__ == "__main__":
                 weight_diff_axis.grid()
                 weight_diff_axis.legend(ncol=4, prop={'size': 8})
                 weight_diff_axis.set_title(
-                    'Subplot ' + str(folder_index + 1) + 'b - model weight diff: ' + titles[folder_index])
+                    'Subplot ' + str(folder_index + 1) + 'b - model weight diff: ' + draw_info.titles[folder_index])
                 weight_diff_axis.set_xlabel('time (tick)')
                 weight_diff_axis.set_ylabel('weight diff')
                 weight_diff_axis.set_yscale('log')
@@ -296,8 +290,8 @@ if __name__ == "__main__":
     flag_generate_for_each_result = query_yes_no(
         'do you want to draw accuracy graph and weight difference graph for each simulation result?', default="no")
     if flag_generate_for_each_result:
-        for folder_index in range(len(folders)):
-            folder = folders[folder_index]
+        for folder_index in range(len(draw_info.folders)):
+            folder = draw_info.folders[folder_index]
             subfolders = [f.path for f in os.scandir(folder) if f.is_dir()]
             assert len(subfolders) != 0
             for each_test_result_folder in subfolders:

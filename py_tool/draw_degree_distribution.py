@@ -3,13 +3,7 @@ import sys
 
 import matplotlib.pyplot as plt
 
-row = 1
-col = 3
-
-# folders = ["50_node_8_random_peers", "50_node_grid", "50_node_loop", "50_node_star"]
-folders = ["100_node", "200_node", "400_node"]
-# titles = ["random network - 8 peers", "grid", "loop", "star"]
-titles = ["100_node", "200_node", "400_node"]
+import draw_info
 
 simulator_config_file_name = "simulator_config.json"
 save_name = "degree_distribution"
@@ -52,19 +46,19 @@ def draw_single_degree_distribution(config_path, axis: plt.Axes):
     degree_plot = list(degree_count.values())
     axis.bar(node_plot, degree_plot)
     axis.grid()
-    axis.set_title('Subplot ' + str(folder_index + 1) + " " + titles[folder_index])
+    axis.set_title('Subplot ' + str(folder_index + 1) + " " + draw_info.titles[folder_index])
     axis.set_xlabel('degree')
     axis.set_ylabel('count')
     axis.set_yscale('log')
 
 
 if __name__ == "__main__":
-    assert len(folders) <= row * col
-    fig, whole_axis = plt.subplots(row, col, squeeze=False, figsize=(col*8, row*8))
-    for folder_index in range(len(folders)):
-        current_col = folder_index % col
-        current_row = folder_index // col
-        folder = folders[folder_index]
+    assert len(draw_info.folders) <= draw_info.row * draw_info.col
+    fig, whole_axis = plt.subplots(draw_info.row, draw_info.col, squeeze=False, figsize=(draw_info.col*8, draw_info.row*8))
+    for folder_index in range(len(draw_info.folders)):
+        current_col = folder_index % draw_info.col
+        current_row = folder_index // draw_info.col
+        folder = draw_info.folders[folder_index]
         sub_folders = [f.path for f in os.scandir(folder) if f.is_dir()]
         assert len(sub_folders) != 0
         first_sub_folder_path = sub_folders[0]
