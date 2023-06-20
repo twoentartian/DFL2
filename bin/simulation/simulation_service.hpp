@@ -845,7 +845,7 @@ private:
             {
                 try_count++;
 
-                auto connection_optional = generate_network_topology(node_count, peer_count_per_node);
+                auto connection_optional = generate_network_topology(peer_count_per_node);
                 if (connection_optional.has_value()) //success
                 {
                     connections = *connection_optional;

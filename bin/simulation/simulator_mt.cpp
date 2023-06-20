@@ -545,7 +545,7 @@ int main(int argc, char *argv[])
 				{
                     single_node->model_trained = true;
                     
-					std::vector<Ml::tensor_blob_like<model_datatype>> train_data, train_label;
+					std::vector<const Ml::tensor_blob_like<model_datatype>*> train_data, train_label;
 					std::tie(train_data, train_label) = get_dataset_by_node_type(train_dataset, *single_node, ml_train_batch_size, ml_dataset_all_possible_labels);
 					
 					static std::random_device dev;

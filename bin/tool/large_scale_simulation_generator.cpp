@@ -171,7 +171,7 @@ int main(int argc, char* argv[])
                     peer_per_node[node] = node_peer_connection_count_override;
                 }
                 
-                auto connection_result = generate_network_topology(node_count, peer_per_node);
+                auto connection_result = generate_network_topology(peer_per_node);
                 if (connection_result.has_value()) //success
                 {
                     connections = *connection_result;

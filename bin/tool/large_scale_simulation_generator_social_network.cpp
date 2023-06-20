@@ -236,7 +236,8 @@ int main(int argc, char *argv[])
                         return;
                     }
 
-                    auto connection_optional = generate_network_topology(node_count, peer_per_node, true, gen);
+//                    auto connection_optional = generate_network_topology(peer_per_node);
+                    auto connection_optional = generate_network_topology_no_map(peer_per_node);
                     if (connection_optional.has_value()) //success
                     {
                         auto& temp_connections = *connection_optional;
