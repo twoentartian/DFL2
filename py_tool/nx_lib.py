@@ -4,6 +4,7 @@ import re
 import matplotlib.pyplot as plt
 import numpy as np
 
+draw_network_topology = False
 
 def generate_topology_file(graph: nx.Graph, save_file_name: str):
     f = open(save_file_name + ".data", "w")
@@ -15,25 +16,37 @@ def generate_topology_file(graph: nx.Graph, save_file_name: str):
 
 def save_network_info(graph: nx.Graph, save_file_name: str):
     degree_sequence = sorted((d for n, d in graph.degree()), reverse=True)
-    fig = plt.figure("Degree of a random graph", figsize=(8, 8))
-    axgrid = fig.add_gridspec(5, 4)
-    ax0 = fig.add_subplot(axgrid[0:3, :])
-    Gcc = graph.subgraph(sorted(nx.connected_components(graph), key=len, reverse=True)[0])
-    pos = nx.spring_layout(Gcc, seed=10396953)
-    nx.draw_networkx_nodes(Gcc, pos, ax=ax0, node_size=20)
-    nx.draw_networkx_edges(Gcc, pos, ax=ax0, alpha=0.4)
-    ax0.set_title("Scale-Free Network G")
-    ax0.set_axis_off()
-    ax1 = fig.add_subplot(axgrid[3:, :2])
+
+    if draw_network_topology:
+        fig = plt.figure("Degree of a random graph", figsize=(8, 8))
+        axgrid = fig.add_gridspec(5, 4)
+        ax0 = fig.add_subplot(axgrid[0:3, :])
+        ax1 = fig.add_subplot(axgrid[3:, :2])
+        ax2 = fig.add_subplot(axgrid[3:, 2:])
+    else:
+        fig = plt.figure("Degree of a random graph", figsize=(8, 4))
+        axgrid = fig.add_gridspec(2, 4)
+        ax1 = fig.add_subplot(axgrid[:, :2])
+        ax2 = fig.add_subplot(axgrid[:, 2:])
+
+    if draw_network_topology:
+        Gcc = graph.subgraph(sorted(nx.connected_components(graph), key=len, reverse=True)[0])
+        pos = nx.spring_layout(Gcc, seed=10396953)
+        nx.draw_networkx_nodes(Gcc, pos, ax=ax0, node_size=20)
+        nx.draw_networkx_edges(Gcc, pos, ax=ax0, alpha=0.4)
+        ax0.set_title("Scale-Free Network G")
+        ax0.set_axis_off()
+
     ax1.plot(degree_sequence, "b-", marker="o")
     ax1.set_title("Degree Distribution Plot ({size} nodes)".format(size=len(graph.nodes)))
     ax1.set_ylabel("Degree")
     ax1.set_xlabel("Node Count")
-    ax2 = fig.add_subplot(axgrid[3:, 2:])
+
     ax2.bar(*np.unique(degree_sequence, return_counts=True))
     ax2.set_title("Degree histogram")
     ax2.set_xlabel("Degree")
     ax2.set_ylabel("Node Count")
+
     fig.tight_layout()
     fig.savefig(save_file_name + ".pdf")
     plt.close()
