@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     print("number of nodes: " + str(n))
     print("degree: " + str(degree))
-    print("number_of_herds: " + str(degree))
+    print("number_of_herds: " + str(number_of_herds))
     print("degree_of_herds: " + str(degree_of_herds))
 
     degrees = [degree] * n
@@ -38,8 +38,8 @@ if __name__ == "__main__":
         degrees_herd = [degree_of_herds] * herd_size
         G_herd = nx.random_degree_sequence_graph(degrees_herd, seed=np.random)
         mapping = {}
-        for i in range(0, len(G_herd.nodes)):
-            mapping[i] = node_name_shift * i
+        for x in range(0, len(G_herd.nodes)):
+            mapping[x] = node_name_shift * i + x
         G_herd = nx.relabel_nodes(G_herd, mapping)
         G_base = nx_lib.combine_two_networks(G_base, G_herd)
 
