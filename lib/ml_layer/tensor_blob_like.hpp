@@ -20,16 +20,14 @@ namespace Ml {
     template<typename DType>
     class tensor_blob_like : public tensor_blob_like_abs {
     public:
-        static size_t instance_counter;
-        
         tensor_blob_like()
         {
-            instance_counter++;
+
         }
         
         ~tensor_blob_like()
         {
-            instance_counter--;
+
         }
 	
 	    using DataType = DType;
@@ -287,8 +285,6 @@ namespace Ml {
         std::vector<int> _shape;
         std::vector<DType> _data;
     };
-    
-    template<> size_t tensor_blob_like<float>::instance_counter = 0;
 	
 	struct tensor_blob_like_hasher
 	{
