@@ -258,7 +258,7 @@ if __name__ == "__main__":
 
         whole_fig.tight_layout()
         whole_fig.savefig(save_name + '.pdf')
-        whole_fig.savefig(save_name + '.jpg', dpi=800)
+        whole_fig.savefig(save_name + '.jpg', dpi=200)
         plt.close(whole_fig)
 
         #plot the herd effect
