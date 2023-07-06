@@ -53,7 +53,7 @@ if __name__ == "__main__":
             G_temp = copy.deepcopy(G)
             total_edges_to_rewire = int(rewire_count) * 2
             nx.connected_double_edge_swap(G_temp, nswap=total_edges_to_rewire/2)
-            name = file_name + "." + "rewire_count" + str(rewire_ratio)
+            name = file_name + "." + "rewire_count" + str(rewire_count)
             nx_lib.generate_topology_file(G_temp, name)
             nx_lib.save_network_info(G_temp, name)
 
