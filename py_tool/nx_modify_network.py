@@ -9,6 +9,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="rewire the network edges", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("input_file", help="the topology file path, draw topology if no optional arguments", type=str)
     parser.add_argument("--rewire_ratio", nargs='+', help="the ratio of rewiring edges, can be an array: --rewire_ratio 0.01 0.02 0.04 0.08 0.16 0.32")
+    parser.add_argument("--rewire_count", nargs='+', help="the count of rewiring edges, can be an array: --rewire_count 1 10 100 1000")
     parser.add_argument("--remove_hubs", nargs='+', help="number of largest hubs to remove, can be an array: --remove_hubs 1 2 4 8 16 32")
     parser.add_argument("--remove_hubs_above", nargs='+', help="remove the hubs above the limit, can be an array: --keep_hubs_below 100 500 1000")
 
@@ -22,6 +23,8 @@ if __name__ == "__main__":
     # check arg
     count = 0
     if config["rewire_ratio"]:
+        count += 1
+    if config["rewire_count"]:
         count += 1
     if config["remove_hubs"]:
         count += 1
@@ -41,6 +44,16 @@ if __name__ == "__main__":
             total_edges_to_rewire = len(G_temp.edges) * float(config["rewire_ratio"])
             nx.connected_double_edge_swap(G_temp, nswap=total_edges_to_rewire/2)
             name = file_name + "." + "rewire_ratio" + str(rewire_ratio)
+            nx_lib.generate_topology_file(G_temp, name)
+            nx_lib.save_network_info(G_temp, name)
+
+    # rewire_count
+    if config["rewire_count"]:
+        for rewire_count in config["rewire_count"]:
+            G_temp = copy.deepcopy(G)
+            total_edges_to_rewire = int(config["rewire_count"]) * 2
+            nx.connected_double_edge_swap(G_temp, nswap=total_edges_to_rewire/2)
+            name = file_name + "." + "rewire_count" + str(rewire_ratio)
             nx_lib.generate_topology_file(G_temp, name)
             nx_lib.save_network_info(G_temp, name)
 
