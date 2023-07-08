@@ -15,6 +15,7 @@ maximum_tick = 10000
 save_name = "draw"
 draw_model_weight_diff = True
 draw_topology_map = True
+draw_topology_map_in_bitmap_format = False
 
 herd_effect_weight_diff_reference_layer = "conv2"
 herd_effect_draw_with_size = False
@@ -255,9 +256,11 @@ if __name__ == "__main__":
                 nx.draw(G, pos=layout, font_color='k', alpha=1.0, linewidths=0.1, width=0.1, font_size=8,
                         ax=topology_axis,
                         node_size=2)
+                if draw_topology_map_in_bitmap_format:
+                    topology_axis.set_rasterized(True)
 
         whole_fig.tight_layout()
-        whole_fig.savefig(save_name + '.pdf')
+        whole_fig.savefig(save_name + '.pdf', dpi=200)
         whole_fig.savefig(save_name + '.jpg', dpi=200)
         plt.close(whole_fig)
 
