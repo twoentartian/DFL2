@@ -11,7 +11,7 @@ import draw_info
 reduce_image_file_size = True
 lines_limit_per_image = 50
 
-maximum_tick = 10000
+
 save_name = "draw"
 draw_model_weight_diff = True
 draw_topology_map = True
@@ -21,6 +21,9 @@ herd_effect_weight_diff_reference_layer = "conv2"
 herd_effect_draw_with_size = False
 
 first_average_time = 20
+
+maximum_tick = draw_info.maximum_tick
+
 
 def query_yes_no(question, default="yes"):
     """Ask a yes/no question via raw_input() and return their answer.
@@ -286,7 +289,7 @@ if __name__ == "__main__":
             fig.savefig('herd_effect_delay.pdf')
             fig.savefig('herd_effect_delay.jpg')
         else:
-            fig, axs = plt.subplots(1, 1, figsize=(10, 5))
+            fig, axs = plt.subplots(1, 1, figsize=(20, 5))
             axs.plot(herd_effect_delay_df["network_name"], herd_effect_delay_df['herd_effect_delay'])
             axs.set_xlabel('network name')
             axs.set_ylabel('herd effect delay (tick)')
