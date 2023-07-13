@@ -10,7 +10,96 @@
 #include <boost/functional/hash.hpp>
 #include "./util.hpp"
 
+#ifndef USE_AVX
+#define USE_AVX 0
+#endif
+
+#if USE_AVX
+#include <immintrin.h>
+#endif
+
 namespace Ml {
+    namespace ArrayOp {
+#if USE_AVX
+        /// a + b = c
+        void vector_add(const std::vector<float>& a, const std::vector<float>& b, std::vector<float>& c) {
+            // Assure vectors a and b are the same size
+            assert(a.size() == b.size());
+        
+            // Number of floats that fit in an AVX register
+            const int floatsPerAvx = 8; // 256 bits / 32 bits per float
+        
+            // Rounded down size to multiple of 8
+            size_t vecSizeRounded = a.size() / floatsPerAvx * floatsPerAvx;
+        
+            for (size_t i = 0; i < vecSizeRounded; i += floatsPerAvx) {
+                // Load chunks of the array into AVX registers
+                __m256 aChunk = _mm256_loadu_ps(&a[i]);
+                __m256 bChunk = _mm256_loadu_ps(&b[i]);
+            
+                // Add the vectors together
+                __m256 cChunk = _mm256_add_ps(aChunk, bChunk);
+            
+                // Store the results back into the c vector
+                _mm256_storeu_ps(&c[i], cChunk);
+            }
+        
+            // Handle remaining elements if a.size() is not a multiple of 8
+            for (size_t i = vecSizeRounded; i < a.size(); i++) {
+                c[i] = a[i] + b[i];
+            }
+        }
+        
+        /// a - b = c
+        void vector_minus(const std::vector<float>& a, const std::vector<float>& b, std::vector<float>& c) {
+            // Assure vectors a and b are the same size
+            assert(a.size() == b.size());
+            
+            // Number of floats that fit in an AVX register
+            const int floatsPerAvx = 8; // 256 bits / 32 bits per float
+            
+            // Rounded down size to multiple of 8
+            size_t vecSizeRounded = a.size() / floatsPerAvx * floatsPerAvx;
+            
+            for (size_t i = 0; i < vecSizeRounded; i += floatsPerAvx) {
+                // Load chunks of the array into AVX registers
+                __m256 aChunk = _mm256_loadu_ps(&a[i]);
+                __m256 bChunk = _mm256_loadu_ps(&b[i]);
+                
+                // Subtract the vectors
+                __m256 cChunk = _mm256_sub_ps(aChunk, bChunk);
+                
+                // Store the results back into the c vector
+                _mm256_storeu_ps(&c[i], cChunk);
+            }
+            
+            // Handle remaining elements if a.size() is not a multiple of 8
+            for (size_t i = vecSizeRounded; i < a.size(); i++) {
+                c[i] = a[i] - b[i];
+            }
+        }
+#else
+        /// a + b = c
+        void vector_add(const std::vector<float>& a, const std::vector<float>& b, std::vector<float>& c) {
+            assert(a.size() == b.size());
+            for (size_t i = 0; i < a.size(); i++) {
+                c[i] = a[i] + b[i];
+            }
+        }
+        
+        /// a - b = c
+        void vector_minus(const std::vector<float>& a, const std::vector<float>& b, std::vector<float>& c) {
+            assert(a.size() == b.size());
+            for (size_t i = 0; i < a.size(); i++) {
+                c[i] = a[i] - b[i];
+            }
+        }
+        
+#endif
+        
+        
+    }
+    
 	class tensor_blob_like_abs
 	{
 	public:
@@ -77,10 +166,11 @@ namespace Ml {
 		    {
 			    throw std::invalid_argument("tensor/blob shape mismatch");
 		    }
-		    for(int i = 0; i < output._data.size(); i++)
-		    {
-			    output._data[i] += target._data[i];
-		    }
+//		    for(int i = 0; i < output._data.size(); i++)
+//		    {
+//			    output._data[i] += target._data[i];
+//		    }
+            ArrayOp::vector_add(output._data, target._data, output._data);
 		    return output;
 	    }
 	
@@ -91,10 +181,11 @@ namespace Ml {
 		    {
 			    throw std::invalid_argument("tensor/blob shape mismatch");
 		    }
-		    for(int i = 0; i < output._data.size(); i++)
-		    {
-			    output._data[i] -= target._data[i];
-		    }
+//		    for(int i = 0; i < output._data.size(); i++)
+//		    {
+//			    output._data[i] -= target._data[i];
+//		    }
+            ArrayOp::vector_minus(output._data, target._data, output._data);
 		    return output;
 	    }
 	

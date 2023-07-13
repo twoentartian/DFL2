@@ -180,6 +180,27 @@ include_directories(${CMAKE_BINARY_DIR}/3rd/caffe/include)
 include(cmake/CaffeHeader.cmake)
 list(APPEND DFL_LINKER_LIBS caffe)
 
+# AVX
+include(CheckCXXSourceRuns)
+
+set(CMAKE_REQUIRED_FLAGS "-mavx")
+CHECK_CXX_SOURCE_RUNS("
+    #include <immintrin.h>
+    int main() {
+        __m256 a;
+        a = _mm256_set1_ps(0);
+        return 0;
+    }"
+        HAS_AVX)
+
+if (HAS_AVX)
+    message(STATUS "AVX supported")
+    add_definitions("-mavx")
+    add_compile_definitions(USE_AVX=1)
+else()
+    message(STATUS "AVX not supported")
+endif()
+
 include_directories(lib)
 
 add_subdirectory(tests)
