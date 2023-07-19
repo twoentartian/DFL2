@@ -4,7 +4,6 @@ import re
 import matplotlib.pyplot as plt
 import numpy as np
 
-draw_network_topology = False
 
 def generate_topology_file(graph: nx.Graph, save_file_name: str):
     f = open(save_file_name + ".data", "w")
@@ -14,10 +13,10 @@ def generate_topology_file(graph: nx.Graph, save_file_name: str):
     f.close()
 
 
-def save_network_info(graph: nx.Graph, save_file_name: str):
+def save_network_info(graph: nx.Graph, save_file_name: str, enable_topology: bool = False):
     degree_sequence = sorted((d for n, d in graph.degree()), reverse=True)
 
-    if draw_network_topology:
+    if enable_topology:
         fig = plt.figure("Degree of a random graph", figsize=(8, 8))
         axgrid = fig.add_gridspec(5, 4)
         ax0 = fig.add_subplot(axgrid[0:3, :])
@@ -29,7 +28,7 @@ def save_network_info(graph: nx.Graph, save_file_name: str):
         ax1 = fig.add_subplot(axgrid[:, :2])
         ax2 = fig.add_subplot(axgrid[:, 2:])
 
-    if draw_network_topology:
+    if enable_topology:
         Gcc = graph.subgraph(sorted(nx.connected_components(graph), key=len, reverse=True)[0])
         pos = nx.spring_layout(Gcc, seed=10396953)
         nx.draw_networkx_nodes(Gcc, pos, ax=ax0, node_size=20)
@@ -87,3 +86,23 @@ def shuffle_node(G: nx.Graph) -> nx.Graph:
         mapping[node_list[i]] = node_list_mapping[i]
     G = nx.relabel_nodes(G, mapping)
     return G
+
+
+def generate_random_network(n: int, degree: int) -> nx.Graph:
+    degrees = [degree] * n
+    G = nx.random_degree_sequence_graph(degrees, seed=np.random)
+    return G
+
+
+def generate_star_network(n: int, star_count) -> nx.Graph:
+    star_list = list(range(n))
+    random.shuffle(star_list)
+    star_list = star_list[0:star_count]
+
+    G_temp: nx.Graph = nx.Graph()
+    G_temp.add_nodes_from(range(n))
+    for star in star_list:
+        for node_index in range(n):
+            if star != node_index:
+                G_temp.add_edge(star, node_index)
+    return G_temp
