@@ -16,15 +16,14 @@ DFL is a federated machine learning framework which uses blokchain as a proof of
 
 ## Dependency
 
-It is optional to install these following dependencies with your package manager. If these dependencies are not found, hunter will download and install it.
+It is optional to install these following dependencies with your package manager. If these dependencies are not found, hunter will download and compile them.
 Hunter will only download necessary dependencies such as OpenBLAS, gflags etc. LMDB, CUDA support are not included within Hunter.
 
--
-- Boost 1.68
--
-- RocksDB
-- Lz4
-- OpenSSL
+We recommend installing the following dependencies for better performance.
+
+- openblas (https://github.com/xianyi/OpenBLAS)
+- libunwind (https://github.com/libunwind/libunwind)
+
 
 ## Getting started
 
