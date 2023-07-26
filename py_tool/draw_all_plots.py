@@ -288,6 +288,7 @@ if __name__ == "__main__":
 
             fig.savefig('herd_effect_delay.pdf')
             fig.savefig('herd_effect_delay.jpg')
+            herd_effect_delay_df.to_csv('herd_effect_delay.csv')
         else:
             fig, axs = plt.subplots(1, 1, figsize=(20, 5))
             axs.plot(herd_effect_delay_df["network_name"], herd_effect_delay_df['herd_effect_delay'])
@@ -295,6 +296,7 @@ if __name__ == "__main__":
             axs.set_ylabel('herd effect delay (tick)')
             fig.savefig('herd_effect_delay.pdf')
             fig.savefig('herd_effect_delay.jpg')
+            herd_effect_delay_df.to_csv('herd_effect_delay.csv')
 
 
 
