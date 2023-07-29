@@ -26,5 +26,12 @@ if __name__ == "__main__":
         prob_sum = df["prob"].sum()
         df["unified_prob"] = df["prob"].apply(lambda x: x/prob_sum)
         assert(abs(df["unified_prob"].sum() - 1) < 0.00001)
+        df["accumulated_prob"] = df["unified_prob"].cumsum()
+        df["having_at_least_one_node_above_degree"] = 1 - df["accumulated_prob"] ** size
+        df["prob_largest_hub"] = df['having_at_least_one_node_above_degree'] - df['having_at_least_one_node_above_degree'].shift(-1)
 
+        expect_largest_hub = product_column = df['prob_largest_hub'].multiply(df['degree']).sum()
+
+        print(f"size:{size}, expect largest hub degree:{expect_largest_hub}")
+        df.to_csv(f'n{size}.csv')
         print(df)
