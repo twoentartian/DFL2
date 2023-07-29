@@ -278,13 +278,13 @@ if __name__ == "__main__":
             axs[0].plot(herd_effect_delay_df["size"], herd_effect_delay_df['herd_effect_delay'])
             axs[0].set_xlabel('network size')
             axs[0].set_ylabel('herd effect delay (tick)')
-            axs[0].set_xlim([herd_effect_delay_df.index.min(), herd_effect_delay_df.index.max()])
+            # axs[0].set_xlim([herd_effect_delay_df.index.min(), herd_effect_delay_df.index.max()])
 
             axs[1].plot(herd_effect_delay_df["size"], herd_effect_delay_df['herd_effect_delay'])
             axs[1].set_xlabel('network size(log)')
             axs[1].set_xscale('log')
             axs[1].set_ylabel('herd effect delay (tick)')
-            axs[1].set_xlim([herd_effect_delay_df.index.min(), herd_effect_delay_df.index.max()])
+            # axs[1].set_xlim([herd_effect_delay_df.index.min(), herd_effect_delay_df.index.max()])
 
             fig.savefig('herd_effect_delay.pdf')
             fig.savefig('herd_effect_delay.jpg')
