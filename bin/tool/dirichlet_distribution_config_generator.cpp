@@ -42,6 +42,7 @@ int main(int argc, char* argv[])
 	
 	//all labels
 	std::vector<int> all_labels = *config.get_vec<int>("ml_dataset_all_possible_labels");
+    CHECK(!all_labels.empty());
 	
 	//nodes
 	static std::random_device rd;
