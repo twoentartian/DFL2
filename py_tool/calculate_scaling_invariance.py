@@ -16,7 +16,8 @@ def calculate_herd_effect(size: int, start_degree: int, gamma: float) -> float:
     df["accumulated_prob"] = df["unified_prob"].cumsum()
     df["having_at_least_one_node_above_degree"] = 1 - df["accumulated_prob"] ** size
     df["prob_largest_hub"] = df['having_at_least_one_node_above_degree'] - df['having_at_least_one_node_above_degree'].shift(-1)
-    herd_effect_delay = df['prob_largest_hub'].multiply( (df['degree']/size) ** -0.19 ).sum()
+    # herd_effect_delay = df['prob_largest_hub'].multiply( (df['degree']/size) ** -0.19442794495489277 ).sum()
+    herd_effect_delay = df['prob_largest_hub'].multiply( (df['degree']/size) ** -0.19442794495489277 ).sum()
 
     return herd_effect_delay
 
