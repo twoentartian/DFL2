@@ -5,6 +5,7 @@ import argparse
 import sys
 import matplotlib.pyplot as plt
 import numpy as np
+from adjustText import adjust_text
 
 
 def calculate_herd_effect(size: int, start_degree: int, gamma: float, slope: float) -> float:
@@ -37,21 +38,34 @@ if __name__ == "__main__":
     gamma = config["gamma"]
     start_degree = config["start_degree"]
     largest_network_size = config['largest_network_size']
-    slopes = np.linspace(start=-0.5, stop=-0.001, num=50)
+    slopes = np.linspace(start=-2, stop=-0.001, num=8)
 
     fig, axs = plt.subplots(2, 1, figsize=(10, 10), squeeze=False)
+
+    annotations0 = []
+    annotations1 = []
     for slope in slopes:
         print(f"calculating slope={slope}")
 
         df = pd.DataFrame({'network_size': range(10, largest_network_size, math.floor((largest_network_size-10)/1000)) })
         df['herd_effect_delay'] = df['network_size'].apply(lambda size: calculate_herd_effect(size, start_degree, gamma, slope))
 
-        axs[0, 0].plot(df['network_size'], df['herd_effect_delay'], label=str(slope))
+        last_df_x = float(df['network_size'].tail(1).iloc[0])
+        last_df_y = float(df['herd_effect_delay'].tail(1).iloc[0])
+
+        axs[0, 0].plot(df['network_size'], df['herd_effect_delay'], label="{:.3f}".format(slope))
+        annotations0.append(axs[0, 0].annotate("{:.3f}".format(slope), (last_df_x, last_df_y)))
         axs[0, 0].set_xlabel('network size')
         axs[0, 0].set_ylabel('estimated herd effect delay')
 
-        axs[1, 0].plot(df['network_size'], df['herd_effect_delay'])
+        axs[1, 0].plot(df['network_size'], df['herd_effect_delay'], label="{:.3f}".format(slope))
+        annotations1.append(axs[1, 0].annotate("{:.3f}".format(slope), (last_df_x, last_df_y)))
         axs[1, 0].set_xlabel('network size')
         axs[1, 0].set_ylabel('estimated herd effect delay')
         axs[1, 0].set_xscale('log')
+
+    # adjust_text(annotations0)
+    adjust_text(annotations1)
+    axs[0, 0].legend()
+    axs[1, 0].legend()
     fig.savefig('scaling_invariance_of_different_slopes.pdf')
