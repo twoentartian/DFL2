@@ -39,13 +39,17 @@ if __name__ == "__main__":
                 if len(dirLink) != 1:
                     G.add_edge(dirLink[0], dirLink[1])
 
-            node_centrality = nx.current_flow_betweenness_centrality(G)
+            # node_centrality = nx.current_flow_betweenness_centrality(G)
+            # node_centrality = nx.closeness_centrality(G)
+            node_centrality = nx.betweenness_centrality(G)
             graph_centrality = sum_of_deviations_from_max(list(node_centrality.values()))
 
             # https://igraph.org/c/doc/igraph-Structural.html#igraph_centralization
             network_size = len(G.nodes)
             star_network = nx.star_graph(network_size-1)
-            star_network_centrality = nx.current_flow_betweenness_centrality(star_network)
+            # star_network_centrality = nx.current_flow_betweenness_centrality(star_network)
+            # star_network_centrality = nx.closeness_centrality(star_network)
+            star_network_centrality = nx.betweenness_centrality(star_network)
             star_graph_centrality = sum_of_deviations_from_max(list(star_network_centrality.values()))
             graph_centrality = graph_centrality / star_graph_centrality
             f = open(each_test_result_folder + "/centrality.txt", "w")
