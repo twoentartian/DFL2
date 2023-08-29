@@ -155,13 +155,20 @@ int main(int argc, char* argv[])
 		{
 			auto &node_topology_json = config_json["node_topology"];
 			node_topology_json.clear();
-			
+			std::set<std::tuple<int,int>> duplicate_connection_checker;
 			for (const auto& [target_node, peers]: total_nodes_and_peers)
 			{
 				for (const auto &single_peer: peers)
 				{
-					std::cout << std::to_string(target_node) << node_peer_connection_type << std::to_string(single_peer) << std::endl;
-					node_topology_json.push_back(std::to_string(target_node) + node_peer_connection_type + std::to_string(single_peer));
+                    if (duplicate_connection_checker.contains({target_node, single_peer})) {
+                        //skip
+                    }
+                    else {
+                        duplicate_connection_checker.insert({target_node, single_peer});
+                        duplicate_connection_checker.insert({single_peer, target_node});
+                        std::cout << std::to_string(target_node) << node_peer_connection_type << std::to_string(single_peer) << std::endl;
+                        node_topology_json.push_back(std::to_string(target_node) + node_peer_connection_type + std::to_string(single_peer));
+                    }
 				}
 			}
 		}
