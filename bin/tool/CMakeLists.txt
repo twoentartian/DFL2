@@ -25,6 +25,9 @@ target_link_libraries(inject_interval_generator ${DFL_LINKER_LIBS})
 add_executable(maksim_topology_generator maksim_topology_generator.cpp)
 target_link_libraries(maksim_topology_generator ${DFL_LINKER_LIBS})
 
+add_executable(topology_remove_receive topology_remove_receive.cpp)
+target_link_libraries(topology_remove_receive ${DFL_LINKER_LIBS})
+
 # find CUDA
 include(CheckLanguage)
 check_language(CUDA)
