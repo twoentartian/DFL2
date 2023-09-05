@@ -17,7 +17,8 @@ def calculate_herd_effect(size: int, start_degree: int, gamma: float) -> float:
     df["having_at_least_one_node_above_degree"] = 1 - df["accumulated_prob"] ** size
     df["prob_largest_hub"] = df['having_at_least_one_node_above_degree'] - df['having_at_least_one_node_above_degree'].shift(-1)
     # herd_effect_delay = df['prob_largest_hub'].multiply( (df['degree']/size) ** -0.19442794495489277 ).sum()
-    herd_effect_delay = df['prob_largest_hub'].multiply( (df['degree']/size) ** -0.19442794495489277 ).sum()
+    # herd_effect_delay = df['prob_largest_hub'].multiply( (df['degree']/size) ** -0.19442794495489277 ).sum()
+    herd_effect_delay = df['prob_largest_hub'].multiply( (df['degree']/size) ** -1.775086606220853 ).sum()
 
     return herd_effect_delay
 
@@ -38,7 +39,10 @@ if __name__ == "__main__":
     start_degree = config["start_degree"]
     largest_network_size = config['largest_network_size']
 
-    df = pd.DataFrame({'network_size': range(10, largest_network_size, math.floor((largest_network_size-10)/1000)) })
+    network_size = list(range(10,100,2)) + list(range(100,1000,20))
+    # network_size = list(range(10,100,2)) + list(range(100, largest_network_size, math.floor((largest_network_size-100)/100)))
+
+    df = pd.DataFrame({'network_size': network_size})
     df['herd_effect_delay'] = df['network_size'].apply(lambda size: calculate_herd_effect(size, start_degree, gamma))
     df.to_csv('scaling_invariance.csv')
 
