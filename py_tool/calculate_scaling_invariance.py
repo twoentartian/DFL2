@@ -39,7 +39,13 @@ if __name__ == "__main__":
     start_degree = config["start_degree"]
     largest_network_size = config['largest_network_size']
 
-    network_size = list(range(10,100,2)) + list(range(100,1000,20))
+    digit_of_largest_network_size = len([int(digit) for digit in str(largest_network_size)])
+    network_size = []
+    for i in range(2, digit_of_largest_network_size):
+        network_size = network_size + list(range(10**(i-1),10**i,2*10**(i-2)))
+    network_size = network_size + list(range(10**(digit_of_largest_network_size-1),largest_network_size,2*10**(digit_of_largest_network_size-2)))
+    print(network_size)
+
     # network_size = list(range(10,100,2)) + list(range(100, largest_network_size, math.floor((largest_network_size-100)/100)))
 
     df = pd.DataFrame({'network_size': network_size})
