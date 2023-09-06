@@ -32,7 +32,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     config = vars(args)
     if len(sys.argv) < 2:
-        print("use: python ./calculate_scaling_curves_of_different_slopes.py {network_size0} {network_size1} ...")
+        print("use: python ./calculate_scaling_curves_of_different_slopes.py {gamma} {largest_network_size} ...")
         exit(1)
 
     gamma = config["gamma"]
@@ -46,6 +46,7 @@ if __name__ == "__main__":
     annotations1 = []
     for slope in slopes:
         print(f"calculating slope={slope}")
+
 
         df = pd.DataFrame({'network_size': range(10, largest_network_size, math.floor((largest_network_size-10)/1000)) })
         df['herd_effect_delay'] = df['network_size'].apply(lambda size: calculate_herd_effect(size, start_degree, gamma, slope))

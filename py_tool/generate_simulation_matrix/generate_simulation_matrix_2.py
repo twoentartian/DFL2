@@ -10,6 +10,7 @@ network_size = network_size[::-1]  # Reverse the list
 
 network_generator = "large_scale_simulation_generator"
 non_iid_generator = "dirichlet_distribution_config_generator"
+generate_non_iid = False
 non_iid_generator_arg = "5"
 
 simulator_config_file_name = "simulator_config.json"
@@ -62,8 +63,9 @@ if __name__ == "__main__":
         assert status == 0
 
         # generate non_iid distribution
-        status = call(non_iid_generator + " " + non_iid_generator_arg, cwd=tool_folder_path, shell=True)
-        assert status == 0
+        if generate_non_iid:
+            status = call(non_iid_generator + " " + non_iid_generator_arg, cwd=tool_folder_path, shell=True)
+            assert status == 0
 
         # copy simulator config to output folder
         shutil.copyfile(simulator_config_path, os.path.join(output_folder_dir, simulator_config_file_name))

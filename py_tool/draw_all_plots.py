@@ -274,17 +274,29 @@ if __name__ == "__main__":
 
         #plot the herd effect
         if herd_effect_draw_with_size:
-            fig, axs = plt.subplots(2, 1, figsize=(10, 10))
+            fig, axs = plt.subplots(3, 1, figsize=(10, 10))
             axs[0].plot(herd_effect_delay_df["size"], herd_effect_delay_df['herd_effect_delay'])
             axs[0].set_xlabel('network size')
             axs[0].set_ylabel('herd effect delay (tick)')
+            axs[0].grid()
             # axs[0].set_xlim([herd_effect_delay_df.index.min(), herd_effect_delay_df.index.max()])
 
             axs[1].plot(herd_effect_delay_df["size"], herd_effect_delay_df['herd_effect_delay'])
             axs[1].set_xlabel('network size(log)')
             axs[1].set_xscale('log')
             axs[1].set_ylabel('herd effect delay (tick)')
+            axs[1].grid()
             # axs[1].set_xlim([herd_effect_delay_df.index.min(), herd_effect_delay_df.index.max()])
+
+
+            def moving_average(data, window_size):
+                return data.rolling(window=window_size, min_periods=1).mean()
+            smooth_window_size = 15
+            herd_effect_delay_df['smoothed_herd_effect_delay'] = moving_average(herd_effect_delay_df['herd_effect_delay'], smooth_window_size)
+            axs[2].plot(herd_effect_delay_df["size"], herd_effect_delay_df['smoothed_herd_effect_delay'])
+            axs[2].set_xlabel('network size(log)')
+            axs[2].set_ylabel('herd effect delay (tick)(smoothed ' + str(smooth_window_size) + ')')
+            axs[2].grid()
 
             fig.savefig('herd_effect_delay.pdf')
             fig.savefig('herd_effect_delay.jpg')
