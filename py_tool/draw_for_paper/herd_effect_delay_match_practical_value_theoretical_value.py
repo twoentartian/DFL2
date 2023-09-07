@@ -22,6 +22,10 @@ def calculate_herd_effect(size: int, start_degree: int, gamma: float, slope: flo
     return herd_effect_delay
 
 
+def moving_average(data, window_size):
+    return data.rolling(window=window_size, min_periods=1).mean()
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="match the herd effect in theory and practise", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("gamma", type=float, help="gamma of the scale free network")
@@ -43,40 +47,66 @@ if __name__ == "__main__":
     df_simulation = pd.read_csv(file_path)
 
     # calculate the herd effect in theory
+    smallest_network_size = df_simulation["size"].iloc[0]
     largest_network_size = df_simulation["size"].iloc[-1]
     print(f"largest_network_size:{largest_network_size}")
+    digit_of_smallest_network_size = len([int(digit) for digit in str(smallest_network_size)])
     digit_of_largest_network_size = len([int(digit) for digit in str(largest_network_size)])
     network_size = []
-    for i in range(2, digit_of_largest_network_size):
+    network_size = network_size + list(range(smallest_network_size,10**digit_of_smallest_network_size,2*10**(digit_of_smallest_network_size-2)))
+    for i in range(digit_of_smallest_network_size+1, digit_of_largest_network_size):
         network_size = network_size + list(range(10**(i-1),10**i,2*10**(i-2)))
     network_size = network_size + list(range(10**(digit_of_largest_network_size-1),largest_network_size+1,2*10**(digit_of_largest_network_size-2)))
+    network_size = network_size + list(df_simulation['size'].to_numpy(dtype=int))
+    network_size = list(dict.fromkeys(network_size))
+    network_size.sort()
+    print(network_size)
 
     df_theory = pd.DataFrame({'network_size': network_size})
     df_theory['herd_effect_delay'] = df_theory['network_size'].apply(lambda size: calculate_herd_effect(size, start_degree, gamma, slope))
 
-    start_network_size = int(df_simulation['size'].iloc[0])
-    start_theory_hed = float(df_theory['herd_effect_delay'].iloc[df_theory[df_theory['network_size'] == start_network_size].index].iloc[0])
-    start_simulation_hed = float(df_simulation['herd_effect_delay'].iloc[df_simulation[df_simulation['size'] == start_network_size].index].iloc[0])
-    print(f"start point: real={{ {start_network_size}:{start_simulation_hed} }} theory={{ {start_network_size}:{start_theory_hed} }}")
+    theory_hed = []
+    simulation_hed = []
+    matched_network_sizes = []
+    for matched_network_size in df_simulation['size'].to_numpy():
+        theory_hed_now = float(df_theory['herd_effect_delay'].iloc[df_theory[df_theory['network_size'] == matched_network_size].index].iloc[0])
+        theory_hed.append(theory_hed_now)
+        simulation_hed_now = float(df_simulation['herd_effect_delay'].iloc[df_simulation[df_simulation['size'] == matched_network_size].index].iloc[0])
+        simulation_hed.append(simulation_hed_now)
+        matched_network_size_now = int(matched_network_size)
+        matched_network_sizes.append(matched_network_size_now)
+        print(f"simulation={{ {matched_network_size_now}:{simulation_hed_now} }} theory={{ {matched_network_size_now}:{theory_hed_now} }}")
 
-    end_network_size = int(df_simulation['size'].iloc[-1])
-    end_theory_hed = float(df_theory['herd_effect_delay'].iloc[df_theory[df_theory['network_size'] == end_network_size].index].iloc[0])
-    end_simulation_hed = float(df_simulation['herd_effect_delay'].iloc[df_simulation[df_simulation['size'] == end_network_size].index].iloc[0])
-    print(f"end point: real={{ {end_network_size}:{end_simulation_hed} }} theory={{ {end_network_size}:{end_theory_hed} }}")
+    theory_hed = np.array(theory_hed)
+    simulation_hed = np.array(simulation_hed)
+    matched_network_sizes = np.array(matched_network_sizes).reshape((-1, 1))
 
-    scale_factor = (end_simulation_hed - start_simulation_hed) / (end_theory_hed - start_theory_hed)
-    shift_factor = (start_simulation_hed - start_theory_hed * scale_factor) *0.5 + (end_simulation_hed - end_theory_hed * scale_factor) *0.5
+    model = LinearRegression()
+    model.fit(matched_network_sizes, theory_hed)
+    slope_theory = model.coef_[0]
+    intercept_theory = model.intercept_
+
+    model = LinearRegression()
+    model.fit(matched_network_sizes, simulation_hed)
+    slope_simulation = model.coef_[0]
+    intercept_simulation = model.intercept_
+
+    scale_factor = slope_simulation / slope_theory
+    shift_factor = intercept_simulation - scale_factor * intercept_theory
     print(f"scale_factor: {scale_factor}     shift_factor: {shift_factor}")
 
     scale_factor = scale_factor
-    shift_factor = shift_factor + 220
-    print(f"after modification: scale_factor: {scale_factor}     shift_factor: {shift_factor}")
+    shift_factor = shift_factor
+    print(f"after manual modification: scale_factor: {scale_factor}     shift_factor: {shift_factor}")
 
     df_theory['herd_effect_delay_map_to_simulation'] = df_theory['herd_effect_delay'] * scale_factor + shift_factor
 
     fig, axs = plt.subplots(1, 1, figsize=(10, 10), squeeze=False)
     axs[0, 0].plot(df_theory['network_size'], df_theory['herd_effect_delay_map_to_simulation'], label='theoretical')
     axs[0, 0].plot(df_simulation['size'], df_simulation['herd_effect_delay'], label='simulation')
+    smooth_window_size = 15
+    df_simulation['smoothed_herd_effect_delay'] = moving_average(df_simulation['herd_effect_delay'], smooth_window_size)
+    axs[0, 0].plot(df_simulation['size'], df_simulation['smoothed_herd_effect_delay'], label='simulation(smoothed-15)')
     axs[0, 0].legend()
     axs[0, 0].grid()
     axs[0, 0].set_xscale('log')
