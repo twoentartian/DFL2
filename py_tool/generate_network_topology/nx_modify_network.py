@@ -4,8 +4,13 @@ import random
 import networkx as nx
 import copy
 from pathlib import Path
+import pandas as pd
 
 import nx_lib
+
+def sum_of_deviations_from_max(values):
+    max_val = max(values)
+    return sum(max_val - v for v in values)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="rewire the network edges", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -89,18 +94,20 @@ if __name__ == "__main__":
 
     # downgrade_hubs
     if config["downgrade_hubs"]:
+        centrality_df_data = []
         downgrade_hubs_args = config["downgrade_hubs"]
         downgrade_to_k = downgrade_hubs_args[0]
         hub_count_list = downgrade_hubs_args[1:]
         for downgrade_hub_count in hub_count_list:
+            print(f"downgrade {downgrade_hub_count} nodes")
             G_temp = copy.deepcopy(G)
-            node_degree_sorted = sorted(G_temp.degree, key=lambda x: x[1], reverse=True)
             for i in range(0, int(downgrade_hub_count)):
-                to_be_removed_node_name = node_degree_sorted[i][0]
+                node_degree_sorted = sorted(G_temp.degree, key=lambda x: x[1], reverse=True)
+                to_be_removed_node_name = node_degree_sorted[0][0]
                 neighbors = set(G.neighbors(to_be_removed_node_name))
-                G_temp.remove_node(node_degree_sorted[i][0])
+                G_temp.remove_node(to_be_removed_node_name)
+                print(f"remove node: {to_be_removed_node_name}")
                 if len(neighbors) % 2 == 0:
-                    # 4 nodes connect to removed_node
                     reconnect_list = random.sample(list(neighbors), 4)
                     for i in reconnect_list:
                         G_temp.add_edge(to_be_removed_node_name, i)
@@ -118,3 +125,9 @@ if __name__ == "__main__":
             name = file_name + "." + "downgrade_hubs" + downgrade_hub_count
             nx_lib.generate_topology_file(G_temp, name)
             nx_lib.save_network_info(G_temp, name)
+
+            centrality_betweenness = nx.betweenness_centrality(G_temp)
+            centrality_eigenvector = nx.eigenvector_centrality(G_temp)
+            centrality_df_data.append([name, sum_of_deviations_from_max(centrality_eigenvector.values()), sum_of_deviations_from_max(centrality_betweenness.values())])
+        centrality_df = pd.DataFrame(centrality_df_data, columns=['name', 'centrality_eigenvector', 'centrality_betweenness'])
+        centrality_df.to_csv("centrality.csv")
