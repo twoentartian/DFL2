@@ -104,9 +104,9 @@ if __name__ == "__main__":
     fig, axs = plt.subplots(1, 1, figsize=(10, 10), squeeze=False)
     axs[0, 0].plot(df_theory['network_size'], df_theory['herd_effect_delay_map_to_simulation'], label='theoretical')
     axs[0, 0].plot(df_simulation['size'], df_simulation['herd_effect_delay'], label='simulation')
-    smooth_window_size = 15
+    smooth_window_size = 8
     df_simulation['smoothed_herd_effect_delay'] = moving_average(df_simulation['herd_effect_delay'], smooth_window_size)
-    axs[0, 0].plot(df_simulation['size'], df_simulation['smoothed_herd_effect_delay'], label='simulation(smoothed-15)')
+    axs[0, 0].plot(df_simulation['size'], df_simulation['smoothed_herd_effect_delay'], label=f'simulation(smoothed-{smooth_window_size}')
     axs[0, 0].legend()
     axs[0, 0].grid()
     axs[0, 0].set_xscale('log')
