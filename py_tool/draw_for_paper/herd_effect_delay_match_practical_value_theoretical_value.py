@@ -110,4 +110,4 @@ if __name__ == "__main__":
     axs[0, 0].legend()
     axs[0, 0].grid()
     axs[0, 0].set_xscale('log')
-    fig.savefig("comparision.pdf")
+    fig.savefig("comparison.pdf")
