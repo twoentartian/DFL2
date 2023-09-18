@@ -38,15 +38,16 @@ if __name__ == "__main__":
     gamma = config["gamma"]
     start_degree = config["start_degree"]
     largest_network_size = config['largest_network_size']
-    slopes = np.linspace(start=-2, stop=-0.001, num=8)
+    slopes = np.linspace(start=-2, stop=-0.001, num=6)
 
-    fig, axs = plt.subplots(2, 1, figsize=(10, 10), squeeze=False)
+    fig, axs = plt.subplots(3, 1, figsize=(12, 8), squeeze=False)
+    fig_out, axs_out = plt.subplots(1, 1, figsize=(6, 3), squeeze=True)
 
     annotations0 = []
     annotations1 = []
+    annotations2 = []
     for slope in slopes:
         print(f"calculating slope={slope}")
-
 
         df = pd.DataFrame({'network_size': range(10, largest_network_size, math.floor((largest_network_size-10)/1000)) })
         df['herd_effect_delay'] = df['network_size'].apply(lambda size: calculate_herd_effect(size, start_degree, gamma, slope))
@@ -54,19 +55,46 @@ if __name__ == "__main__":
         last_df_x = float(df['network_size'].tail(1).iloc[0])
         last_df_y = float(df['herd_effect_delay'].tail(1).iloc[0])
 
-        axs[0, 0].plot(df['network_size'], df['herd_effect_delay'], label="{:.3f}".format(slope))
+        axs[0, 0].plot(df['network_size'], df['herd_effect_delay'], label="k={:.3f}".format(slope))
         annotations0.append(axs[0, 0].annotate("{:.3f}".format(slope), (last_df_x, last_df_y)))
         axs[0, 0].set_xlabel('network size')
         axs[0, 0].set_ylabel('estimated herd effect delay')
 
-        axs[1, 0].plot(df['network_size'], df['herd_effect_delay'], label="{:.3f}".format(slope))
+        axs[1, 0].plot(df['network_size'], df['herd_effect_delay'], label="k={:.3f}".format(slope))
         annotations1.append(axs[1, 0].annotate("{:.3f}".format(slope), (last_df_x, last_df_y)))
         axs[1, 0].set_xlabel('network size')
-        axs[1, 0].set_ylabel('estimated herd effect delay')
+        axs[1, 0].set_ylabel('estimated herd effect delay (log)')
         axs[1, 0].set_xscale('log')
+
+        axs[2, 0].plot(df['network_size'], df['herd_effect_delay'], label="k={:.3f}".format(slope))
+        annotations2.append(axs[2, 0].annotate("{:.3f}".format(slope), (last_df_x, last_df_y)))
+        axs[2, 0].set_xlabel('network size')
+        axs[2, 0].set_ylabel('estimated herd effect delay (log)')
+        axs[2, 0].set_xscale('log')
+        axs[2, 0].set_yscale('log')
+
+        axs_out.plot(df['network_size'], df['herd_effect_delay'], label="k={:.3f}".format(slope))
+        axs_out.set_xlabel('network size (log)')
+        axs_out.set_ylabel('estimated herd effect delay (log)')
+        axs_out.set_xscale('log')
 
     # adjust_text(annotations0)
     adjust_text(annotations1)
     axs[0, 0].legend()
+    axs[0, 0].grid(which='major', color='#DDDDDD', linewidth=0.8)
+    axs[0, 0].grid(which='minor', color='#EEEEEE', linestyle=':', linewidth=0.5)
     axs[1, 0].legend()
-    fig.savefig('scaling_invariance_of_different_slopes.pdf')
+    axs[1, 0].grid(which='major', color='#DDDDDD', linewidth=0.8)
+    axs[1, 0].grid(which='minor', color='#EEEEEE', linestyle=':', linewidth=0.5)
+    axs[2, 0].legend()
+    axs[2, 0].grid(which='major', color='#DDDDDD', linewidth=0.8)
+    axs[2, 0].grid(which='minor', color='#EEEEEE', linestyle=':', linewidth=0.5)
+    fig.tight_layout()
+    fig.savefig('scaling_invariance_of_different_slopes.pdf',bbox_inches='tight',pad_inches=0.05)
+
+    # adjust_text(annotations_out)
+    axs_out.legend()
+    axs_out.grid(which='major', color='#DDDDDD', linewidth=0.8)
+    axs_out.grid(which='minor', color='#EEEEEE', linestyle=':', linewidth=0.5)
+    fig_out.tight_layout()
+    fig_out.savefig('scaling_invariance_of_different_slopes_out.pdf',bbox_inches='tight',pad_inches=0.05)
