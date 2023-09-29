@@ -46,7 +46,9 @@ if __name__ == "__main__":
     annotations0 = []
     annotations1 = []
     annotations2 = []
-    for slope in slopes:
+    annotations_out = []
+    for slope_index in range(len(slopes)):
+        slope = slopes[slope_index]
         print(f"calculating slope={slope}")
 
         df = pd.DataFrame({'network_size': range(10, largest_network_size, math.floor((largest_network_size-10)/1000)) })
@@ -73,13 +75,16 @@ if __name__ == "__main__":
         axs[2, 0].set_xscale('log')
         axs[2, 0].set_yscale('log')
 
-        axs_out.plot(df['network_size'], df['herd_effect_delay'], label="k={:.3f}".format(slope))
+        axs_out.plot(df['network_size'], df['herd_effect_delay'], label="m={:.1f}".format(slope))
+        if slope_index == len(slopes)-1 or slope_index == 0:
+            annotations_out.append(axs_out.annotate("{:.1f}".format(slope), (last_df_x, last_df_y)))
         axs_out.set_xlabel('network size (log)')
         axs_out.set_ylabel('estimated herd effect delay (log)')
         axs_out.set_xscale('log')
 
     # adjust_text(annotations0)
-    adjust_text(annotations1)
+    # adjust_text(annotations1)
+    adjust_text(annotations_out)
     axs[0, 0].legend()
     axs[0, 0].grid(which='major', color='#DDDDDD', linewidth=0.8)
     axs[0, 0].grid(which='minor', color='#EEEEEE', linestyle=':', linewidth=0.5)
