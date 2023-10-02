@@ -94,9 +94,10 @@ def generate_random_network(n: int, degree: int) -> nx.Graph:
     return G
 
 
-def generate_star_network(n: int, star_count) -> nx.Graph:
+def generate_star_network(n: int, star_count, shuffle: bool = True) -> nx.Graph:
     star_list = list(range(n))
-    random.shuffle(star_list)
+    if shuffle:
+        random.shuffle(star_list)
     star_list = star_list[0:star_count]
 
     G_temp: nx.Graph = nx.Graph()
