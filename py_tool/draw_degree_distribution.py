@@ -30,7 +30,8 @@ def draw_single_degree_distribution(config_path, axis: plt.Axes):
             peer_count_of_each_node[rhs_node].add(lhs_node)
         dir_link = singleItem.split('->')
         if len(dir_link) == 2:
-            lhs_node = int(un_dir_link[0])
+            lhs_node = int(dir_link[0])
+            rhs_node = int(dir_link[1])
             if lhs_node not in peer_count_of_each_node.keys():
                 peer_count_of_each_node[lhs_node] = set()
             peer_count_of_each_node[lhs_node].add(rhs_node)
