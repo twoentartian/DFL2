@@ -77,7 +77,7 @@ if __name__ == "__main__":
 
         axs_out.plot(df['network_size'], df['herd_effect_delay'], label="m={:.1f}".format(slope))
         if slope_index == len(slopes)-1 or slope_index == 0:
-            annotations_out.append(axs_out.annotate("{:.1f}".format(slope), (last_df_x, last_df_y)))
+            annotations_out.append(axs_out.annotate("m={:.1f}".format(slope), (last_df_x, last_df_y)))
         axs_out.set_xlabel('network size (log)')
         axs_out.set_ylabel('estimated herd effect delay (log)')
         axs_out.set_xscale('log')
