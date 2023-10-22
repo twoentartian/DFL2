@@ -2,7 +2,7 @@ import math
 import os
 
 maximum_tick = 10000
-
+first_average_time = 60
 use_all_folders = True
 
 row = 3

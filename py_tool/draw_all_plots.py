@@ -20,8 +20,6 @@ draw_topology_map_in_bitmap_format = False
 herd_effect_weight_diff_reference_layer = "conv2"
 herd_effect_draw_with_size = False
 
-first_average_time = 20
-
 maximum_tick = draw_info.maximum_tick
 
 
@@ -94,7 +92,7 @@ def calculate_herd_effect_delay(arg_accuracy_df: pandas.DataFrame, arg_model_wei
     largest_diff = average_accuracy_diff.nlargest(10)
     largest_indexes = largest_diff.index
     for i in largest_indexes:
-        if i > first_average_time*2:
+        if i > draw_info.first_average_time*2:
             return i
 
 

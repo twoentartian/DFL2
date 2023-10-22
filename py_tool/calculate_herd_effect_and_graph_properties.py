@@ -9,7 +9,6 @@ import networkx as nx
 
 import draw_info
 
-first_average_time = 20
 methods_to_test = [ {"func":nx.closeness_centrality, "name":"closeness_centrality"},
                     {"func":nx.current_flow_closeness_centrality, "name":"current_flow_closeness_centrality"},
                     {"func":nx.betweenness_centrality, "name":"betweenness_centrality"},
@@ -34,7 +33,7 @@ def calculate_herd_effect_delay(arg_accuracy_df: pandas.DataFrame, arg_model_wei
     largest_diff = average_accuracy_diff.nlargest(10)
     largest_indexes = largest_diff.index
     for i in largest_indexes:
-        if i > first_average_time*2:
+        if i > draw_info.first_average_time*2:
             return i
 
 
