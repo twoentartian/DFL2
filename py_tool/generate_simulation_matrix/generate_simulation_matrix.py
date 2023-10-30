@@ -1,24 +1,22 @@
+import datetime
 import os
 import json
 from subprocess import call
 import shutil
 
-sizes = range(125,1001,50)
+# network_size = [100, 200, 400, 800, 1600, 2400, 3200, 4800]
+network_size = range(10,20,4)
 
-topology_files = ["n1000" + ".star" + str(num) + ".data" for num in sizes]
-
-topology_files = topology_files[::-1]  # Reverse the list
-
-network_generator = "large_scale_simulation_generator_maksim"
+network_generator = "large_scale_simulation_generator"
 non_iid_generator = "dirichlet_distribution_config_generator"
 generate_non_iid = False
-non_iid_generator_arg = "0.5"
+non_iid_generator_arg = "5"
+
+simulator_config_file_name = "simulator_config.json"
+network_generator_config_file_name = "large_scale_config.json"
 
 simulator_name = "DFL_simulator_opti"
 simulator_script_name = "run_simulator_opti.sh"
-
-simulator_config_file_name = "simulator_config.json"
-network_generator_config_file_name = "large_scale_config_maksim.json"
 
 simulation_folder_name = "simulation"
 tool_folder_name = "tool"
@@ -34,6 +32,8 @@ simulator_config_path = os.path.join(simulation_folder_path, simulator_config_fi
 network_generator_config_path = os.path.join(tool_folder_path, network_generator_config_file_name)
 
 if __name__ == "__main__":
+    output_network_list = []
+
     # check simulation config exist
     if not os.path.exists(simulator_config_path):
         print("simulator config file not exists")
@@ -43,16 +43,18 @@ if __name__ == "__main__":
         print("network generator config file not exists")
         exit(-1)
 
-    for topology_file in topology_files:
+    for single_network_size in network_size:
         # create output folder
-        output_folder_dir = os.path.join(current_path, topology_file)
+        output_folder_name = str(single_network_size) + "_node"
+        output_folder_dir = os.path.join(current_path, output_folder_name)
+        output_network_list.append(output_folder_name)
         if not os.path.exists(output_folder_dir):
             os.mkdir(output_folder_dir)
 
         # update network size
         f = open(network_generator_config_path, "r")
         config_json = json.load(f)
-        config_json["network_topology_maksim_format"] = "./maksim/" + topology_file
+        config_json["node_count"] = single_network_size
         f.close()
         f = open(network_generator_config_path, "w")
         output_json_data = json.dumps(config_json, indent=4)
@@ -76,24 +78,11 @@ if __name__ == "__main__":
         shutil.copyfile(os.path.join(simulation_folder_path, simulator_script_name), os.path.join(output_folder_dir, simulator_script_name))
 
     # generator run script
-    run_script_content = """
-from subprocess import call
+    current_time = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    file_name = f"simulation_list_{current_time}.json"
+    with open(file_name, 'w') as file:
+        list_file_json = {'list_file_json': output_network_list,
+                          'run_simulator_command': f'sh ./{simulator_script_name}'}
+        file.write(json.dumps(list_file_json, indent=4))
 
-$network_size$
-
-run_simulator_command = "sh ./$simulator_script_name$"
-
-if __name__ == "__main__":
-    for single_network_size in network_size:
-        folder = str(single_network_size)
-
-        status = call(run_simulator_command, cwd=folder, shell=True)
-        assert status == 0
-    """
-    run_script_content = run_script_content.replace("$simulator_script_name$", simulator_script_name)
-    network_size_array_elements = ", ".join("\"" + str(i) + "\"" for i in topology_files)
-    network_size_line = f"network_size = [{network_size_array_elements}]"
-    run_script_content = run_script_content.replace("$network_size$", network_size_line)
-    with open("run_simulation_matrix_from_topology_2.py", "w") as run_script:
-        run_script.write(run_script_content)
 

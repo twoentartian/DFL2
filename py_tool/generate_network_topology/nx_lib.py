@@ -1,8 +1,10 @@
+import os.path
 import random
 import networkx as nx
 import re
 import matplotlib.pyplot as plt
 import numpy as np
+import json
 
 
 def generate_topology_file(graph: nx.Graph, save_file_name: str):
@@ -62,6 +64,27 @@ def load_graph(file_path: str) -> nx.Graph:
             continue
         edge_list.append((int(matches[0]), int(matches[1])))
     G.add_edges_from(edge_list)
+    return G
+
+
+def get_graph_from_dfl_simulation_config(config_file_path):
+    config_file = ()
+    if os.path.isfile(config_file_path):
+        config_file = open(config_file_path)
+    elif os.path.isdir(config_file_path):
+        config_file = open(os.path.join(config_file_path, 'simulator_config.json'))
+    config_file_content = config_file.read()
+    config_file_json = json.loads(config_file_content)
+    topology = config_file_json['node_topology']
+    G = nx.Graph()
+    for singleItem in topology:
+        un_uir_link = singleItem.split('--')
+        if len(un_uir_link) != 1:
+            G.add_edge(un_uir_link[0], un_uir_link[1])
+
+        dir_link = singleItem.split('->')
+        if len(dir_link) != 1:
+            G.add_edge(dir_link[0], dir_link[1])
     return G
 
 
