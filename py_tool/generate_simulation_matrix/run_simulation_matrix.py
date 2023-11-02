@@ -24,7 +24,8 @@ def run_one_simulation(simulation_folder):
     affinity = thread_name_map_to_affinity[thread_name]
     command = f'taskset -c {affinity} {simulator_command}'
     print(f"running {simulation_folder}, thread_id={thread_name} affinity={affinity} command={command}")
-    _status = call(command, cwd=simulation_folder, shell=True)
+    with open(f'{simulation_folder}.log', 'w') as f:
+        _status = call(command, cwd=simulation_folder, shell=True, stdout=f, stderr=f)
     print(f"finish running {simulation_folder} with status {_status}")
     assert _status == 0
 
