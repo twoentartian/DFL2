@@ -14,6 +14,7 @@ output_folder_path = os.path.join(current_path, output_folder_name)
 
 worker = os.cpu_count()
 
+
 def get_lower_bound_graph(simulation_folder, low_bound_k):
     simulation_folder = str(simulation_folder)
     G = nx_lib.get_graph_from_dfl_simulation_config(simulation_folder)
