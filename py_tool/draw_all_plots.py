@@ -122,7 +122,7 @@ if __name__ == "__main__":
 
         whole_fig, whole_axs = plt.subplots(plot_row, plot_col, figsize=(figsize_col, figsize_row), squeeze=False)
         topology_graphs = []
-        herd_effect_delay_df = pandas.DataFrame(columns=['network_name', 'herd_effect_delay', 'size'])
+        herd_effect_delay_df = pandas.DataFrame(columns=['network_name', 'herd_effect_delay', 'size', 'max_degree'])
         for folder_index in range(len(draw_info.folders)):
             current_col = folder_index % draw_info.col
             current_row = folder_index // draw_info.col
@@ -136,6 +136,8 @@ if __name__ == "__main__":
             is_first_dataframe = True
             first_to_draw_topology = True
 
+            herd_effect_delay_results = []
+            max_degree = []
             for each_test_result_folder in subfolders:
                 # load the topology
                 if first_to_draw_topology:
@@ -157,33 +159,29 @@ if __name__ == "__main__":
                         if len(dirLink) != 1:
                             G.add_edge(dirLink[0], dirLink[1])
                     topology_graphs.append(G)
+                    degrees = dict(G.degree())
+                    max_degree.append(max(degrees.values()))
 
                 accuracy_file_path = each_test_result_folder + '/accuracy.csv'
                 accuracy_df = pandas.read_csv(accuracy_file_path, index_col=0, header=0)
-                # print(accuracy_df)
+                print(accuracy_df)
 
                 weight_diff_file_path = each_test_result_folder + '/model_weight_diff.csv'
                 weight_diff_df = pandas.read_csv(weight_diff_file_path, index_col=0, header=0)
-                # print(weight_diff_df)
+                print(weight_diff_df)
 
-                if is_first_dataframe:
-                    is_first_dataframe = False
-                    final_accuracy_df = accuracy_df
-                    final_weight_diff_df = weight_diff_df
-                else:
-                    final_accuracy_df = final_accuracy_df.add(accuracy_df, fill_value=0)
-                    final_weight_diff_df = final_weight_diff_df.add(weight_diff_df, fill_value=0)
-            final_accuracy_df = final_accuracy_df.div(len(subfolders))
-            final_weight_diff_df = final_weight_diff_df.div(len(subfolders))
-            print(final_accuracy_df)
-            print(final_weight_diff_df)
+                final_accuracy_df = accuracy_df
+                final_weight_diff_df = weight_diff_df
 
-            # calculate herd effect delay
-            herd_effect_delay = calculate_herd_effect_delay(final_accuracy_df, final_weight_diff_df)
+                herd_effect_delay = calculate_herd_effect_delay(final_accuracy_df, final_weight_diff_df)
+                herd_effect_delay_results.append(herd_effect_delay)
             number_of_nodes = len(final_accuracy_df.columns)
-            new_row = pandas.DataFrame({'herd_effect_delay': herd_effect_delay, "network_name": draw_info.titles[folder_index], "size": number_of_nodes}, index=[0])
+            print("herd effect delay = " + str(herd_effect_delay_results))
+            average_herd_delay = sum(herd_effect_delay_results)/len(herd_effect_delay_results)
+            if len(max_degree) == 1:
+                max_degree = max_degree[0]
+            new_row = pandas.DataFrame({'herd_effect_delay': average_herd_delay, "network_name": draw_info.titles[folder_index], "size": number_of_nodes, "max_degree": max_degree}, index=[0])
             herd_effect_delay_df = pandas.concat([herd_effect_delay_df.loc[:], new_row]).reset_index(drop=True)
-            print("herd effect delay = " + str(herd_effect_delay))
 
             accuracy_x = final_accuracy_df.index
             accuracy_df_len = len(final_accuracy_df)
