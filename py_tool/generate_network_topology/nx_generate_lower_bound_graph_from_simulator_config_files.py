@@ -4,11 +4,15 @@ import json
 import nx_lib
 import os
 import copy
+from subprocess import call
+import concurrent.futures
+import threading
 
 output_folder_name = "lower_bound_graph_generated"
 current_path = os.getcwd()
 output_folder_path = os.path.join(current_path, output_folder_name)
 
+worker = os.cpu_count()
 
 def get_lower_bound_graph(simulation_folder, low_bound_k):
     simulation_folder = str(simulation_folder)
@@ -24,17 +28,18 @@ def get_lower_bound_graph(simulation_folder, low_bound_k):
         for single_neighbor in sorted_neighbors:
             if G.degree[single_node] > low_bound_k and G.degree[single_neighbor] > low_bound_k:
                 G.remove_edge(single_node, single_neighbor)
-    print(f"finish processing {simulation_folder}, edge={len(G.edges)}")
 
     # add the largest hub
     node_with_largest_degree = max(G_original, key=G_original.degree)
     edges_of_largest_node = list(G_original.edges(node_with_largest_degree))
     G.add_edges_from(edges_of_largest_node)
 
-    nx_lib.save_network_info(G, os.path.join(output_folder_path, simulation_folder), enable_topology=True)
-    nx_lib.save_network_info(G_original, os.path.join(output_folder_path, "original_" + simulation_folder), enable_topology=True)
+    if worker == 1:
+        nx_lib.save_network_info(G, os.path.join(output_folder_path, simulation_folder), enable_topology=True)
+        nx_lib.save_network_info(G_original, os.path.join(output_folder_path, "original_" + simulation_folder), enable_topology=True)
     nx_lib.generate_topology_file(G, os.path.join(output_folder_path, simulation_folder))
     nx_lib.generate_topology_file(G_original, os.path.join(output_folder_path, "original_" + simulation_folder))
+    print(f"finish processing {simulation_folder}, edge={len(G.edges)}")
 
 
 if __name__ == "__main__":
@@ -59,5 +64,6 @@ if __name__ == "__main__":
         list_file_content = list_file.read()
         list_file_json = json.loads(list_file_content)
     simu_configs = list_file_json['list_file_json']
-    for single_simu_config_folder in simu_configs:
-        get_lower_bound_graph(single_simu_config_folder, min_k)
+    min_k_s = [min_k for i in range(len(simu_configs))]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=worker) as executor:
+        executor.map(get_lower_bound_graph, simu_configs, min_k_s)
