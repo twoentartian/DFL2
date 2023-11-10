@@ -4,6 +4,7 @@ import json
 from subprocess import call
 import concurrent.futures
 import threading
+from datetime import datetime
 
 import simulation_device_config as simulation_config
 
@@ -23,7 +24,8 @@ def run_one_simulation(simulation_folder):
 
     affinity = thread_name_map_to_affinity[thread_name]
     command = f'taskset -c {affinity} {simulator_command}'
-    print(f"running {simulation_folder}, thread_id={thread_name} affinity={affinity} command={command}")
+    current_date_time = datetime.now()
+    print(f"{current_date_time} === running {simulation_folder}, thread_id={thread_name} affinity={affinity} command={command}")
     with open(f'{simulation_folder}.log', 'w') as f:
         _status = call(command, cwd=simulation_folder, shell=True, stdout=f, stderr=f)
     print(f"finish running {simulation_folder} with status {_status}")
