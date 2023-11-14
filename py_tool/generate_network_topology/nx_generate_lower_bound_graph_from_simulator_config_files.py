@@ -12,7 +12,8 @@ output_folder_name = "lower_bound_graph_generated"
 current_path = os.getcwd()
 output_folder_path = os.path.join(current_path, output_folder_name)
 
-worker = os.cpu_count()
+# worker = os.cpu_count()
+worker = 1
 
 
 def get_lower_bound_graph(simulation_folder, low_bound_k):
@@ -55,16 +56,20 @@ if __name__ == "__main__":
     config = vars(args)
 
     if len(sys.argv) < 2:
-        print("use: python ./nx_generate_lower_bound_graph_from_simulator_config_files.py {network_list_file_path}")
+        print("use: python ./nx_generate_lower_bound_graph_from_simulator_config_files.py {network_list_file_path}/{simulator_config.json}")
         exit(1)
 
     list_file_path = config['list_file']
     min_k = int(config['min_k'])
-    list_file_json = ''
-    with open(list_file_path) as list_file:
-        list_file_content = list_file.read()
-        list_file_json = json.loads(list_file_content)
-    simu_configs = list_file_json['list_file_json']
-    min_k_s = [min_k for i in range(len(simu_configs))]
-    with concurrent.futures.ThreadPoolExecutor(max_workers=worker) as executor:
-        executor.map(get_lower_bound_graph, simu_configs, min_k_s)
+    basename = os.path.basename(list_file_path)
+    if basename == "simulator_config.json":
+        get_lower_bound_graph(basename, min_k)
+    else:
+        list_file_json = ''
+        with open(list_file_path) as list_file:
+            list_file_content = list_file.read()
+            list_file_json = json.loads(list_file_content)
+        simu_configs = list_file_json['list_file_json']
+        min_k_s = [min_k for i in range(len(simu_configs))]
+        with concurrent.futures.ThreadPoolExecutor(max_workers=worker) as executor:
+            executor.map(get_lower_bound_graph, simu_configs, min_k_s)
