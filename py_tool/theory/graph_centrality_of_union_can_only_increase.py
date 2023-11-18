@@ -15,7 +15,7 @@ def graph_centrality(G, vertex_centrality_func):
     return output
 
 
-def test_case(index, N=100, vertex_centrality_func=nx.current_flow_betweenness_centrality):
+def test_case(index, N=100, vertex_centrality_func=nx.degree_centrality):
     p0 = random.uniform(0.05, 1)
     p1 = random.uniform(0.05, 1)
     G0 = nx.fast_gnp_random_graph(N, p0)
@@ -42,8 +42,9 @@ if __name__ == "__main__":
         arg = range(1, 10000)
         executor.map(test_case, arg)
 
-        # eigenvector_centrality # no counter case found, n =10000
-        # nx.betweenness_centrality # no counter case found, n =10000
+        # nx.degree_centrality #counter case found
+        # nx.eigenvector_centrality # no counter case found, n=100, repeat =10000
+        # nx.betweenness_centrality # no counter case found, n=100, repeat =10000
         # nx.closeness_centrality #counter case found
         # nx.degree_centrality #counter case found
-        # nx.current_flow_betweenness_centrality # no counter case found, n =10000
+        # nx.current_flow_betweenness_centrality # no counter case found, n=100, repeat =10000
