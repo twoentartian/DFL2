@@ -49,6 +49,34 @@ namespace Ml {
                 c[i] = a[i] + b[i];
             }
         }
+
+        void vector_add(const std::vector<double>& a, const std::vector<double>& b, std::vector<double>& c) {
+            // Assure vectors a and b are the same size
+            assert(a.size() == b.size());
+
+            // Number of doubles that fit in an AVX register
+            const int doublesPerAvx = 4; // 256 bits / 64 bits per double
+
+            // Rounded down size to multiple of 4
+            size_t vecSizeRounded = a.size() / doublesPerAvx * doublesPerAvx;
+
+            for (size_t i = 0; i < vecSizeRounded; i += doublesPerAvx) {
+                // Load chunks of the array into AVX registers
+                __m256d aChunk = _mm256_loadu_pd(&a[i]);
+                __m256d bChunk = _mm256_loadu_pd(&b[i]);
+
+                // Add the vectors together
+                __m256d cChunk = _mm256_add_pd(aChunk, bChunk);
+
+                // Store the results back into the c vector
+                _mm256_storeu_pd(&c[i], cChunk);
+            }
+
+            // Handle remaining elements if a.size() is not a multiple of 4
+            for (size_t i = vecSizeRounded; i < a.size(); i++) {
+                c[i] = a[i] + b[i];
+            }
+        }
         
         /// a - b = c
         void vector_minus(const std::vector<float>& a, const std::vector<float>& b, std::vector<float>& c) {
@@ -74,6 +102,34 @@ namespace Ml {
             }
             
             // Handle remaining elements if a.size() is not a multiple of 8
+            for (size_t i = vecSizeRounded; i < a.size(); i++) {
+                c[i] = a[i] - b[i];
+            }
+        }
+
+        void vector_minus(const std::vector<double>& a, const std::vector<double>& b, std::vector<double>& c) {
+            // Assure vectors a and b are the same size
+            assert(a.size() == b.size());
+
+            // Number of doubles that fit in an AVX register
+            const int doublesPerAvx = 4; // 256 bits / 64 bits per double
+
+            // Rounded down size to multiple of 4
+            size_t vecSizeRounded = a.size() / doublesPerAvx * doublesPerAvx;
+
+            for (size_t i = 0; i < vecSizeRounded; i += doublesPerAvx) {
+                // Load chunks of the array into AVX registers
+                __m256d aChunk = _mm256_loadu_pd(&a[i]);
+                __m256d bChunk = _mm256_loadu_pd(&b[i]);
+
+                // Subtract the vectors
+                __m256d cChunk = _mm256_sub_pd(aChunk, bChunk);
+
+                // Store the results back into the c vector
+                _mm256_storeu_pd(&c[i], cChunk);
+            }
+
+            // Handle remaining elements if a.size() is not a multiple of 4
             for (size_t i = vecSizeRounded; i < a.size(); i++) {
                 c[i] = a[i] - b[i];
             }
