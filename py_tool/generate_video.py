@@ -50,7 +50,7 @@ if __name__ == "__main__":
     peer_control_enabled = config_file_json['services']['time_based_hierarchy_service']['enable']
     nodes = config_file_json['nodes']
 
-    accuracy_df = pandas.read_csv(accuracy_file_path, index_col=0, header=0)
+    accuracy_df = pandas.read_csv(accuracy_file_path, index_col=0, header=0, engine="pyarrow")
 
     peer_change_file_exists = os.path.exists(peer_change_file_path)
     peer_change_list = []
