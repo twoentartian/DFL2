@@ -1,22 +1,19 @@
-import json
 import networkx as nx
-import numpy as np
-import pandas
-import numpy
 import matplotlib.pyplot as plt
-import tkinter
+import matplotlib
 import colorsys
 import os
 import re
 import cv2
 import multiprocessing
-import math
+import data_process_lib
+import argparse
 
 config_file_path = 'simulator_config.json'
 accuracy_file_path = 'accuracy.csv'
 peer_change_file_path = 'peer_change_record.txt'
-draw_per_row = 1
-fps = 2
+draw_interval = 1
+fps = 4
 dpi = 200
 override_existing_cache = True
 HSV_H_start = 40
@@ -25,32 +22,42 @@ HSV_H_end = 256
 video_cache_path = "./video_cache"
 
 
-def save_fig(G, tick, save_name, node_color, layout, node_labels):
+def save_fig(G: nx.Graph, tick, save_name, node_accuracies, layout, node_labels, node_size, with_labels, override_existing=False):
+    if not override_existing and os.path.exists(save_name):
+        return
+
     fig = plt.figure(frameon=False)
     fig.set_size_inches(12, 12)
     ax = plt.Axes(fig, [0., 0., 1., 1.])
     ax.set_axis_off()
     fig.add_axes(ax)
     ax.text(0, 0, "tick = " + str(tick))
-    nx.draw(G, node_color=node_color, with_labels=True, pos=layout, font_color='k', labels=node_labels, alpha=1.0, linewidths=0.1, width=0.5, font_size=8, node_size=300)
-    fig.savefig(os.path.join(save_name), dpi=dpi, pad_inches=0)
-    plt.close(fig)
+    cmap = matplotlib.colormaps.get_cmap('viridis')
+    normalize = matplotlib.colors.Normalize(vmin=0, vmax=1)
+    node_colors = [cmap(normalize(node_accuracy)) for node_accuracy in node_accuracies]
 
-    # b = figure.get_window_extent()
-    # img = numpy.array(figure.canvas.buffer_rgba())
-    # img = img[int(b.y0):int(b.y1), int(b.x0):int(b.x1), :]
-    # img = cv2.cvtColor(img, cv2.COLOR_RGBA2BGRA)
+    nx.draw(G, node_color=node_colors, with_labels=with_labels, pos=layout, font_color='k', labels=node_labels, alpha=0.7, linewidths=0.1, width=0.1, font_size=8, node_size=node_size)
+
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=normalize)
+    sm.set_array([0, 1])
+    fig.colorbar(sm, ax=ax, orientation='vertical', label='Accuracy Values', shrink=0.4)
+    fig.savefig(save_name, dpi=dpi, pad_inches=0)
+    plt.close(fig)
 
 
 if __name__ == "__main__":
-    config_file = open(config_file_path)
-    config_file_content = config_file.read()
-    config_file_json = json.loads(config_file_content)
-    topology = config_file_json['node_topology']
-    peer_control_enabled = config_file_json['services']['time_based_hierarchy_service']['enable']
-    nodes = config_file_json['nodes']
+    # parser args
+    parser = argparse.ArgumentParser(description="generate a video for accuracy trends, put this script with \"simulator_config.json\"", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--override_cache", help="override images cache?", type=bool)
+    args = parser.parse_args()
+    config = vars(args)
+    override_cache = False
+    if config["override_cache"]:
+        override_cache = True
 
-    accuracy_df = pandas.read_csv(accuracy_file_path, index_col=0, header=0, engine="pyarrow")
+    G = data_process_lib.load_graph_from_simulation_config(config_file_path)
+
+    accuracy_df = data_process_lib.load_csv_with_parquet_acceleration(accuracy_file_path, False)
 
     peer_change_file_exists = os.path.exists(peer_change_file_path)
     peer_change_list = []
@@ -72,40 +79,18 @@ if __name__ == "__main__":
             if not add_ and delete_:
                 operation = 2
             peer_change_list.append({'tick': tick, 'lhs_node': lhs_node, 'rhs_node': rhs_node, 'operation': operation})
-
         peer_change_file.close()
 
     total_tick = len(accuracy_df.index)
-
     draw_counter = 0
-
     tick_to_draw = []
     for tick in accuracy_df.index:
-        if draw_counter >= draw_per_row:
+        if draw_counter >= draw_interval-1:
             draw_counter = 0
             tick_to_draw.append(tick)
         else:
             draw_counter = draw_counter + 1
             continue
-
-    peer_count = {}
-    G = nx.Graph()
-    for single_node in nodes:
-        G.add_node(single_node['name'])
-        peer_count[single_node['name']] = 0
-
-    if not peer_control_enabled:
-        for singleItem in topology:
-            unDirLink = singleItem.split('--')
-            if len(unDirLink) != 1:
-                G.add_edge(unDirLink[0], unDirLink[1])
-                peer_count[unDirLink[0]] = peer_count[unDirLink[0]] + 1
-                peer_count[unDirLink[1]] = peer_count[unDirLink[1]] + 1
-
-            dirLink = singleItem.split('->')
-            if len(dirLink) != 1:
-                G.add_edge(dirLink[0], dirLink[1])
-                peer_count[unDirLink[0]] = peer_count[unDirLink[0]] + 1
 
     # layout = nx.spring_layout(G, k=5/math.sqrt(G.order()))
     # layout = nx.circular_layout(G)
@@ -122,12 +107,21 @@ if __name__ == "__main__":
 
     pool = multiprocessing.Pool(processes=os.cpu_count())
 
+    N = len(G.nodes)
+    print(f"N={N}")
+    node_size = int(50000/N)
+    node_size = max(10, node_size)
+    print(f"draw_node_size={node_size}")
+    with_labels = True
+    if N > 300:
+        with_labels = False
+    print(f"draw_with_labels={with_labels}")
+
     for tick in tick_to_draw:
         print("processing tick: " + str(tick))
         if os.path.exists(os.path.join(video_cache_path, str(tick) + ".png")) and not override_existing_cache:
             continue
 
-        node_color = []
         node_labels = {}
 
         # node edge
@@ -140,31 +134,28 @@ if __name__ == "__main__":
             peer_change_list_index = peer_change_list_index + 1
 
         # node color
+        node_accuracies = []
         for node in G.nodes:
             accuracy = accuracy_df.loc[tick, node]
-            # (r, g, b) = colorsys.hsv_to_rgb(HSV_H_start / 256 + (1 - HSV_H_start / 256) * accuracy, 0.5, 1.0)
-            (r, g, b) = colorsys.hsv_to_rgb(accuracy, 0.5, 1.0)
-            node_color.append([r, g, b])
+            node_accuracies.append(accuracy)
             node_labels[node] = str(accuracy)
 
         # save to files
-        pool.apply_async(save_fig, (G.copy(), tick, os.path.join(video_cache_path, str(tick) + ".png"), node_color, layout, node_labels))
+        pool.apply_async(save_fig, (G.copy(), tick, os.path.join(video_cache_path, str(tick) + ".png"), node_accuracies, layout, node_labels, node_size, with_labels, override_cache))
 
         # save the map
         if tick == tick_to_draw[0]:
-            maximum_peer = max(peer_count.values())
+            maximum_degree_node, maximum_degree = max(G.degree)
             node_color = []
             node_labels = {}
             for node in G.nodes:
-                (r, g, b) = colorsys.hsv_to_rgb(HSV_H_start / 256 + (1 - HSV_H_start / 256) * peer_count[node] / maximum_peer, 0.5, 1.0)
+                (r, g, b) = colorsys.hsv_to_rgb(HSV_H_start / 256 + (1 - HSV_H_start / 256) * G.degree[node] / maximum_degree, 0.5, 1.0)
                 node_color.append([r, g, b])
-                node_labels[node] = str(node) + "(" + str(peer_count[node]) + ")"
-            pool.apply_async(save_fig, (G.copy(), tick, "map.pdf", node_color, layout, node_labels))
+                node_labels[node] = str(node) + "(" + str(G.degree[node]) + ")"
+            pool.apply_async(save_fig, (G.copy(), tick, "map.pdf", node_accuracies, layout, node_labels, node_size, with_labels, override_cache))
 
     pool.close()
     pool.join()
-
-    # generate the map
 
     # let opencv generate video
     print("generating video")
@@ -177,3 +168,4 @@ if __name__ == "__main__":
         img = cv2.imread(os.path.join(video_cache_path, str(tick) + ".png"))
         video.write(img)
     video.release()
+
