@@ -19,6 +19,11 @@ include("cmake/CompileTimeContent.cmake")
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
 set(DFL_LINKER_LIBS)
 
+# _LIBCPP_ENABLE_CXX17_REMOVED_UNARY_BINARY_FUNCTION
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    add_compile_definitions(_LIBCPP_ENABLE_CXX17_REMOVED_UNARY_BINARY_FUNCTION)
+endif()
+
 # options
 option(USE_HUNTER_BOOST "USE the Boost library in Hunter" ON)
 option(USE_ROCKSDB "USE RocksDB to store block/transactions" ON)
