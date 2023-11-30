@@ -136,7 +136,8 @@ namespace Ml {
         }
 #else
         /// a + b = c
-        void vector_add(const std::vector<float>& a, const std::vector<float>& b, std::vector<float>& c) {
+        template<typename T>
+        void vector_add(const std::vector<T>& a, const std::vector<T>& b, std::vector<T>& c) {
             assert(a.size() == b.size());
             for (size_t i = 0; i < a.size(); i++) {
                 c[i] = a[i] + b[i];
@@ -144,7 +145,8 @@ namespace Ml {
         }
         
         /// a - b = c
-        void vector_minus(const std::vector<float>& a, const std::vector<float>& b, std::vector<float>& c) {
+        template<typename T>
+        void vector_minus(const std::vector<T>& a, const std::vector<T>& b, std::vector<T>& c) {
             assert(a.size() == b.size());
             for (size_t i = 0; i < a.size(); i++) {
                 c[i] = a[i] - b[i];

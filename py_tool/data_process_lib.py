@@ -40,7 +40,8 @@ def load_csv_with_parquet_acceleration(file_path: str, force_load_csv=False) -> 
         return df
     else:
         df = pandas.read_csv(file_path, index_col=0, header=0, engine="pyarrow" if found_pyarrow else None)
-        df.to_parquet(parquet_path, engine="fastparquet")
+        if found_fastparquet:
+            df.to_parquet(parquet_path, engine="fastparquet")
         return df
 
 
