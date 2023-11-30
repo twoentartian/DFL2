@@ -1,9 +1,31 @@
+import networkx as nx
 import pandas
 import os
 import networkx
 import json
 import time
 import importlib.util
+import pickle
+
+
+def save_data(obj, path):
+    with open(path, 'wb') as f:
+        pickle.dump(obj, f)
+
+
+def try_load_data(path):
+    if os.path.exists(path):
+        with open(path, 'rb') as f:
+            obj = pickle.load(f)
+            return obj
+    return None
+
+
+def calculate_node_size_for_drawing(G: nx.Graph) -> int:
+    N = len(G.nodes)
+    node_size = int(50000/N)
+    node_size = max(10, node_size)
+    return node_size
 
 
 def load_csv_with_parquet_acceleration(file_path: str, force_load_csv=False) -> pandas.DataFrame:
