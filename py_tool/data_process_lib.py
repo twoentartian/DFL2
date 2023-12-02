@@ -6,6 +6,22 @@ import time
 import importlib.util
 
 
+def graph_centrality(G, vertex_centrality_func):
+    def __sum_of_deviations_from_max(values):
+        max_val = max(values)
+        return sum(max_val - v for v in values)
+    vertex_centrality = vertex_centrality_func(G)
+    output = __sum_of_deviations_from_max(list(vertex_centrality.values()))
+    return output
+
+
+def graph_centrality_normalized(G, vertex_centrality_func):
+    c = graph_centrality(G, vertex_centrality_func)
+    star_graph = nx.star_graph(len(G.nodes()))
+    c_star = graph_centrality(star_graph, vertex_centrality_func)
+    return c/c_star
+
+
 def load_csv_with_parquet_acceleration(file_path: str, force_load_csv=False) -> pandas.DataFrame:
     spam_spec = importlib.util.find_spec("fastparquet")
     found_fastparquet = spam_spec is not None
