@@ -8,6 +8,14 @@ import importlib.util
 import pickle
 
 
+def int_to_text(num):
+    result = ""
+    while num:
+        num, remainder = divmod(num - 1, 26)
+        result = chr(65 + remainder) + result
+    return result
+
+
 def save_data(obj, path):
     with open(path, 'wb') as f:
         pickle.dump(obj, f)

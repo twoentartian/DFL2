@@ -43,6 +43,9 @@ if __name__ == "__main__":
             node_color_dict[int(single_node)] = i
             node_labels[single_node] = f"{single_node}"
 
+    # save final communities
+    data_process_lib.save_data(final_communities, "final_communities.pkl")
+
     min_key = min(node_color_dict.keys())
     max_key = max(node_color_dict.keys())
     node_color = []
