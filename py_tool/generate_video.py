@@ -40,7 +40,23 @@ def save_fig(G: nx.Graph, tick, save_name, node_accuracies, layout, node_labels,
 
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=normalize)
     sm.set_array([0, 1])
-    fig.colorbar(sm, ax=ax, orientation='vertical', label='Accuracy Values', shrink=0.4)
+    fig.colorbar(sm, ax=ax, orientation='vertical', label='Values', shrink=0.4)
+    fig.savefig(save_name, dpi=dpi, pad_inches=0)
+    plt.close(fig)
+
+
+def save_raw_fig(G: nx.Graph, save_name, node_color, layout, node_labels, node_size, with_labels, override_existing=False):
+    if not override_existing and os.path.exists(save_name):
+        return
+
+    fig = plt.figure(frameon=False)
+    fig.set_size_inches(12, 12)
+    ax = plt.Axes(fig, [0., 0., 1., 1.])
+    ax.set_axis_off()
+    fig.add_axes(ax)
+
+    nx.draw(G, node_color=node_color, with_labels=with_labels, pos=layout, font_color='k', labels=node_labels, alpha=0.7, linewidths=0.1, width=0.1, font_size=8, node_size=node_size)
+
     fig.savefig(save_name, dpi=dpi, pad_inches=0)
     plt.close(fig)
 
@@ -145,14 +161,15 @@ if __name__ == "__main__":
 
         # save the map
         if tick == tick_to_draw[0]:
+            # map
             maximum_degree_node, maximum_degree = max(G.degree)
             node_color = []
             node_labels = {}
             for node in G.nodes:
                 (r, g, b) = colorsys.hsv_to_rgb(HSV_H_start / 256 + (1 - HSV_H_start / 256) * G.degree[node] / maximum_degree, 0.5, 1.0)
                 node_color.append([r, g, b])
-                node_labels[node] = str(node) + "(" + str(G.degree[node]) + ")"
-            pool.apply_async(save_fig, (G.copy(), tick, "map.pdf", node_accuracies, layout, node_labels, node_size, with_labels, override_cache))
+                node_labels[node] = f"{node}({G.degree[node]})"
+            pool.apply_async(save_raw_fig, (G.copy(), "map.pdf", node_color, layout, node_labels, node_size, True,  True))
 
     pool.close()
     pool.join()

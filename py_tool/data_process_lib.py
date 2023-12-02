@@ -1,9 +1,31 @@
+import networkx as nx
 import pandas
 import os
-import networkx as nx
+import networkx
 import json
 import time
 import importlib.util
+import pickle
+
+
+def save_data(obj, path):
+    with open(path, 'wb') as f:
+        pickle.dump(obj, f)
+
+
+def try_load_data(path):
+    if os.path.exists(path):
+        with open(path, 'rb') as f:
+            obj = pickle.load(f)
+            return obj
+    return None
+
+
+def calculate_node_size_for_drawing(G: nx.Graph) -> int:
+    N = len(G.nodes)
+    node_size = int(50000/N)
+    node_size = max(10, node_size)
+    return node_size
 
 
 def graph_centrality(G, vertex_centrality_func):
@@ -39,7 +61,7 @@ def load_csv_with_parquet_acceleration(file_path: str, force_load_csv=False) -> 
         return df
 
 
-def load_graph_from_simulation_config(config_file_path: str, verbose=False) -> nx.Graph:
+def load_graph_from_simulation_config(config_file_path: str, verbose=False) -> networkx.Graph:
     t = 0
     if verbose:
         t = time.time()
@@ -52,11 +74,11 @@ def load_graph_from_simulation_config(config_file_path: str, verbose=False) -> n
     nodes = config_file_json['nodes']
 
     # DiGraph or Graph?
-    G = nx.Graph()
+    G = networkx.Graph()
     for singleItem in topology:
         dirLink = singleItem.split('->')
         if len(dirLink) != 1:
-            G = nx.DiGraph()
+            G = networkx.DiGraph()
             break
 
     nodes_to_add = []
@@ -81,5 +103,6 @@ def load_graph_from_simulation_config(config_file_path: str, verbose=False) -> n
     return G
 
 
-def calculate_herd_effect_delay():
+def calculate_herd_effect_delay(accuracy_df: pandas.DataFrame):
     pass
+
