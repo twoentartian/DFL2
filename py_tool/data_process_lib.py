@@ -1,4 +1,3 @@
-import networkx as nx
 import pandas
 import os
 import networkx
@@ -29,11 +28,27 @@ def try_load_data(path):
     return None
 
 
-def calculate_node_size_for_drawing(G: nx.Graph) -> int:
+def calculate_node_size_for_drawing(G: networkx.Graph) -> int:
     N = len(G.nodes)
     node_size = int(50000/N)
     node_size = max(10, node_size)
     return node_size
+
+
+def graph_centrality(G, vertex_centrality_func):
+    def __sum_of_deviations_from_max(values):
+        max_val = max(values)
+        return sum(max_val - v for v in values)
+    vertex_centrality = vertex_centrality_func(G)
+    output = __sum_of_deviations_from_max(list(vertex_centrality.values()))
+    return output
+
+
+def graph_centrality_normalized(G, vertex_centrality_func):
+    c = graph_centrality(G, vertex_centrality_func)
+    star_graph = networkx.star_graph(len(G.nodes()))
+    c_star = graph_centrality(star_graph, vertex_centrality_func)
+    return c/c_star
 
 
 def load_csv_with_parquet_acceleration(file_path: str, force_load_csv=False) -> pandas.DataFrame:
@@ -95,6 +110,13 @@ def load_graph_from_simulation_config(config_file_path: str, verbose=False) -> n
     return G
 
 
-def calculate_herd_effect_delay(accuracy_df: pandas.DataFrame):
-    pass
-
+def calculate_herd_effect_delay(accuracy_series: pandas.Series, first_average_time=60):
+    accuracy_series = accuracy_series.rolling(window=3).mean()
+    average_accuracy_diff = accuracy_series.diff()
+    average_accuracy_diff.dropna(inplace=True)
+    # herd_effect_delay_tick = average_accuracy_diff.idxmax()
+    largest_diff = average_accuracy_diff.nlargest(10)
+    largest_indexes = largest_diff.index
+    for i in largest_indexes:
+        if i > first_average_time:
+            return i
