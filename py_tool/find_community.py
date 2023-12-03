@@ -1,3 +1,4 @@
+import os.path
 import time
 
 import networkx as nx
@@ -38,6 +39,9 @@ def most_valuable_edge(G):
 if __name__ == "__main__":
     G = data_process_lib.load_graph_from_simulation_config(config_file_path)
 
+    if not os.path.exists(output_community_folder):
+        os.mkdir(output_community_folder)
+
     node_size = data_process_lib.calculate_node_size_for_drawing(G)
     layout = data_process_lib.try_calculate_layout_with_cache(G)
 
@@ -57,7 +61,7 @@ if __name__ == "__main__":
                 node_labels[single_node] = f"{single_node}"
 
         # save final communities
-        data_process_lib.save_data(final_communities, f"community_{k}.pkl")
+        data_process_lib.save_data(final_communities, os.path.join(output_community_folder, f"community_{k}.pkl"))
 
         min_key = min(node_color_dict.keys())
         max_key = max(node_color_dict.keys())
@@ -80,6 +84,6 @@ if __name__ == "__main__":
 
         nx.draw(G, node_color=node_color_draw, with_labels=True, pos=layout, font_color='k', labels=node_labels, alpha=0.7, linewidths=0.1, width=0.1, font_size=8, node_size=node_size)
 
-        fig.savefig(f"community_{k}.pdf", pad_inches=0)
+        fig.savefig(os.path.join(output_community_folder, f"community_{k}.pdf"), pad_inches=0)
         plt.close(fig)
 
