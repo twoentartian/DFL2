@@ -46,6 +46,12 @@ target_link_libraries (reputation_80_training_20_averaging ${DFL_LINKER_LIBS})
 add_library (reputation_75_training_25_averaging SHARED "75_training_25_averaging.cpp")
 target_link_libraries (reputation_75_training_25_averaging ${DFL_LINKER_LIBS})
 
+add_library (reputation_70_training_30_averaging SHARED "70_training_30_averaging.cpp")
+target_link_libraries (reputation_70_training_30_averaging ${DFL_LINKER_LIBS})
+
+add_library (reputation_60_training_40_averaging SHARED "60_training_40_averaging.cpp")
+target_link_libraries (reputation_60_training_40_averaging ${DFL_LINKER_LIBS})
+
 add_library (reputation_50_training_50_averaging SHARED "50_training_50_averaging.cpp")
 target_link_libraries (reputation_50_training_50_averaging ${DFL_LINKER_LIBS})
 
@@ -54,6 +60,9 @@ target_link_libraries (reputation_40_training_60_averaging ${DFL_LINKER_LIBS})
 
 add_library (reputation_30_training_70_averaging SHARED "30_training_70_averaging.cpp")
 target_link_libraries (reputation_30_training_70_averaging ${DFL_LINKER_LIBS})
+
+add_library (reputation_25_training_75_averaging SHARED "25_training_75_averaging.cpp")
+target_link_libraries (reputation_25_training_75_averaging ${DFL_LINKER_LIBS})
 
 add_library (reputation_20_training_80_averaging SHARED "20_training_80_averaging.cpp")
 target_link_libraries (reputation_20_training_80_averaging ${DFL_LINKER_LIBS})
@@ -75,12 +84,15 @@ target_link_libraries (reputation_2_training_98_averaging ${DFL_LINKER_LIBS})
 
 add_custom_target(DFL_reputations DEPENDS reputation_api_sample reputation_FedAvg reputation_HalfFedAvg reputation_ML_hcluster
         reputation_001 reputation_005
-        reputation_100_training_0_averaging reputation_98_training_2_averaging
-        reputation_96_training_4_averaging reputation_94_training_6_averaging
-        reputation_92_training_8_averaging reputation_90_training_10_averaging
-        reputation_80_training_20_averaging reputation_75_training_25_averaging
+        reputation_100_training_0_averaging
+        reputation_98_training_2_averaging reputation_96_training_4_averaging
+        reputation_94_training_6_averaging reputation_92_training_8_averaging
+        reputation_90_training_10_averaging reputation_80_training_20_averaging
+        reputation_75_training_25_averaging
+        reputation_70_training_30_averaging reputation_60_training_40_averaging
         reputation_50_training_50_averaging
         reputation_40_training_60_averaging reputation_30_training_70_averaging
+        reputation_25_training_75_averaging
         reputation_20_training_80_averaging reputation_10_training_90_averaging
         reputation_8_training_92_averaging reputation_6_training_94_averaging
         reputation_4_training_96_averaging reputation_2_training_98_averaging
