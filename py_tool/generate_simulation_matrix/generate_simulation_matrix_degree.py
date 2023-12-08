@@ -6,12 +6,13 @@ from subprocess import call
 import shutil
 
 # network_size = [100, 200, 400, 800, 1600, 2400, 3200, 4800]
-degrees = range(45,46,3)
+degrees = range(3,46,3)
 
 network_generator = "large_scale_simulation_generator"
 non_iid_generator = "dirichlet_distribution_config_generator"
 generate_non_iid = True
 non_iid_generator_arg = "0.5"
+R = 4
 
 simulator_config_file_name = "simulator_config.json"
 network_generator_config_file_name = "large_scale_config.json"
@@ -57,7 +58,7 @@ if __name__ == "__main__":
             f = open(network_generator_config_path, "r")
             config_json = json.load(f)
             config_json['node_peer_connection_count'] = degree
-            config_json['buffer_size'] = degree * 2
+            config_json['buffer_size'] = degree * R
             f.close()
             f = open(network_generator_config_path, "w")
             output_json_data = json.dumps(config_json, indent=4)

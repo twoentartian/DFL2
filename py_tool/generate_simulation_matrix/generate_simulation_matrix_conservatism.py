@@ -16,8 +16,8 @@ non_iid_generator_arg = "0.5"
 simulator_config_file_name = "simulator_config.json"
 network_generator_config_file_name = "large_scale_config.json"
 
-simulator_name = "DFL_simulator_opti"
-simulator_script_name = "run_simulator_opti.sh"
+simulator_name = "DFL_simulator_mt"
+simulator_script_name = "run_simulator_mt.sh"
 
 simulation_folder_name = "simulation"
 tool_folder_name = "tool"
