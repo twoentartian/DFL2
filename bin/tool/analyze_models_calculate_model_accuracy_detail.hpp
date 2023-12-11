@@ -97,7 +97,7 @@ void calculate_model_accuracy_details(const std::string& models_path_str, const 
                     Ml::tensor_blob_like<model_datatype> temp_label_tensor;
                     temp_label_tensor.getShape() = {1};
                     temp_label_tensor.getData() = {float(label)};
-                    const auto [data_tensor, label_tensor] = train_dataset.get_random_data_by_Label(temp_label_tensor, test_size);
+                    const auto [data_tensor, label_tensor] = train_dataset.get_random_data_by_label(temp_label_tensor, test_size);
                     float accuracy = solver.evaluation(data_tensor, label_tensor);
                     {
                         std::lock_guard guard(output_accuracy_detail_lock);
@@ -110,7 +110,7 @@ void calculate_model_accuracy_details(const std::string& models_path_str, const 
                     Ml::tensor_blob_like<model_datatype> temp_label_tensor;
                     temp_label_tensor.getShape() = {1};
                     temp_label_tensor.getData() = {float(label)};
-                    const auto [data_tensor, label_tensor] = test_dataset.get_random_data_by_Label(temp_label_tensor, test_size);
+                    const auto [data_tensor, label_tensor] = test_dataset.get_random_data_by_label(temp_label_tensor, test_size);
                     float accuracy = solver.evaluation(data_tensor, label_tensor);
                     {
                         std::lock_guard guard(output_accuracy_detail_lock);
