@@ -174,7 +174,7 @@ void calculate_weight_distance_from_starting_point_and_origin_and_destination(co
         {
             std::filesystem::create_directory(output_path);
         }
-        output_path = output_path / "weight_distance_from_start_point_origin";
+        output_path = output_path / "weight_distance_from_start_origin_destination";
         if (std::filesystem::exists(output_path))
         {
             //skip this procedure
