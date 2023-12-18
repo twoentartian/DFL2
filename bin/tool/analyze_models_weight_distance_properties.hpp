@@ -17,7 +17,7 @@
 std::map<int, std::map<std::string, float>> calculate_model_distance_from_starting_cpu_kernel(const std::map<int, std::map<std::string, std::vector<float>>>& tick_layer_weight, size_t starting_index)
 {
     std::map<int, std::map<std::string, float>> output;
-    
+
     auto starting_tick_iter = tick_layer_weight.begin();
     for (int i = 0; i < starting_index; ++i)
     {
@@ -28,7 +28,7 @@ std::map<int, std::map<std::string, float>> calculate_model_distance_from_starti
     for (const auto& [tick, layer_weight]: tick_layer_weight)
     {
         if (tick == starting_tick) continue;
-        
+
         for (const auto& [layer_name, weight]: layer_weight)
         {
             float distance = 0;
@@ -36,7 +36,7 @@ std::map<int, std::map<std::string, float>> calculate_model_distance_from_starti
             output[tick][layer_name] = distance;
         }
     }
-    
+
     return output;
 }
 
@@ -69,7 +69,7 @@ std::map<int, std::map<std::string, float>> calculate_model_distance_from_destin
 std::map<int, std::map<std::string, float>> calculate_model_distance_from_origin_cpu_kernel(const std::map<int, std::map<std::string, std::vector<float>>>& tick_layer_weight)
 {
     std::map<int, std::map<std::string, float>> output;
-    
+
     for (const auto& [tick, layer_weight]: tick_layer_weight)
     {
         for (const auto& [layer_name, weight]: layer_weight)
@@ -79,7 +79,7 @@ std::map<int, std::map<std::string, float>> calculate_model_distance_from_origin
             output[tick][layer_name] = distance;
         }
     }
-    
+
     return output;
 }
 
@@ -100,6 +100,7 @@ std::map<int, std::map<std::string, float>> calculate_delta_model_weight_distanc
             {
                 float distance = 0;
                 calculate_distance(&distance, weight, iter_previous_layer_weight->second);
+                iter_previous_layer_weight->second = weight;
                 output[tick][layer_name] = distance;
             }
         }
@@ -107,13 +108,13 @@ std::map<int, std::map<std::string, float>> calculate_delta_model_weight_distanc
     return output;
 }
 
-//// return: map< node_name,  pair< map<tick, distance_to_starting>, map<tick, distance_to_destination>, map<tick, distance_to_origin> > > >
+//// return: map< node_name,  pair< map<tick, distance_to_starting>, map<tick, distance_to_destination>, map<tick, distance_to_origin>, map<tick, delta_distance> > > >
 using TYPE_TICK_NODE_DISTANCE = std::map<int, std::map<std::string, float>>;
 std::map<std::string, std::tuple<TYPE_TICK_NODE_DISTANCE, TYPE_TICK_NODE_DISTANCE, TYPE_TICK_NODE_DISTANCE, TYPE_TICK_NODE_DISTANCE>> process_weight_distance_from_starting_point_and_origin_and_destination(std::map<std::string, std::map<int, std::filesystem::path>> node_name_tick_and_path, size_t starting_index, size_t destination_index, bool use_cuda)
 {
     std::map<std::string, std::tuple<TYPE_TICK_NODE_DISTANCE, TYPE_TICK_NODE_DISTANCE, TYPE_TICK_NODE_DISTANCE, TYPE_TICK_NODE_DISTANCE>> output;
     std::mutex output_lock;
-    
+
     boost::asio::thread_pool pool(std::thread::hardware_concurrency());
     for (const auto& [node_name, tick_and_path]:node_name_tick_and_path)
     {
@@ -141,7 +142,7 @@ std::map<std::string, std::tuple<TYPE_TICK_NODE_DISTANCE, TYPE_TICK_NODE_DISTANC
                     tick_layer_weight.emplace(tick, layer_weight);
                 }
             }
-            
+
             //check all models have the same size
             {
                 bool first = true;
@@ -178,7 +179,7 @@ std::map<std::string, std::tuple<TYPE_TICK_NODE_DISTANCE, TYPE_TICK_NODE_DISTANC
         });
     }
     pool.join();
-    
+
     return output;
 }
 
@@ -193,7 +194,7 @@ void calculate_weight_distance_from_starting_point_and_origin_and_destination(co
             LOG(FATAL) << models_path.string() << " doesn't exist";
         }
     }
-    
+
     std::filesystem::path output_path;
     {
         output_path.assign(output_path_str);
@@ -214,9 +215,9 @@ void calculate_weight_distance_from_starting_point_and_origin_and_destination(co
         }
     }
 #pragma endregion
-    
+
     LOG(INFO) << "processing analyzing model weight distance from starting point and origin , path: " << models_path.string();
-    
+
     //// map < node_name , map < tick, path >
     std::map<std::string, std::map<int, std::filesystem::path>> node_name_tick_to_path;
     std::set<std::string> all_nodes;
@@ -231,7 +232,7 @@ void calculate_weight_distance_from_starting_point_and_origin_and_destination(co
             if (!entry_1.is_regular_file()) continue;
             const auto& node_model_file = entry_1.path();
             const auto node_name = node_model_file.stem().string();
-            
+
             int tick_int = std::stoi(tick);
             all_ticks.emplace(tick_int);
             all_nodes.emplace(node_name);
@@ -243,18 +244,18 @@ void calculate_weight_distance_from_starting_point_and_origin_and_destination(co
     int start_tick = *all_ticks.begin();
     int end_tick = *all_ticks.rbegin();
     auto write_to_file_data = process_weight_distance_from_starting_point_and_origin_and_destination(node_name_tick_to_path, start_tick, end_tick, use_cuda); //map is ordered, so the first tick is always located at 0
-    
+
     ////write to files
     for (const auto& [node_name, all_distances]: write_to_file_data)
     {
         const auto& [distance_to_starting, distance_to_destination, distance_to_origin, delta_distance] = all_distances;
-        
+
         const auto write_to_file = [&node_name, &output_path](const std::string& filename_prefix, const std::map<int, std::map<std::string, float>>& distances){
             std::ofstream file;
             auto output_file_path = output_path / (filename_prefix + node_name + ".csv");
             file.open(output_file_path);
             LOG_IF(FATAL, file.bad()) << "cannot open file " << output_file_path.string();
-            
+
             //create header
             LOG_IF(FATAL, distances.empty()) << "no data (distance from start) in node: " << node_name;
             {
@@ -265,7 +266,7 @@ void calculate_weight_distance_from_starting_point_and_origin_and_destination(co
                 }
                 file << "\n";
             }
-            
+
             for (const auto& [tick, layer_distance]: distances)
             {
                 file << tick;
@@ -275,15 +276,15 @@ void calculate_weight_distance_from_starting_point_and_origin_and_destination(co
                 }
                 file << "\n";
             }
-            
+
             file.flush();
             file.close();
         };
-        
+
         write_to_file("from_start_", distance_to_starting);
         write_to_file("from_destination_", distance_to_destination);
         write_to_file("from_origin_", distance_to_origin);
         write_to_file("delta_distance_", delta_distance);
     }
-    
+
 }
