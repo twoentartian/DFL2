@@ -15,7 +15,7 @@
 
 #include "analyze_models_weight_distance_from_each_other.hpp"
 #include "analyze_models_calculate_model_accuracy_detail.hpp"
-#include "analyze_models_weight_distance_from_starting_point_and_origin.hpp"
+#include "analyze_models_weight_distance_properties.hpp"
 
 using model_datatype = float;
 
