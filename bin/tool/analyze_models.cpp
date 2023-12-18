@@ -102,6 +102,5 @@ int main(int argc, char** argv)
         calculate_model_accuracy_details(models_path_str, output_path_str, train_dataset, test_dataset, solver_path_str, test_size);
     }
 
-
     return 0;
 }

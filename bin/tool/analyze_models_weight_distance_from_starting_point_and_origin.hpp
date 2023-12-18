@@ -83,17 +83,42 @@ std::map<int, std::map<std::string, float>> calculate_model_distance_from_origin
     return output;
 }
 
-//// return: map< node_name,  pair< map<tick, distance_to_starting>, map<tick, distance_to_origin> > > >
-std::map<std::string, std::tuple<std::map<int, std::map<std::string, float>>, std::map<int, std::map<std::string, float>>, std::map<int, std::map<std::string, float>>>> process_weight_distance_from_starting_point_and_origin_and_destination(std::map<std::string, std::map<int, std::filesystem::path>> node_name_tick_and_path, size_t starting_index, size_t destination_index, bool use_cuda)
+std::map<int, std::map<std::string, float>> calculate_delta_model_weight_distance(const std::map<int, std::map<std::string, std::vector<float>>>& tick_layer_weight)
 {
-    std::map<std::string, std::tuple<std::map<int, std::map<std::string, float>>, std::map<int, std::map<std::string, float>>, std::map<int, std::map<std::string, float>>>> output;
+    std::map<int, std::map<std::string, float>> output;
+    std::map<std::string, std::vector<float>> previous_layer_weight;
+    for (const auto& [tick, layer_weight]: tick_layer_weight)
+    {
+        for (const auto& [layer_name, weight]: layer_weight)
+        {
+            auto iter_previous_layer_weight = previous_layer_weight.find(layer_name);
+            if (iter_previous_layer_weight == previous_layer_weight.end())
+            {
+                previous_layer_weight.emplace(layer_name, weight);
+            }
+            else
+            {
+                float distance = 0;
+                calculate_distance(&distance, weight, iter_previous_layer_weight->second);
+                output[tick][layer_name] = distance;
+            }
+        }
+    }
+    return output;
+}
+
+//// return: map< node_name,  pair< map<tick, distance_to_starting>, map<tick, distance_to_destination>, map<tick, distance_to_origin> > > >
+using TYPE_TICK_NODE_DISTANCE = std::map<int, std::map<std::string, float>>;
+std::map<std::string, std::tuple<TYPE_TICK_NODE_DISTANCE, TYPE_TICK_NODE_DISTANCE, TYPE_TICK_NODE_DISTANCE, TYPE_TICK_NODE_DISTANCE>> process_weight_distance_from_starting_point_and_origin_and_destination(std::map<std::string, std::map<int, std::filesystem::path>> node_name_tick_and_path, size_t starting_index, size_t destination_index, bool use_cuda)
+{
+    std::map<std::string, std::tuple<TYPE_TICK_NODE_DISTANCE, TYPE_TICK_NODE_DISTANCE, TYPE_TICK_NODE_DISTANCE, TYPE_TICK_NODE_DISTANCE>> output;
     std::mutex output_lock;
     
     boost::asio::thread_pool pool(std::thread::hardware_concurrency());
     for (const auto& [node_name, tick_and_path]:node_name_tick_and_path)
     {
         boost::asio::post(pool, [tick_and_path, node_name, &output_lock, &output, starting_index, destination_index, use_cuda](){
-            std::map<int, std::map<std::string, float>> output_distance_from_starting, output_distance_from_destination, output_distance_from_origin;
+            std::map<int, std::map<std::string, float>> output_distance_from_starting, output_distance_from_destination, output_distance_from_origin, delta_model_wegiht_distance;
             std::map<int, std::map<std::string, std::vector<float>>> tick_layer_weight;
             {
                 for (const auto &[tick, model_path]: tick_and_path)
@@ -144,9 +169,10 @@ std::map<std::string, std::tuple<std::map<int, std::map<std::string, float>>, st
             output_distance_from_starting = calculate_model_distance_from_starting_cpu_kernel(tick_layer_weight, starting_index);
             output_distance_from_destination = calculate_model_distance_from_destination_cpu_kernel(tick_layer_weight, destination_index);
             output_distance_from_origin = calculate_model_distance_from_origin_cpu_kernel(tick_layer_weight);
+            delta_model_wegiht_distance = calculate_delta_model_weight_distance(tick_layer_weight);
             {
                 std::lock_guard guard(output_lock);
-                output[node_name] = std::make_tuple(output_distance_from_starting, output_distance_from_destination, output_distance_from_origin);
+                output[node_name] = std::make_tuple(output_distance_from_starting, output_distance_from_destination, output_distance_from_origin, delta_model_wegiht_distance);
             }
             LOG(INFO) << "finish calculating distance from starting point & origin for node: " << node_name;
         });
@@ -158,6 +184,7 @@ std::map<std::string, std::tuple<std::map<int, std::map<std::string, float>>, st
 
 void calculate_weight_distance_from_starting_point_and_origin_and_destination(const std::string& models_path_str, const std::string& output_path_str, bool use_cuda)
 {
+#pragma region Pre check input/output path
     std::filesystem::path models_path;
     {
         models_path.assign(models_path_str);
@@ -186,6 +213,7 @@ void calculate_weight_distance_from_starting_point_and_origin_and_destination(co
             std::filesystem::create_directory(output_path);
         }
     }
+#pragma endregion
     
     LOG(INFO) << "processing analyzing model weight distance from starting point and origin , path: " << models_path.string();
     
@@ -219,7 +247,7 @@ void calculate_weight_distance_from_starting_point_and_origin_and_destination(co
     ////write to files
     for (const auto& [node_name, all_distances]: write_to_file_data)
     {
-        const auto& [distance_to_starting, distance_to_destination, distance_to_origin] = all_distances;
+        const auto& [distance_to_starting, distance_to_destination, distance_to_origin, delta_distance] = all_distances;
         
         const auto write_to_file = [&node_name, &output_path](const std::string& filename_prefix, const std::map<int, std::map<std::string, float>>& distances){
             std::ofstream file;
@@ -255,6 +283,7 @@ void calculate_weight_distance_from_starting_point_and_origin_and_destination(co
         write_to_file("from_start_", distance_to_starting);
         write_to_file("from_destination_", distance_to_destination);
         write_to_file("from_origin_", distance_to_origin);
+        write_to_file("delta_distance_", delta_distance);
     }
     
 }
