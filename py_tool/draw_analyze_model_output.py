@@ -10,7 +10,7 @@ analyze_models_output_path = "analyze_models_output"
 
 accuracy_detail_file_name = 'accuracy_detail.zip'
 weight_distance_from_each_other_file_name = 'weight_distance_from_each_other.zip'
-weight_distance_from_start_point_origin_file_name = 'weight_distance_from_start_point_origin.zip'
+weight_distance_from_start_point_origin_file_name = 'weight_distance.zip'
 
 number_of_figure_per_row = 5
 maximum_tick = 20000
@@ -153,6 +153,8 @@ for items in os.listdir(analyze_models_output_path):
         distance_files = os.listdir(cache_path)
         distance_file_paths_start = {}
         distance_file_paths_origin = {}
+        distance_file_paths_destination = {}
+        distance_file_paths_delta = {}
         all_node_names = set()
         for single_file in distance_files:
             match = re.search(r"\d+", single_file)
@@ -168,6 +170,10 @@ for items in os.listdir(analyze_models_output_path):
                 distance_file_paths_start[node_name] = os.path.join(cache_path, single_file)
             if node_description.count('origin'):
                 distance_file_paths_origin[node_name] = os.path.join(cache_path, single_file)
+            if node_description.count('destination'):
+                distance_file_paths_destination[node_name] = os.path.join(cache_path, single_file)
+            if node_description.count('delta'):
+                distance_file_paths_delta[node_name] = os.path.join(cache_path, single_file)
 
         all_node_names_index = 0
         node_name_to_index = {}
@@ -179,8 +185,14 @@ for items in os.listdir(analyze_models_output_path):
         row_count = math.ceil(len(all_node_names) / col_count)
         whole_fig_start, whole_axis_start = plt.subplots(row_count, col_count, figsize=(col_count * 5, row_count * 2.5))
         whole_fig_origin, whole_axis_origin = plt.subplots(row_count, col_count, figsize=(col_count * 5, row_count * 2.5))
+        whole_fig_destination, whole_axis_destination = plt.subplots(row_count, col_count, figsize=(col_count * 5, row_count * 2.5))
+        whole_fig_start_log, whole_axis_start_log = plt.subplots(row_count, col_count, figsize=(col_count * 5, row_count * 2.5))
+        whole_fig_origin_log, whole_axis_origin_log = plt.subplots(row_count, col_count, figsize=(col_count * 5, row_count * 2.5))
+        whole_fig_destination_log, whole_axis_destination_log = plt.subplots(row_count, col_count, figsize=(col_count * 5, row_count * 2.5))
+        whole_fig_delta, whole_axis_delta = plt.subplots(row_count, col_count, figsize=(col_count * 5, row_count * 2.5))
+        whole_fig_delta_log, whole_axis_delta_log = plt.subplots(row_count, col_count, figsize=(col_count * 5, row_count * 2.5))
 
-        def draw_distance(distance_file_paths, whole_axis, _type):
+        def draw_distance(distance_file_paths, whole_axis, _type, use_log_y=True):
             for [_node_name, path] in distance_file_paths.items():
                 print("process %s" % path)
 
@@ -208,18 +220,49 @@ for items in os.listdir(analyze_models_output_path):
                 _current_axis.set_title("node %d distance to %s" % (_node_name, _type))
                 _current_axis.set_xlabel('time (tick)')
                 _current_axis.set_ylabel('distance')
-                _current_axis.set_yscale('log')
+                if use_log_y:
+                    _current_axis.set_yscale('log')
                 _current_axis.set_xlim([0, _data.index[max_tick]])
 
 
-        draw_distance(distance_file_paths_start, whole_axis_start, 'start')
+        draw_distance(distance_file_paths_start, whole_axis_start, 'start', use_log_y=False)
         print("save figure distance_to_start.pdf")
         whole_fig_start.tight_layout()
         whole_fig_start.savefig('distance_to_start.pdf')
 
-        draw_distance(distance_file_paths_origin, whole_axis_origin, 'origin')
+        draw_distance(distance_file_paths_origin, whole_axis_origin, 'origin', use_log_y=False)
         print("save figure distance_to_origin.pdf")
         whole_fig_origin.tight_layout()
         whole_fig_origin.savefig('distance_to_origin.pdf')
+
+        draw_distance(distance_file_paths_destination, whole_axis_destination, 'destination', use_log_y=False)
+        print("save figure distance_to_destination.pdf")
+        whole_fig_destination.tight_layout()
+        whole_fig_destination.savefig('distance_to_destination.pdf')
+
+        draw_distance(distance_file_paths_start, whole_axis_start_log, 'start', use_log_y=True)
+        print("save figure distance_to_start_log.pdf")
+        whole_fig_start_log.tight_layout()
+        whole_fig_start_log.savefig('distance_to_start_log.pdf')
+
+        draw_distance(distance_file_paths_origin, whole_axis_origin_log, 'origin', use_log_y=True)
+        print("save figure distance_to_origin_log.pdf")
+        whole_fig_origin_log.tight_layout()
+        whole_fig_origin_log.savefig('distance_to_origin_log.pdf')
+
+        draw_distance(distance_file_paths_destination, whole_axis_destination_log, 'destination', use_log_y=True)
+        print("save figure distance_to_destination_log.pdf")
+        whole_fig_destination_log.tight_layout()
+        whole_fig_destination_log.savefig('distance_to_destination_log.pdf')
+
+        draw_distance(distance_file_paths_delta, whole_axis_delta, 'previous(delta_weight_change)', use_log_y=False)
+        print("save figure delta_weight_distance.pdf")
+        whole_fig_delta.tight_layout()
+        whole_fig_delta.savefig('delta_weight_distance.pdf')
+
+        draw_distance(distance_file_paths_delta, whole_axis_delta_log, 'previous(delta_weight_change)', use_log_y=True)
+        print("save figure delta_weight_distance_log.pdf")
+        whole_fig_delta_log.tight_layout()
+        whole_fig_delta_log.savefig('delta_weight_distance_log.pdf')
 
     shutil.rmtree(cache_path, ignore_errors=True)
