@@ -98,6 +98,11 @@ configuration_file::json get_default_simulation_configuration()
         services["reputation_record"] = reputation_record_service;
     }
     {
+        configuration_file::json delta_weight_after_training_record_service = configuration_file::json::object();
+        delta_weight_after_training_record_service["enable"] = false;
+        services["delta_weight_after_training_record"] = delta_weight_after_training_record_service;
+    }
+    {
         configuration_file::json model_record_service = configuration_file::json::object();
         model_record_service["enable"] = false;
         model_record_service["path"] = "./models";
