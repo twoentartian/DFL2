@@ -594,7 +594,7 @@ int main(int argc, char *argv[])
 			//services
 			for (auto& [name, service_instance]: services)
 			{
-				service_instance->process_per_tick(tick);
+				service_instance->process_per_tick(tick, service_trigger_type::end_of_tick);
 			}
 			
 			//early stop?

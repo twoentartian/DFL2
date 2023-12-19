@@ -15,12 +15,18 @@
 
 #include "../tool/simulation_config_generator_common_functions.hpp"
 
-enum class record_service_status
+enum class service_status
 {
 	success,
 	fail_not_specified_reason,
 	skipped
 	
+};
+
+enum class service_trigger_type
+{
+    end_of_tick,
+
 };
 
 template <typename model_datatype>
@@ -29,7 +35,7 @@ class service
 public:
 	bool enable;
 	
-	virtual std::tuple<record_service_status, std::string> apply_config(const configuration_file::json& config) = 0;
+	virtual std::tuple<service_status, std::string> apply_config(const configuration_file::json& config) = 0;
 	
 	service()
 	{
@@ -38,11 +44,11 @@ public:
 		enable = false;
 	}
 	
-	virtual std::tuple<record_service_status, std::string> init_service(const std::filesystem::path& output_path, std::unordered_map<std::string, node<model_datatype> *>&, std::vector<node<model_datatype>*>&) = 0;
+	virtual std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::unordered_map<std::string, node<model_datatype> *>&, std::vector<node<model_datatype>*>&) = 0;
 	
-	virtual std::tuple<record_service_status, std::string> process_per_tick(int tick) = 0;
+	virtual std::tuple<service_status, std::string> process_per_tick(int tick, service_trigger_type trigger) = 0;
 	
-	virtual std::tuple<record_service_status, std::string> destruction_service() = 0;
+	virtual std::tuple<service_status, std::string> destruction_service() = 0;
 
 protected:
 	void set_node_container(std::unordered_map<std::string, node<model_datatype> *>& map, std::vector<node<model_datatype>*>& vector)
@@ -76,15 +82,15 @@ public:
 		solver_for_testing = nullptr;
 	}
 	
-	std::tuple<record_service_status, std::string> apply_config(const configuration_file::json& config) override
+	std::tuple<service_status, std::string> apply_config(const configuration_file::json& config) override
 	{
 		this->enable = config["enable"];
 		this->ml_test_interval_tick = config["interval"];
 		
-		return {record_service_status::success, ""};
+		return {service_status::success, ""};
 	}
 	
-	std::tuple<record_service_status, std::string> init_service(const std::filesystem::path& output_path, std::unordered_map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
+	std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::unordered_map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
 	{
 		this->set_node_container(_node_container, _node_vector_container);
 		
@@ -107,14 +113,16 @@ public:
 			solver_for_testing[i].load_caffe_model(ml_solver_proto);
 		}
 		
-		return {record_service_status::success, ""};
+		return {service_status::success, ""};
 	}
 	
-	std::tuple<record_service_status, std::string> process_per_tick(int tick) override
+	std::tuple<service_status, std::string> process_per_tick(int tick, service_trigger_type trigger) override
 	{
-		if (this->enable == false) return {record_service_status::skipped, "not enabled"};
-		
-		if (tick % ml_test_interval_tick != 0) return {record_service_status::skipped, "not time yet"};
+		if (this->enable == false) return {service_status::skipped, "not enabled"};
+
+        if (trigger != service_trigger_type::end_of_tick) return {service_status::skipped, "not service_trigger_type::end_of_tick"};
+
+		if (tick % ml_test_interval_tick != 0) return {service_status::skipped, "not time yet"};
         
         tmt::ParallelExecution([&tick, this](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node)
                                {
@@ -142,16 +150,16 @@ public:
         }
         *accuracy_file << std::endl;
         
-		return {record_service_status::success, ""};
+		return {service_status::success, ""};
 	}
 	
-	std::tuple<record_service_status, std::string> destruction_service() override
+	std::tuple<service_status, std::string> destruction_service() override
 	{
 		delete[] solver_for_testing;
 		accuracy_file->flush();
 		accuracy_file->close();
 		
-		return {record_service_status::success, ""};
+		return {service_status::success, ""};
 	}
 	
 private:
@@ -172,15 +180,15 @@ public:
 		ml_model_weight_diff_record_interval_tick = 0;
 	}
 	
-	std::tuple<record_service_status, std::string> apply_config(const configuration_file::json& config) override
+	std::tuple<service_status, std::string> apply_config(const configuration_file::json& config) override
 	{
 		this->enable = config["enable"];
 		this->ml_model_weight_diff_record_interval_tick = config["interval"];
 		
-		return {record_service_status::success, ""};
+		return {service_status::success, ""};
 	}
 	
-	std::tuple<record_service_status, std::string> init_service(const std::filesystem::path& output_path, std::unordered_map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
+	std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::unordered_map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
 	{
 		//LOG_IF(FATAL, node_vector_container == nullptr) << "node_vector_container is not set";
 		this->set_node_container(_node_container, _node_vector_container);
@@ -197,14 +205,16 @@ public:
 		}
 		*model_weights_file << std::endl;
 		
-		return {record_service_status::success, ""};
+		return {service_status::success, ""};
 	}
 	
-	std::tuple<record_service_status, std::string> process_per_tick(int tick) override
+	std::tuple<service_status, std::string> process_per_tick(int tick, service_trigger_type trigger) override
 	{
-		if (this->enable == false) return {record_service_status::skipped, "not enabled"};
-		
-        if (tick % ml_model_weight_diff_record_interval_tick != 0) return {record_service_status::skipped, "not time yet"};
+		if (this->enable == false) return {service_status::skipped, "not enabled"};
+
+        if (trigger != service_trigger_type::end_of_tick) return {service_status::skipped, "not service_trigger_type::end_of_tick"};
+
+        if (tick % ml_model_weight_diff_record_interval_tick != 0) return {service_status::skipped, "not time yet"};
         
         auto weights = (*this->node_vector_container)[0]->solver->get_parameter();
         auto layers = weights.getLayers();
@@ -238,15 +248,15 @@ public:
         *model_weights_file << std::endl;
         delete[] weight_diff_sums;
         
-		return {record_service_status::success, ""};
+		return {service_status::success, ""};
 	}
 	
-	std::tuple<record_service_status, std::string> destruction_service() override
+	std::tuple<service_status, std::string> destruction_service() override
 	{
 		model_weights_file->flush();
 		model_weights_file->close();
 		
-		return {record_service_status::success, ""};
+		return {service_status::success, ""};
 	}
 
 private:
@@ -264,24 +274,26 @@ public:
 		tick_to_broadcast = 0;
 	}
 	
-	std::tuple<record_service_status, std::string> apply_config(const configuration_file::json& config) override
+	std::tuple<service_status, std::string> apply_config(const configuration_file::json& config) override
 	{
 		this->enable = config["enable"];
 		this->tick_to_broadcast = config["broadcast_interval"];
 		
-		return {record_service_status::success, ""};
+		return {service_status::success, ""};
 	}
 	
-	std::tuple<record_service_status, std::string> init_service(const std::filesystem::path& output_path, std::unordered_map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
+	std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::unordered_map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
 	{
 		this->set_node_container(_node_container, _node_vector_container);
 		
-		return {record_service_status::success, ""};
+		return {service_status::success, ""};
 	}
 	
-	std::tuple<record_service_status, std::string> process_per_tick(int tick) override
+	std::tuple<service_status, std::string> process_per_tick(int tick, service_trigger_type trigger) override
 	{
-		if (this->enable == false) return {record_service_status::skipped, "not enabled"};
+		if (this->enable == false) return {service_status::skipped, "not enabled"};
+
+        if (trigger != service_trigger_type::end_of_tick) return {service_status::skipped, "not service_trigger_type::end_of_tick"};
         
         auto model_sum = (*this->node_vector_container)[0]->solver->get_parameter();
 		model_sum.set_all(0);
@@ -301,14 +313,14 @@ public:
 		}
         else
         {
-            return {record_service_status::skipped, "not time yet"};
+            return {service_status::skipped, "not time yet"};
         }
-		return {record_service_status::success, ""};
+		return {service_status::success, ""};
 	}
 	
-	std::tuple<record_service_status, std::string> destruction_service() override
+	std::tuple<service_status, std::string> destruction_service() override
 	{
-		return {record_service_status::success, ""};
+		return {service_status::success, ""};
 	}
 };
 
@@ -348,7 +360,7 @@ public:
 		solver_for_testing = new Ml::MlCaffeModel<float, caffe::SGDSolver>[solver_for_testing_size];
 	}
 	
-	std::tuple<record_service_status, std::string> apply_config(const configuration_file::json& config) override
+	std::tuple<service_status, std::string> apply_config(const configuration_file::json& config) override
 	{
 		this->enable = config["enable"];
 		this->least_peer_change_interval = config["least_peer_change_interval"];
@@ -361,10 +373,10 @@ public:
 		else if (fedavg_buffer_strategy_str == "linear") fedavg_buffer_strategy = fedavg_buffer_size_strategy::linear_strategy;
 		else LOG(FATAL) << "unknown fedavg_buffer_strategy in node";
 		
-		return {record_service_status::success, ""};
+		return {service_status::success, ""};
 	}
 	
-	std::tuple<record_service_status, std::string> init_service(const std::filesystem::path& output_path, std::unordered_map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
+	std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::unordered_map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
 	{
 		this->set_node_container(_node_container, _node_vector_container);
 		
@@ -390,12 +402,14 @@ public:
 			peer_change_file.reset(new std::ofstream(output_path / "peer_change_record.txt", std::ios::binary));
 		}
 		
-		return {record_service_status::success, ""};
+		return {service_status::success, ""};
 	}
 	
-	std::tuple<record_service_status, std::string> process_per_tick(int tick) override
+	std::tuple<service_status, std::string> process_per_tick(int tick, service_trigger_type trigger) override
 	{
-		if (this->enable == false) return {record_service_status::skipped, "not enabled"};
+		if (this->enable == false) return {service_status::skipped, "not enabled"};
+
+        if (trigger != service_trigger_type::end_of_tick) return {service_status::skipped, "not service_trigger_type::end_of_tick"};
 		
 		//calculate accuracy
 		tmt::ParallelExecution_StepIncremental([&tick, this](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node)
@@ -477,10 +491,10 @@ public:
 			
 		}
 		
-		return {record_service_status::success, ""};
+		return {service_status::success, ""};
 	}
 	
-	std::tuple<record_service_status, std::string> destruction_service() override
+	std::tuple<service_status, std::string> destruction_service() override
 	{
 		if (peer_change_file && peer_change_file->is_open())
 		{
@@ -489,7 +503,7 @@ public:
 		}
 		delete[] solver_for_testing;
 		
-		return {record_service_status::success, ""};
+		return {service_status::success, ""};
 	}
 
 private:
@@ -509,18 +523,18 @@ public:
     
     }
     
-    std::tuple<record_service_status, std::string> apply_config(const configuration_file::json &config) override
+    std::tuple<service_status, std::string> apply_config(const configuration_file::json &config) override
     {
         this->enable = config["enable"];
         
-        return {record_service_status::success, ""};
+        return {service_status::success, ""};
     }
     
-    std::tuple<record_service_status, std::string> init_service(const std::filesystem::path &output_path, std::unordered_map<std::string, node<model_datatype> *> &_node_container, std::vector<node<model_datatype> *> &_node_vector_container) override
+    std::tuple<service_status, std::string> init_service(const std::filesystem::path &output_path, std::unordered_map<std::string, node<model_datatype> *> &_node_container, std::vector<node<model_datatype> *> &_node_vector_container) override
     {
         this->set_node_container(_node_container, _node_vector_container);
         
-        if (!this->enable) return {record_service_status::skipped, "not enabled"};
+        if (!this->enable) return {service_status::skipped, "not enabled"};
         
         //reputation folder
         std::filesystem::path reputation_folder = output_path / "reputation";
@@ -545,12 +559,14 @@ public:
             *reputation_file << std::endl;
         }
     
-        return {record_service_status::success, ""};
+        return {service_status::success, ""};
     }
     
-    std::tuple<record_service_status, std::string> process_per_tick(int tick) override
+    std::tuple<service_status, std::string> process_per_tick(int tick, service_trigger_type trigger) override
     {
-        if (!this->enable) return {record_service_status::skipped, "not enabled"};
+        if (!this->enable) return {service_status::skipped, "not enabled"};
+
+        if (trigger != service_trigger_type::end_of_tick) return {service_status::skipped, "not service_trigger_type::end_of_tick"};
         
         //print reputation map
         for (auto& [node_name, node]: *(this->node_container))
@@ -566,12 +582,12 @@ public:
             *reputation_file << std::endl;
         }
         
-        return {record_service_status::success, ""};
+        return {service_status::success, ""};
     }
     
-    std::tuple<record_service_status, std::string> destruction_service() override
+    std::tuple<service_status, std::string> destruction_service() override
     {
-        if (!this->enable) return {record_service_status::skipped, "not enabled"};
+        if (!this->enable) return {service_status::skipped, "not enabled"};
         
         for (auto& [node_name, reputation_file]: reputations_files)
         {
@@ -581,7 +597,7 @@ public:
                 reputation_file->close();
             }
         }
-        return {record_service_status::success, ""};
+        return {service_status::success, ""};
     }
     
 };
@@ -604,18 +620,18 @@ public:
         ml_model_record_interval_tick = 0;
     }
     
-    std::tuple<record_service_status, std::string> apply_config(const configuration_file::json &config) override
+    std::tuple<service_status, std::string> apply_config(const configuration_file::json &config) override
     {
         this->enable = config["enable"];
         this->ml_model_record_interval_tick = config["interval"];
         this->path = config["path"];
         
-        return {record_service_status::success, ""};
+        return {service_status::success, ""};
     }
     
-    std::tuple<record_service_status, std::string> init_service(const std::filesystem::path &output_path, std::unordered_map<std::string, node<model_datatype> *> &_node_container, std::vector<node<model_datatype> *> &_node_vector_container) override
+    std::tuple<service_status, std::string> init_service(const std::filesystem::path &output_path, std::unordered_map<std::string, node<model_datatype> *> &_node_container, std::vector<node<model_datatype> *> &_node_vector_container) override
     {
-        if (this->enable == false) return {record_service_status::skipped, "not enabled"};
+        if (this->enable == false) return {service_status::skipped, "not enabled"};
 
         this->set_node_container(_node_container, _node_vector_container);
         this->storage_path = output_path / path;
@@ -629,14 +645,16 @@ public:
         if (si.available < space_required)
             LOG(FATAL) << "[model record service] not enough space in model record path, available: " << si.available/1024/1024 << "MB, required: " << space_required/1024/1024 << "MB";
         LOG(INFO) << "[model record service] space in model record path, available: " << si.available / 1024 / 1024 << "MB, required: " << space_required / 1024 / 1024 << "MB";
-        return {record_service_status::success, ""};
+        return {service_status::success, ""};
     }
     
-    std::tuple<record_service_status, std::string> process_per_tick(int tick) override
+    std::tuple<service_status, std::string> process_per_tick(int tick, service_trigger_type trigger) override
     {
-        if (this->enable == false) return {record_service_status::skipped, "not enabled"};
+        if (this->enable == false) return {service_status::skipped, "not enabled"};
+
+        if (trigger != service_trigger_type::end_of_tick) return {service_status::skipped, "not service_trigger_type::end_of_tick"};
     
-        if (tick % ml_model_record_interval_tick != 0) return {record_service_status::skipped, "not time yet"};
+        if (tick % ml_model_record_interval_tick != 0) return {service_status::skipped, "not time yet"};
         
         std::filesystem::path folder_of_this_tick = storage_path / std::to_string(tick);
         if (!std::filesystem::exists(folder_of_this_tick)) std::filesystem::create_directories(folder_of_this_tick);
@@ -649,12 +667,12 @@ public:
             output_file.close();
         }, this->node_vector_container->size(), this->node_vector_container->data());
     
-        return {record_service_status::success, ""};
+        return {service_status::success, ""};
     }
     
-    std::tuple<record_service_status, std::string> destruction_service() override
+    std::tuple<service_status, std::string> destruction_service() override
     {
-        return {record_service_status::success, ""};
+        return {service_status::success, ""};
     }
 };
 
@@ -688,7 +706,7 @@ public:
 
     }
 
-    std::tuple<record_service_status, std::string> apply_config(const configuration_file::json &config) override
+    std::tuple<service_status, std::string> apply_config(const configuration_file::json &config) override
     {
         {
             auto read_from_file_config = config["read_from_file"];
@@ -717,12 +735,12 @@ public:
             LOG(FATAL) << "cannot enable multiple network_topology_manager services";
         }
 
-        return {record_service_status::success, ""};
+        return {service_status::success, ""};
     }
 
-    std::tuple<record_service_status, std::string> init_service(const std::filesystem::path &output_path, std::unordered_map<std::string, node<model_datatype> *> &_node_container, std::vector<node<model_datatype> *> &_node_vector_container) override
+    std::tuple<service_status, std::string> init_service(const std::filesystem::path &output_path, std::unordered_map<std::string, node<model_datatype> *> &_node_container, std::vector<node<model_datatype> *> &_node_vector_container) override
     {
-        if (this->enable == false) return {record_service_status::skipped, "not enabled"};
+        if (this->enable == false) return {service_status::skipped, "not enabled"};
 
         this->set_node_container(_node_container, _node_vector_container);
         this->output_file_path = output_path / "network_topology_record.json";
@@ -730,12 +748,14 @@ public:
         output_file.open(output_file_path);
         output_file << "{\n";
 
-        return {record_service_status::success, ""};
+        return {service_status::success, ""};
     }
 
-    std::tuple<record_service_status, std::string> process_per_tick(int tick) override
+    std::tuple<service_status, std::string> process_per_tick(int tick, service_trigger_type trigger) override
     {
-        if (this->enable == false) return {record_service_status::skipped, "not enabled"};
+        if (this->enable == false) return {service_status::skipped, "not enabled"};
+
+        if (trigger != service_trigger_type::end_of_tick) return {service_status::skipped, "not service_trigger_type::end_of_tick"};
 
         ////read from file
         if (enable_read_from_file)
@@ -763,14 +783,14 @@ public:
             }
         }
 
-        return {record_service_status::success, ""};
+        return {service_status::success, ""};
     }
 
-    std::tuple<record_service_status, std::string> destruction_service() override
+    std::tuple<service_status, std::string> destruction_service() override
     {
         output_file << "\n}\n";
 
-        return {record_service_status::success, ""};
+        return {service_status::success, ""};
     }
 
 private:
