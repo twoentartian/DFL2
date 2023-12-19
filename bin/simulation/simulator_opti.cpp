@@ -94,140 +94,113 @@ int main(int argc, char *argv[])
 	LOG_IF(ERROR, ml_non_iid_normal_weight.size() != 2) << "ml_non_iid_normal_weight must be a two-value array, {max min}";
 	auto ml_reputation_dll_path = config.get<std::string>("ml_reputation_dll_path");
 	LOG_IF(WARNING, ml_reputation_dll_path.has_value()) << "ml_reputation_dll will be ignored in this simulator_opti because it is compiled in the simulator.";
-    
-	//load node configurations
+
+#pragma region load node configurations
 	auto nodes_json = config_json["nodes"];
-	for (auto &single_node: nodes_json)
-	{
-		const std::string node_name = single_node["name"];
-		{
-			auto iter = node_container.find(node_name);
-			if (iter != node_container.end())
-			{
-				LOG(FATAL) << "duplicate node name";
-				return -1;
-			}
-		}
-		
-		//name
-		const int buf_size = single_node["buffer_size"];
-		
-		const std::string node_type = single_node["node_type"];
-		
-		node<model_datatype> *temp_node = nullptr;
-		
-		//find the node in the registered node map
-		{
-			auto result = node<model_datatype>::get_node_by_type(node_type);
-			if (result == nullptr)
-			{
-				LOG(FATAL) << "unknown node type:" << node_type;
-			}
-			else
-			{
-				temp_node = result->new_node(node_name, buf_size);
-			}
-		}
-		
-		auto[iter, status] = node_container.emplace(node_name, temp_node);
-		//add to model update buffer
-		auto model_buffer = std::make_shared<model_updating_algorithm>();
-		node_model_update.emplace(node_name, model_buffer);
+	for (auto &single_node: nodes_json) {
+        const std::string node_name = single_node["name"];
+        {
+            auto iter = node_container.find(node_name);
+            if (iter != node_container.end()) {
+                LOG(FATAL) << "duplicate node name";
+                return -1;
+            }
+        }
+
+        //name
+        const int buf_size = single_node["buffer_size"];
+
+        const std::string node_type = single_node["node_type"];
+
+        node<model_datatype> *temp_node = nullptr;
+
+        //find the node in the registered node map
+        {
+            auto result = node<model_datatype>::get_node_by_type(node_type);
+            if (result == nullptr) {
+                LOG(FATAL) << "unknown node type:" << node_type;
+            } else {
+                temp_node = result->new_node(node_name, buf_size);
+            }
+        }
+
+        auto [iter, status] = node_container.emplace(node_name, temp_node);
+        //add to model update buffer
+        auto model_buffer = std::make_shared<model_updating_algorithm>();
+        node_model_update.emplace(node_name, model_buffer);
 
         //load models solver
         iter->second->solver->load_caffe_model(ml_solver_proto);
-		
-		//dataset mode
-		const std::string dataset_mode_str = single_node["dataset_mode"];
-		if (dataset_mode_str == "default")
-		{
-			iter->second->dataset_mode = dataset_mode_type::default_dataset;
-		}
-		else if (dataset_mode_str == "iid")
-		{
-			iter->second->dataset_mode = dataset_mode_type::iid_dataset;
-		}
-		else if (dataset_mode_str == "non-iid")
-		{
-			iter->second->dataset_mode = dataset_mode_type::non_iid_dataset;
-		}
-		else
-		{
-			LOG(FATAL) << "unknown dataset_mode:" << dataset_mode_str;
-			return -1;
-		}
-		
-		//model_generation_type
-		const std::string model_generation_type_str = single_node["model_generation_type"];
-		if (model_generation_type_str == "compressed")
-		{
-			LOG(WARNING) << "{model_generation_type == compressed} will be ignored in this simulator_opti because the simulator_opti only supports normal.";
-			iter->second->model_generation_type = Ml::model_compress_type::compressed_by_diff;
-		}
-		else if (model_generation_type_str == "normal")
-		{
-			iter->second->model_generation_type = Ml::model_compress_type::normal;
-		}
-		else
-		{
-			LOG(FATAL) << "unknown model_generation_type:" << model_generation_type_str;
-			return -1;
-		}
-		
-		//filter_limit
-		iter->second->filter_limit = single_node["filter_limit"];
-		
-		//label_distribution
-		std::string dataset_mode = single_node["dataset_mode"];
-		if (dataset_mode == "iid")
-		{
-			//nothing to do because the single_node["non_iid_distribution"] will not be used
-		}
-		else if (dataset_mode == "non-iid")
-		{
-			configuration_file::json non_iid_distribution = single_node["non_iid_distribution"];
-			for (auto non_iid_item = non_iid_distribution.begin(); non_iid_item != non_iid_distribution.end(); ++non_iid_item)
-			{
-				int label = std::stoi(non_iid_item.key());
-				auto min_max_array = *non_iid_item;
-				float min = min_max_array.at(0);
-				float max = min_max_array.at(1);
-				if (max > min)
-				{
-					iter->second->special_non_iid_distribution[label] = {min, max};
-				}
-				else
-				{
-					iter->second->special_non_iid_distribution[label] = {max, min}; //swap the order
-				}
-			}
-			for (auto &el: ml_dataset_all_possible_labels)
-			{
-				auto iter_el = iter->second->special_non_iid_distribution.find(el);
-				if (iter_el == iter->second->special_non_iid_distribution.end())
-				{
-					//not set before
-					iter->second->special_non_iid_distribution[el] = {ml_non_iid_normal_weight[0], ml_non_iid_normal_weight[1]};
-				}
-			}
-		}
-		else if (dataset_mode == "default")
-		{
-			//nothing to do because the single_node["non_iid_distribution"] will not be used
-		}
-		else
-		{
-			LOG(ERROR) << "unknown dataset_mode:" << single_node["dataset_mode"];
-		}
-		
-		//training_interval_tick
-		for (auto &el : single_node["training_interval_tick"])
-		{
-			iter->second->training_interval_tick.push_back(el);
-		}
-	}
-	
-	//load network topology configuration
+
+        //dataset mode
+        const std::string dataset_mode_str = single_node["dataset_mode"];
+        if (dataset_mode_str == "default") {
+            iter->second->dataset_mode = dataset_mode_type::default_dataset;
+        } else if (dataset_mode_str == "iid") {
+            iter->second->dataset_mode = dataset_mode_type::iid_dataset;
+        } else if (dataset_mode_str == "non-iid") {
+            iter->second->dataset_mode = dataset_mode_type::non_iid_dataset;
+        } else {
+            LOG(FATAL) << "unknown dataset_mode:" << dataset_mode_str;
+            return -1;
+        }
+
+        //model_generation_type
+        const std::string model_generation_type_str = single_node["model_generation_type"];
+        if (model_generation_type_str == "compressed") {
+            LOG(WARNING)
+                    << "{model_generation_type == compressed} will be ignored in this simulator_opti because the simulator_opti only supports normal.";
+            iter->second->model_generation_type = Ml::model_compress_type::compressed_by_diff;
+        } else if (model_generation_type_str == "normal") {
+            iter->second->model_generation_type = Ml::model_compress_type::normal;
+        } else {
+            LOG(FATAL) << "unknown model_generation_type:" << model_generation_type_str;
+            return -1;
+        }
+
+        //filter_limit
+        iter->second->filter_limit = single_node["filter_limit"];
+
+        //label_distribution
+        std::string dataset_mode = single_node["dataset_mode"];
+        if (dataset_mode == "iid") {
+            //nothing to do because the single_node["non_iid_distribution"] will not be used
+        } else if (dataset_mode == "non-iid") {
+            configuration_file::json non_iid_distribution = single_node["non_iid_distribution"];
+            for (auto non_iid_item = non_iid_distribution.begin();
+                 non_iid_item != non_iid_distribution.end(); ++non_iid_item) {
+                int label = std::stoi(non_iid_item.key());
+                auto min_max_array = *non_iid_item;
+                float min = min_max_array.at(0);
+                float max = min_max_array.at(1);
+                if (max > min) {
+                    iter->second->special_non_iid_distribution[label] = {min, max};
+                } else {
+                    iter->second->special_non_iid_distribution[label] = {max, min}; //swap the order
+                }
+            }
+            for (auto &el: ml_dataset_all_possible_labels) {
+                auto iter_el = iter->second->special_non_iid_distribution.find(el);
+                if (iter_el == iter->second->special_non_iid_distribution.end()) {
+                    //not set before
+                    iter->second->special_non_iid_distribution[el] = {ml_non_iid_normal_weight[0],
+                                                                      ml_non_iid_normal_weight[1]};
+                }
+            }
+        } else if (dataset_mode == "default") {
+            //nothing to do because the single_node["non_iid_distribution"] will not be used
+        } else {
+            LOG(ERROR) << "unknown dataset_mode:" << single_node["dataset_mode"];
+        }
+
+        //training_interval_tick
+        for (auto &el: single_node["training_interval_tick"]) {
+            iter->second->training_interval_tick.push_back(el);
+        }
+    }
+#pragma endregion
+
+#pragma region load network topology configuration
 	/** network topology configuration
 	 * you can use fully_connect, average_degree-{degree}, 1->2, 1--2, the topology items' order in the configuration file determines the order of adding connections.
 	 * fully_connect: connect all nodes, and ignore all other topology items.
@@ -359,6 +332,7 @@ int main(int argc, char *argv[])
 			}
 		}
 	}
+#pragma endregion
 	
 	//load dataset
 	Ml::data_converter<model_datatype> train_dataset;
@@ -376,6 +350,13 @@ int main(int argc, char *argv[])
 	
 	////services
 	std::unordered_map<std::string, std::shared_ptr<service<model_datatype>>> services;
+    //trigger service
+    const auto trigger_service = [services](int tick, service_trigger_type trigger_type){
+        for (auto& [name, service_instance]: services)
+        {
+            service_instance->process_per_tick(tick, trigger_type);
+        }
+    };
 	{
 		services.emplace("accuracy", new accuracy_record<model_datatype>());
 		services.emplace("model_weights_difference_record", new model_weights_difference_record<model_datatype>());
@@ -384,6 +365,7 @@ int main(int argc, char *argv[])
 		services.emplace("reputation_record", new reputation_record<model_datatype>());
 		services.emplace("model_record", new model_record<model_datatype>());
 		services.emplace("network_topology_manager", new network_topology_manager<model_datatype>());
+        services.emplace("delta_weight_after_training_record", new delta_weight_after_training_record<model_datatype>());
 		auto services_json = config_json["services"];
 		LOG_IF(FATAL, services_json.is_null()) << "services are not defined in configuration file";
 		
@@ -459,9 +441,24 @@ int main(int argc, char *argv[])
 				service_iter->second->apply_config(check_and_get_config("network_topology_manager"));
 				service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
 			}
-			
-			
-			
+
+            //network_topology_manager
+            {
+                auto service_iter = services.find("network_topology_manager");
+
+                service_iter->second->apply_config(check_and_get_config("network_topology_manager"));
+                service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+            }
+
+            //delta_weight_after_training_record
+            {
+                auto service_iter = services.find("delta_weight_after_training_record");
+
+                service_iter->second->apply_config(check_and_get_config("delta_weight_after_training_record"));
+                service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+            }
+
+
 			//final service check
 			{
 				LOG_IF(FATAL, services["network_topology_manager"]->enable && services["time_based_hierarchy_service"]->enable) << "you cannot enable time_based_hierarchy_service and network_topology_manager at same time";
@@ -486,7 +483,11 @@ int main(int argc, char *argv[])
 		{
 			std::cout << "tick: " << tick << " (" << ml_max_tick << ")" << std::endl;
 			LOG(INFO) << "tick: " << tick << " (" << ml_max_tick << ")";
-   
+
+            //services
+            trigger_service(tick, service_trigger_type::start_of_tick);
+
+            ////report simulation speed
 			if (tick != 0 && tick % report_time_remaining_per_tick_elapsed == 0)
 			{
 				auto now = std::chrono::system_clock::now();
@@ -498,9 +499,13 @@ int main(int argc, char *argv[])
 				std::tm est_finish_time_tm = *std::localtime(&est_finish_time);
 				std::cout << "speed: " << std::setprecision(2) << speed_ms_per_tick/1000 << "s/tick, est finish at: " << std::put_time( &est_finish_time_tm, "%Y-%m-%d %H:%M:%S") << std::endl;
 			}
-            
+
+            ////report memory consumption
             LOG(INFO) << "memory consumption (before training): " << get_memory_consumption_byte() / 1024 / 1024 << " MB";
-            
+
+            //services
+            trigger_service(tick, service_trigger_type::start_of_training);
+
 			////train the model
 			tmt::ParallelExecution_StepIncremental([&tick, &train_dataset, &ml_train_batch_size, &ml_dataset_all_possible_labels](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
 				if (tick >= single_node->next_train_tick)
@@ -552,8 +557,16 @@ int main(int argc, char *argv[])
 					single_node->model_trained = false;
 				}
 			}, node_pointer_vector_container.size(), node_pointer_vector_container.data());
+
+            ////report memory consumption
             LOG(INFO) << "memory consumption (after training, before averaging): " << get_memory_consumption_byte() / 1024 / 1024 << " MB";
-            
+
+            //services
+            trigger_service(tick, service_trigger_type::end_of_training);
+
+            //services
+            trigger_service(tick, service_trigger_type::start_of_averaging);
+
 			////check fedavg buffer full
 			tmt::ParallelExecution_StepIncremental([&tick,&test_dataset,&ml_test_batch_size,&ml_dataset_all_possible_labels, &accuracy_container_lock, &accuracy_container](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
 				if (node_model_update[single_node->name]->get_model_count() >= single_node->buffer_size) {
@@ -588,16 +601,17 @@ int main(int argc, char *argv[])
 					single_node->model_averaged = false;
 				}
 			}, node_pointer_vector_container.size(), node_pointer_vector_container.data());
-            
+
+            //services
+            trigger_service(tick, service_trigger_type::end_of_averaging);
+
+            ////report memory consumption
             LOG(INFO) << "memory consumption (after averaging): " << get_memory_consumption_byte() / 1024 / 1024 << " MB";
             
 			//services
-			for (auto& [name, service_instance]: services)
-			{
-				service_instance->process_per_tick(tick, service_trigger_type::end_of_tick);
-			}
+            trigger_service(tick, service_trigger_type::end_of_tick);
 			
-			//early stop?
+			////early stop?
 			if (early_stop_enable)
 			{
 				size_t counter_above_threshold = 0;
@@ -616,7 +630,8 @@ int main(int argc, char *argv[])
 					break;
 				}
 			}
-            
+
+            ////report memory consumption
             LOG(INFO) << "memory consumption (end of tick " << tick << "): " << get_memory_consumption_byte() / 1024 / 1024 << " MB";
             
 			tick++;

@@ -25,8 +25,12 @@ enum class service_status
 
 enum class service_trigger_type
 {
+    start_of_tick,
     end_of_tick,
-
+    start_of_training,
+    end_of_training,
+    start_of_averaging,
+    end_of_averaging
 };
 
 template <typename model_datatype>
@@ -1047,4 +1051,110 @@ private:
                     "\"," << std::endl;
         }
     }
+};
+
+template <typename model_datatype>
+class delta_weight_after_training_record : public service<model_datatype>
+{
+public:
+    //set these variables before init
+    std::filesystem::path output_records_path;
+
+    delta_weight_after_training_record()
+    {
+
+    }
+
+    std::tuple<service_status, std::string> apply_config(const configuration_file::json& config) override
+    {
+        this->enable = config["enable"];
+
+        return {service_status::success, ""};
+    }
+
+    std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::unordered_map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
+    {
+        this->set_node_container(_node_container, _node_vector_container);
+
+        //create the output records path or not?
+        this->output_records_path = output_path / "delta_weight";
+        if (not std::filesystem::exists(this->output_records_path))
+            std::filesystem::create_directories(this->output_records_path);
+
+        return {service_status::success, ""};
+    }
+
+    std::tuple<service_status, std::string> process_per_tick(int tick, service_trigger_type trigger) override
+    {
+        if (this->enable == false) return {service_status::skipped, "not enabled"};
+
+        if (trigger != service_trigger_type::start_of_tick && tick == 0) {
+            //add nodes
+            for (int i = 0; i < this->node_vector_container->size(); ++i) {
+                const auto current_node = (*this->node_vector_container)[i];
+                const auto& current_node_name = current_node->name;
+                const Ml::caffe_parameter_net<model_datatype>& current_parameter = current_node->solver->get_parameter();
+                this->current_parameters[current_node->name] = current_parameter;
+
+                //creat output file
+                std::shared_ptr<std::ofstream> temp_file;
+                temp_file->open(this->output_records_path / (current_node_name + ".csv"), std::ios::binary);
+                //create the header
+                *temp_file << "tick";
+                for (const Ml::caffe_parameter_layer<model_datatype>& layer : current_parameter.getLayers()) {
+                    const auto& layer_name = layer.getName();
+                    const size_t layer_size = layer.size();
+                    for (size_t j = 0; j < layer_size; ++j) {
+                        *temp_file << "," << layer_name + "-" + std::to_string(j);
+                    }
+                }
+                *temp_file << std::endl;
+                this->output_delta_weight_files[current_node->name] = temp_file;
+            }
+        }
+
+        if (trigger == service_trigger_type::end_of_training) {
+            tmt::ParallelExecution([&tick, this](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node) {
+                if (!single_node->model_trained) return;    //return if the node is not trained for this tick
+
+                const auto current_parameter_iter = this->current_parameters.find(single_node->name);
+                if (current_parameter_iter == this->current_parameters.end()) LOG(FATAL) << "bug in delta_weight_after_training_record: " + single_node->name + " not in the this->current_parameters";
+
+                //calculate delta weight
+                const auto& old_model = current_parameter_iter->second;
+                const auto& current_model = single_node->solver->get_parameter();
+                const auto delta = current_model - old_model;
+                current_parameter_iter->second = current_model;
+
+                //store delta
+                std::shared_ptr<std::ofstream> file_ptr = this->output_delta_weight_files[single_node->name];
+                *file_ptr << tick;
+                for (const Ml::caffe_parameter_layer<model_datatype>& layer : delta.getLayers()) {
+                    auto size = layer.size();
+                    if (size == 0) continue;
+                    const auto& data = layer.getBlob_p()->getData();
+                    for (const auto& v : data) {
+                        *file_ptr << "," << v;
+                    }
+                }
+                *file_ptr << std::endl;
+            }, this->node_vector_container->size(), this->node_vector_container->data());
+        }
+
+        return {service_status::success, ""};
+    }
+
+    std::tuple<service_status, std::string> destruction_service() override
+    {
+        for (auto& [key, file]: output_delta_weight_files) {
+            file->flush();
+            file->close();
+        }
+        return {service_status::success, ""};
+    }
+
+private:
+    std::map<std::string, std::shared_ptr<std::ofstream>> output_delta_weight_files;
+    std::map<std::string, Ml::caffe_parameter_net<model_datatype>> current_parameters;
+
 };

@@ -180,7 +180,7 @@ namespace Ml
 		    	_blob_p->abs();
 	    }
 	
-	    size_t size()
+	    size_t size() const
 	    {
 		    if (this->_blob_p->empty()) return 0;
 		    return this->_blob_p->size();
