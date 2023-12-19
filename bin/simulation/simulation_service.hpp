@@ -1059,6 +1059,7 @@ class delta_weight_after_training_record : public service<model_datatype>
 public:
     //set these variables before init
     std::filesystem::path output_records_path;
+    std::string path;
 
     delta_weight_after_training_record()
     {
@@ -1068,6 +1069,7 @@ public:
     std::tuple<service_status, std::string> apply_config(const configuration_file::json& config) override
     {
         this->enable = config["enable"];
+        this->path = config["path"];
 
         return {service_status::success, ""};
     }
@@ -1077,7 +1079,7 @@ public:
         this->set_node_container(_node_container, _node_vector_container);
 
         //create the output records path or not?
-        this->output_records_path = output_path / "delta_weight";
+        this->output_records_path = output_path / this->path;
         if (not std::filesystem::exists(this->output_records_path))
             std::filesystem::create_directories(this->output_records_path);
 

@@ -100,6 +100,7 @@ configuration_file::json get_default_simulation_configuration()
     {
         configuration_file::json delta_weight_after_training_record_service = configuration_file::json::object();
         delta_weight_after_training_record_service["enable"] = false;
+        delta_weight_after_training_record_service["path"] = "delta_weight";
         services["delta_weight_after_training_record"] = delta_weight_after_training_record_service;
     }
     {
