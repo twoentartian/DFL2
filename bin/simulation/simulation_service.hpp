@@ -1099,7 +1099,7 @@ public:
                 this->current_parameters[current_node->name] = current_parameter;
 
                 //creat output file
-                std::shared_ptr<std::ofstream> temp_file;
+                std::shared_ptr<std::ofstream> temp_file = std::make_shared<std::ofstream>();
                 temp_file->open(this->output_records_path / (current_node_name + ".csv"), std::ios::binary);
                 //create the header
                 *temp_file << "tick";
