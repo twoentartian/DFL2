@@ -351,7 +351,7 @@ int main(int argc, char *argv[])
 	////services
 	std::unordered_map<std::string, std::shared_ptr<service<model_datatype>>> services;
     //trigger service
-    const auto trigger_service = [services](int tick, service_trigger_type trigger_type){
+    const auto trigger_service = [&services](int tick, service_trigger_type trigger_type){
         for (auto& [name, service_instance]: services)
         {
             service_instance->process_per_tick(tick, trigger_type);
