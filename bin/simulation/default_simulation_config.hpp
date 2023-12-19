@@ -98,10 +98,10 @@ configuration_file::json get_default_simulation_configuration()
         services["reputation_record"] = reputation_record_service;
     }
     {
-        configuration_file::json delta_weight_after_training_record_service = configuration_file::json::object();
-        delta_weight_after_training_record_service["enable"] = false;
-        delta_weight_after_training_record_service["path"] = "delta_weight";
-        services["delta_weight_after_training_record"] = delta_weight_after_training_record_service;
+        configuration_file::json delta_weight_after_training_averaging_record_service = configuration_file::json::object();
+        delta_weight_after_training_averaging_record_service["enable"] = false;
+        delta_weight_after_training_averaging_record_service["path"] = "delta_weight";
+        services["delta_weight_after_training_averaging_record"] = delta_weight_after_training_averaging_record_service;
     }
     {
         configuration_file::json model_record_service = configuration_file::json::object();

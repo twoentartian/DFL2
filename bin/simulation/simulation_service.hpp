@@ -1054,14 +1054,16 @@ private:
 };
 
 template <typename model_datatype>
-class delta_weight_after_training_record : public service<model_datatype>
+class delta_weight_after_training_averaging_record : public service<model_datatype>
 {
 public:
     //set these variables before init
     std::filesystem::path output_records_path;
     std::string path;
+    bool enable_train;
+    bool enable_average;
 
-    delta_weight_after_training_record()
+    delta_weight_after_training_averaging_record()
     {
 
     }
@@ -1102,7 +1104,7 @@ public:
                 std::shared_ptr<std::ofstream> temp_file;
                 temp_file->open(this->output_records_path / (current_node_name + ".csv"), std::ios::binary);
                 //create the header
-                *temp_file << "tick";
+                *temp_file << "tick" << "," << "type";
                 for (const Ml::caffe_parameter_layer<model_datatype>& layer : current_parameter.getLayers()) {
                     const auto& layer_name = layer.getName();
                     const size_t layer_size = layer.size();
@@ -1130,7 +1132,35 @@ public:
 
                 //store delta
                 std::shared_ptr<std::ofstream> file_ptr = this->output_delta_weight_files[single_node->name];
-                *file_ptr << tick;
+                *file_ptr << tick << "," << "train";
+                for (const Ml::caffe_parameter_layer<model_datatype>& layer : delta.getLayers()) {
+                    auto size = layer.size();
+                    if (size == 0) continue;
+                    const auto& data = layer.getBlob_p()->getData();
+                    for (const auto& v : data) {
+                        *file_ptr << "," << v;
+                    }
+                }
+                *file_ptr << std::endl;
+            }, this->node_vector_container->size(), this->node_vector_container->data());
+        }
+
+        if (trigger == service_trigger_type::end_of_averaging) {
+            tmt::ParallelExecution([&tick, this](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node) {
+                if (!single_node->model_averaged) return;    //return if the node is not averaged for this tick
+
+                const auto current_parameter_iter = this->current_parameters.find(single_node->name);
+                if (current_parameter_iter == this->current_parameters.end()) LOG(FATAL) << "bug in delta_weight_after_training_averaging_record: " + single_node->name + " not in the this->current_parameters";
+
+                //calculate delta weight
+                const auto& old_model = current_parameter_iter->second;
+                const auto& current_model = single_node->solver->get_parameter();
+                const auto delta = current_model - old_model;
+                current_parameter_iter->second = current_model;
+
+                //store delta
+                std::shared_ptr<std::ofstream> file_ptr = this->output_delta_weight_files[single_node->name];
+                *file_ptr << tick << "," << "average";
                 for (const Ml::caffe_parameter_layer<model_datatype>& layer : delta.getLayers()) {
                     auto size = layer.size();
                     if (size == 0) continue;
