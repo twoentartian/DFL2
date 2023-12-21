@@ -29,6 +29,7 @@ add_executable(topology_remove_receive topology_remove_receive.cpp)
 target_link_libraries(topology_remove_receive ${DFL_LINKER_LIBS})
 
 # find CUDA
+if (NOT CPU_ONLY)
 include(CheckLanguage)
 check_language(CUDA)
 set(ANALYZE_MODEL_SRC)
@@ -49,4 +50,5 @@ add_executable(analyze_models ${ANALYZE_MODEL_SRC})
 target_link_libraries(analyze_models ${DFL_LINKER_LIBS} ${ANALYZE_MODEL_LINK})
 if (CMAKE_CUDA_COMPILER)
     target_compile_options(analyze_models PRIVATE $<$<COMPILE_LANGUAGE:CUDA>: --generate-line-info --use_fast_math -O3>)
+endif ()
 endif ()
