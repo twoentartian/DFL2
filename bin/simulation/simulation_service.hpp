@@ -1113,6 +1113,18 @@ public:
                     }
                 }
                 *temp_file << std::endl;
+                //store the init state
+                *temp_file << tick << "," << "init";
+                const auto& current_model = current_node->solver->get_parameter();
+                for (const Ml::caffe_parameter_layer<model_datatype>& layer : current_model.getLayers()) {
+                    auto size = layer.size();
+                    if (size == 0) continue;
+                    const auto& data = layer.getBlob_p()->getData();
+                    for (const auto& v : data) {
+                        *temp_file << "," << v;
+                    }
+                }
+                *temp_file << std::endl;
                 this->output_delta_weight_files[current_node->name] = temp_file;
             }
         }
