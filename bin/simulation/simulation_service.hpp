@@ -1060,8 +1060,8 @@ public:
     //set these variables before init
     std::filesystem::path output_records_path;
     std::string path;
-    bool enable_train;
-    bool enable_average;
+    std::vector<std::string> nodes_to_record;
+
 
     delta_weight_after_training_averaging_record()
     {
@@ -1072,7 +1072,8 @@ public:
     {
         this->enable = config["enable"];
         this->path = config["path"];
-
+        std::string nodes_to_record_str = config["nodes_to_record"];
+        this->nodes_to_record = split(nodes_to_record_str, ',');
         return {service_status::success, ""};
     }
 
@@ -1097,6 +1098,7 @@ public:
             for (int i = 0; i < this->node_vector_container->size(); ++i) {
                 const auto current_node = (*this->node_vector_container)[i];
                 const auto& current_node_name = current_node->name;
+                if (std::find(this->nodes_to_record.begin(), this->nodes_to_record.end(), current_node_name) == this->nodes_to_record.end()) continue; //skip if this node is not required to record
                 const Ml::caffe_parameter_net<model_datatype>& current_parameter = current_node->solver->get_parameter();
                 this->current_parameters[current_node->name] = current_parameter;
 
@@ -1115,6 +1117,7 @@ public:
         if (trigger == service_trigger_type::end_of_training) {
             tmt::ParallelExecution([&tick, this](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node) {
                 if (!single_node->model_trained) return;    //return if the node is not trained for this tick
+                if (std::find(this->nodes_to_record.begin(), this->nodes_to_record.end(), single_node->name) == this->nodes_to_record.end()) return; //skip if this node is not required to record
 
                 const auto current_parameter_iter = this->current_parameters.find(single_node->name);
                 if (current_parameter_iter == this->current_parameters.end()) LOG(FATAL) << "bug in delta_weight_after_training_record: " + single_node->name + " not in the this->current_parameters";
@@ -1134,6 +1137,7 @@ public:
         if (trigger == service_trigger_type::end_of_averaging) {
             tmt::ParallelExecution([&tick, this](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node) {
                 if (!single_node->model_averaged) return;    //return if the node is not averaged for this tick
+                if (std::find(this->nodes_to_record.begin(), this->nodes_to_record.end(), single_node->name) == this->nodes_to_record.end()) return; //skip if this node is not required to record
 
                 const auto current_parameter_iter = this->current_parameters.find(single_node->name);
                 if (current_parameter_iter == this->current_parameters.end()) LOG(FATAL) << "bug in delta_weight_after_training_averaging_record: " + single_node->name + " not in the this->current_parameters";
@@ -1202,5 +1206,17 @@ private:
             }
         }
         *file << std::endl;
+    }
+
+    std::vector<std::string> split(const std::string &s, char delimiter) {
+        std::vector<std::string> tokens;
+        std::string token;
+        std::istringstream tokenStream(s);
+
+        while (std::getline(tokenStream, token, delimiter)) {
+            tokens.push_back(token);
+        }
+
+        return tokens;
     }
 };

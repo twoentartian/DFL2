@@ -101,6 +101,7 @@ configuration_file::json get_default_simulation_configuration()
         configuration_file::json delta_weight_after_training_averaging_record_service = configuration_file::json::object();
         delta_weight_after_training_averaging_record_service["enable"] = false;
         delta_weight_after_training_averaging_record_service["path"] = "delta_weight";
+        delta_weight_after_training_averaging_record_service["nodes_to_record"] = "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19";
         services["delta_weight_after_training_averaging_record"] = delta_weight_after_training_averaging_record_service;
     }
     {
