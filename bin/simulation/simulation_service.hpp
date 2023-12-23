@@ -1104,27 +1104,10 @@ public:
                 std::shared_ptr<std::ofstream> temp_file = std::make_shared<std::ofstream>();
                 temp_file->open(this->output_records_path / (current_node_name + ".csv"), std::ios::binary);
                 //create the header
-                *temp_file << "tick" << "," << "type";
-                for (const Ml::caffe_parameter_layer<model_datatype>& layer : current_parameter.getLayers()) {
-                    const auto& layer_name = layer.getName();
-                    const size_t layer_size = layer.size();
-                    for (size_t j = 0; j < layer_size; ++j) {
-                        *temp_file << "," << layer_name + "-" + std::to_string(j);
-                    }
-                }
-                *temp_file << std::endl;
-                //store the init state
-                *temp_file << tick << "," << "init";
                 const auto& current_model = current_node->solver->get_parameter();
-                for (const Ml::caffe_parameter_layer<model_datatype>& layer : current_model.getLayers()) {
-                    auto size = layer.size();
-                    if (size == 0) continue;
-                    const auto& data = layer.getBlob_p()->getData();
-                    for (const auto& v : data) {
-                        *temp_file << "," << v;
-                    }
-                }
-                *temp_file << std::endl;
+                create_csv_header(temp_file, current_model);
+                //store the init state
+                store_weight_to_csv_row(temp_file, "init", tick, current_model);
                 this->output_delta_weight_files[current_node->name] = temp_file;
             }
         }
@@ -1144,16 +1127,7 @@ public:
 
                 //store delta
                 std::shared_ptr<std::ofstream> file_ptr = this->output_delta_weight_files[single_node->name];
-                *file_ptr << tick << "," << "train";
-                for (const Ml::caffe_parameter_layer<model_datatype>& layer : delta.getLayers()) {
-                    auto size = layer.size();
-                    if (size == 0) continue;
-                    const auto& data = layer.getBlob_p()->getData();
-                    for (const auto& v : data) {
-                        *file_ptr << "," << v;
-                    }
-                }
-                *file_ptr << std::endl;
+                store_weight_to_csv_row(file_ptr, "train", tick, delta);
             }, this->node_vector_container->size(), this->node_vector_container->data());
         }
 
@@ -1172,16 +1146,7 @@ public:
 
                 //store delta
                 std::shared_ptr<std::ofstream> file_ptr = this->output_delta_weight_files[single_node->name];
-                *file_ptr << tick << "," << "average";
-                for (const Ml::caffe_parameter_layer<model_datatype>& layer : delta.getLayers()) {
-                    auto size = layer.size();
-                    if (size == 0) continue;
-                    const auto& data = layer.getBlob_p()->getData();
-                    for (const auto& v : data) {
-                        *file_ptr << "," << v;
-                    }
-                }
-                *file_ptr << std::endl;
+                store_weight_to_csv_row(file_ptr, "average", tick, delta);
             }, this->node_vector_container->size(), this->node_vector_container->data());
         }
 
@@ -1201,4 +1166,41 @@ private:
     std::map<std::string, std::shared_ptr<std::ofstream>> output_delta_weight_files;
     std::map<std::string, Ml::caffe_parameter_net<model_datatype>> current_parameters;
 
+    void create_csv_header(std::shared_ptr<std::ofstream> file, const Ml::caffe_parameter_net<model_datatype>& model) {
+        *file << "tick" << "," << "type";
+        for (const Ml::caffe_parameter_layer<model_datatype>& layer : model.getLayers()) {
+            const auto& layer_name = layer.getName();
+            const size_t layer_size = layer.size();
+            for (size_t j = 0; j < layer_size; ++j) {
+                *file << "," << layer_name + "-" + std::to_string(j);
+            }
+            *file << "," << "distance";
+            for (size_t j = 0; j < layer_size; ++j) {
+                *file << "," << layer_name + "-" + std::to_string(j) + "-" + "angle";
+            }
+        }
+        *file << std::endl;
+    }
+
+    void store_weight_to_csv_row(std::shared_ptr<std::ofstream> file, std::string type, int tick, const Ml::caffe_parameter_net<model_datatype>& model) {
+        *file << tick << "," << type;
+        for (const Ml::caffe_parameter_layer<model_datatype>& layer : model.getLayers()) {
+            auto size = layer.size();
+            if (size == 0) continue;
+            const auto& data = layer.getBlob_p()->getData();
+            model_datatype distance_sum = 0;
+            for (const auto& v : data) {
+                *file << "," << v;
+                distance_sum += v*v;
+            }
+            //store distance
+            model_datatype distance = std::sqrt(distance_sum);
+            *file << "," << distance;
+            //calculate angle
+            for (const auto& v : data) {
+                *file << "," << v / distance;
+            }
+        }
+        *file << std::endl;
+    }
 };
