@@ -1175,6 +1175,7 @@ private:
         for (const Ml::caffe_parameter_layer<model_datatype>& layer : model.getLayers()) {
             const auto& layer_name = layer.getName();
             const size_t layer_size = layer.size();
+            if (layer_size == 0) continue;
             for (size_t j = 0; j < layer_size; ++j) {
                 *file << "," << layer_name + "-" + std::to_string(j);
             }
@@ -1189,8 +1190,8 @@ private:
     void store_weight_to_csv_row(std::shared_ptr<std::ofstream> file, std::string type, int tick, const Ml::caffe_parameter_net<model_datatype>& model) {
         *file << tick << "," << type;
         for (const Ml::caffe_parameter_layer<model_datatype>& layer : model.getLayers()) {
-            auto size = layer.size();
-            if (size == 0) continue;
+            auto layer_size = layer.size();
+            if (layer_size == 0) continue;
             const auto& data = layer.getBlob_p()->getData();
             model_datatype distance_sum = 0;
             for (const auto& v : data) {
