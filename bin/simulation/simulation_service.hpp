@@ -1178,7 +1178,7 @@ private:
             for (size_t j = 0; j < layer_size; ++j) {
                 *file << "," << layer_name + "-" + std::to_string(j);
             }
-            *file << "," << "distance";
+            *file << "," << "distance" << "+" << layer_name;
             for (size_t j = 0; j < layer_size; ++j) {
                 *file << "," << layer_name + "-" + std::to_string(j) + "-" + "angle";
             }
