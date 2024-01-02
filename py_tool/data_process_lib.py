@@ -114,3 +114,17 @@ def calculate_herd_effect_delay(accuracy_series: pandas.Series, first_average_ti
         if i > first_average_time:
             return i
 
+
+def graph_centrality_normalized(G, centrality_function=nx.current_flow_betweenness_centrality):
+    def sum_of_deviations_from_max(values):
+        max_val = max(values)
+        return sum(max_val - v for v in values)
+
+    node_centrality = nx.betweenness_centrality(G)
+    graph_centrality = sum_of_deviations_from_max(list(node_centrality.values()))
+    network_size = len(G.nodes)
+    star_network = nx.star_graph(network_size-1)
+    star_network_centrality = nx.betweenness_centrality(star_network)
+    star_graph_centrality = sum_of_deviations_from_max(list(star_network_centrality.values()))
+    graph_centrality = graph_centrality / star_graph_centrality
+    return graph_centrality
