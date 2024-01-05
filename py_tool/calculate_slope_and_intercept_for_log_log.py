@@ -2,7 +2,7 @@ import sys
 
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import LinearRegression
+from scipy import stats
 
 if __name__ == "__main__":
     file_path = "herd_effect_delay.csv"
@@ -32,15 +32,23 @@ if __name__ == "__main__":
     df["x(log)"] = np.log(df[available_options[selected_index]])
     df["y(log)"] = np.log(df["herd_effect_delay"])
 
-    x = df["x(log)"].values.reshape(-1, 1)
+    x = df["x(log)"].values
     y = df["y(log)"].values
-    model = LinearRegression()
-    model.fit(x, y)
-    slope = model.coef_[0]
-    intercept = model.intercept_
-    print(f"slope:{slope}")
-    print(f"intercept:{intercept}")
+
+    slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
+    # Calculating the 95% confidence interval for the slope (k)
+    # The t-distribution critical value for 95% confidence and df = n - 2
+    # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.linregress.html
+    t_crit = stats.t.ppf(1 - 0.025, len(x) - 2)
+
+    # Confidence interval calculation
+    k_conf_interval = (slope - t_crit * std_err, slope + t_crit * std_err)
+
+    print(f"slope={slope}")
+    print(f"intercept={intercept}")
+    print(f"k_conf_interval={k_conf_interval}")
+    print(f"std_err={std_err}")
 
     f = open("./slope.txt", "w")
-    f.write(f"x axis is column:{available_options[selected_index]}\nslope:{slope}\nintercept:{intercept}\n")
+    f.write(f"x axis is column:{available_options[selected_index]}\nslope:{slope}\nintercept:{intercept}\nk_conf_interval={k_conf_interval}\nstd_err={std_err}\n")
     f.close()

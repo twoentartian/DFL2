@@ -8,6 +8,8 @@ from scipy.signal import find_peaks
 
 import draw_info
 import data_process_lib
+import json
+import networkx as nx
 
 reduce_image_file_size = True
 lines_limit_per_image = 50
@@ -127,6 +129,7 @@ if __name__ == "__main__":
                                                          'herd_effect_delay',
                                                          'size',
                                                          'max_degree',
+                                                         "folder_name",
                                                          "size_of_giant_island",
                                                          "CurrentFlowBetweenCentrality_GiantIsland"])
         for folder_index in range(len(draw_info.folders)):
@@ -137,8 +140,8 @@ if __name__ == "__main__":
 
             subfolders = [f.path for f in os.scandir(folder) if f.is_dir()]
             assert len(subfolders) != 0
-            final_accuracy_df = pandas.DataFrame()
-            final_weight_diff_df = pandas.DataFrame()
+            first_accuracy_df = pandas.DataFrame()
+            first_weight_diff_df = pandas.DataFrame()
             is_first_dataframe = True
             first_to_draw_topology = True
 
@@ -146,71 +149,73 @@ if __name__ == "__main__":
             max_degree = []
             size_of_largest_island = []
             current_flow_betweenness_centrality = []
+            first_herd_effect_delay = 0
             for each_test_result_folder in subfolders:
                 # load the topology
-                if first_to_draw_topology:
-                    import json
-                    import networkx as nx
+                config_file = open(each_test_result_folder + '/simulator_config.json')
+                config_file_content = config_file.read()
+                config_file_json = json.loads(config_file_content)
+                topology = config_file_json['node_topology']
+                G = nx.Graph()
+                for singleItem in topology:
+                    unDirLink = singleItem.split('--')
+                    if len(unDirLink) != 1:
+                        G.add_edge(unDirLink[0], unDirLink[1])
 
-                    first_to_draw_topology = False
-                    config_file = open(each_test_result_folder + '/simulator_config.json')
-                    config_file_content = config_file.read()
-                    config_file_json = json.loads(config_file_content)
-                    topology = config_file_json['node_topology']
-                    G = nx.Graph()
-                    for singleItem in topology:
-                        unDirLink = singleItem.split('--')
-                        if len(unDirLink) != 1:
-                            G.add_edge(unDirLink[0], unDirLink[1])
+                    dirLink = singleItem.split('->')
+                    if len(dirLink) != 1:
+                        G.add_edge(dirLink[0], dirLink[1])
 
-                        dirLink = singleItem.split('->')
-                        if len(dirLink) != 1:
-                            G.add_edge(dirLink[0], dirLink[1])
-                    topology_graphs.append(G)
-                    # degree
-                    degrees = dict(G.degree())
-                    max_degree.append(max(degrees.values()))
-                    # largest island
-                    giant_component = G.subgraph(max(nx.connected_components(G), key=len))
-                    size_of_largest_island.append(len(giant_component.nodes))
-                    # current flow betweenness centrality of the giant component
-                    centrality = data_process_lib.graph_centrality_normalized(giant_component, nx.current_flow_betweenness_centrality)
-                    current_flow_betweenness_centrality.append(centrality)
+                # degree
+                degrees = dict(G.degree())
+                max_degree.append(max(degrees.values()))
+                # largest island
+                giant_component = G.subgraph(max(nx.connected_components(G), key=len))
+                size_of_largest_island.append(len(giant_component.nodes))
+                # current flow betweenness centrality of the giant component
+                centrality = data_process_lib.graph_centrality_normalized(giant_component, nx.current_flow_betweenness_centrality)
+                current_flow_betweenness_centrality.append(centrality)
 
                 accuracy_file_path = each_test_result_folder + '/accuracy.csv'
                 accuracy_df = pandas.read_csv(accuracy_file_path, index_col=0, header=0)
-                print(accuracy_df)
+                # print(accuracy_df)
 
                 weight_diff_file_path = each_test_result_folder + '/model_weight_diff.csv'
                 weight_diff_df = pandas.read_csv(weight_diff_file_path, index_col=0, header=0)
-                print(weight_diff_df)
+                # print(weight_diff_df)
 
-                final_accuracy_df = accuracy_df
-                final_weight_diff_df = weight_diff_df
-
-                herd_effect_delay = calculate_herd_effect_delay(final_accuracy_df, final_weight_diff_df)
+                herd_effect_delay = calculate_herd_effect_delay(accuracy_df, weight_diff_df)
                 herd_effect_delay_results.append(herd_effect_delay)
-            number_of_nodes = len(final_accuracy_df.columns)
-            print("herd effect delay = " + str(herd_effect_delay_results))
+
+                new_row = pandas.DataFrame({'herd_effect_delay': herd_effect_delay,
+                                            "network_name": draw_info.titles[folder_index],
+                                            "folder_name": each_test_result_folder,
+                                            "size": len(accuracy_df.columns),
+                                            "max_degree": max(degrees.values()),
+                                            "size_of_giant_island": len(giant_component.nodes),
+                                            "CurrentFlowBetweenCentrality_GiantIsland": centrality,
+                },index=[0])
+                herd_effect_delay_df = pandas.concat([herd_effect_delay_df.loc[:], new_row]).reset_index(drop=True)
+
+                if first_to_draw_topology:
+                    first_to_draw_topology = False
+                    topology_graphs.append(G)
+                    first_accuracy_df = accuracy_df
+                    first_weight_diff_df = weight_diff_df
+                    first_herd_effect_delay = herd_effect_delay
+
+            number_of_nodes = len(first_accuracy_df.columns)
+            print(str(folder) + " --- herd effect delay = " + str(herd_effect_delay_results))
             average_herd_delay = sum(herd_effect_delay_results)/len(herd_effect_delay_results)
             if len(subfolders) == 1:
                 max_degree = max_degree[0]
                 size_of_largest_island = size_of_largest_island[0]
                 current_flow_betweenness_centrality = current_flow_betweenness_centrality[0]
-            new_row = pandas.DataFrame({'herd_effect_delay': average_herd_delay,
-                                        "network_name": draw_info.titles[folder_index],
-                                        "size": number_of_nodes,
-                                        "max_degree": max_degree,
-                                        "size_of_giant_island": size_of_largest_island,
-                                        "CurrentFlowBetweenCentrality_GiantIsland": current_flow_betweenness_centrality,
-                                        },
-                                       index=[0])
-            herd_effect_delay_df = pandas.concat([herd_effect_delay_df.loc[:], new_row]).reset_index(drop=True)
 
-            accuracy_x = final_accuracy_df.index
-            accuracy_df_len = len(final_accuracy_df)
-            weight_diff_x = final_weight_diff_df.index
-            weight_diff_df_len = len(final_weight_diff_df)
+            accuracy_x = first_accuracy_df.index
+            accuracy_df_len = len(first_accuracy_df)
+            weight_diff_x = first_weight_diff_df.index
+            weight_diff_df_len = len(first_weight_diff_df)
 
             accuracy_axis = whole_axs[current_row * number_of_plot_per_row, current_col]
 
@@ -222,28 +227,28 @@ if __name__ == "__main__":
 
             if not reduce_image_file_size:
                 # normal plot
-                for _col in final_accuracy_df.columns:
-                    accuracy_axis.plot(accuracy_x[0:end_accuracy_x], final_accuracy_df[_col].iloc[0:end_accuracy_x], label=_col, alpha=0.75)
+                for _col in first_accuracy_df.columns:
+                    accuracy_axis.plot(accuracy_x[0:end_accuracy_x], first_accuracy_df[_col].iloc[0:end_accuracy_x], label=_col, alpha=0.75)
             else:
-                if lines_limit_per_image < len(final_accuracy_df.columns):
-                    ratio = 1 / len(final_accuracy_df.columns)
+                if lines_limit_per_image < len(first_accuracy_df.columns):
+                    ratio = 1 / len(first_accuracy_df.columns)
                     target_ratio_per_draw = 1 / lines_limit_per_image
                     current_ratio = 0
-                    for _col in final_accuracy_df.columns:
+                    for _col in first_accuracy_df.columns:
                         if current_ratio > target_ratio_per_draw:
-                            accuracy_axis.plot(accuracy_x[0:end_accuracy_x], final_accuracy_df[_col].iloc[0:end_accuracy_x], label=_col, alpha=0.75)
+                            accuracy_axis.plot(accuracy_x[0:end_accuracy_x], first_accuracy_df[_col].iloc[0:end_accuracy_x], label=_col, alpha=0.75)
                             current_ratio -= target_ratio_per_draw
                         current_ratio += ratio
 
                 else:
-                    for _col in final_accuracy_df.columns:
-                        accuracy_axis.plot(accuracy_x[0:end_accuracy_x], final_accuracy_df[_col].iloc[0:end_accuracy_x], label=_col, alpha=0.75)
+                    for _col in first_accuracy_df.columns:
+                        accuracy_axis.plot(accuracy_x[0:end_accuracy_x], first_accuracy_df[_col].iloc[0:end_accuracy_x], label=_col, alpha=0.75)
 
-            accuracy_axis.axvline(x=herd_effect_delay, color='r', label='herd effect delay')
+            accuracy_axis.axvline(x=first_herd_effect_delay, color='r', label='herd effect delay')
 
             accuracy_axis.grid()
             accuracy_axis.legend(ncol=5)
-            if len(final_accuracy_df.columns) > 10:
+            if len(first_accuracy_df.columns) > 10:
                 accuracy_axis.legend().remove()
             accuracy_axis.set_title('Subplot ' + str(folder_index + 1) + 'a - accuracy: ' + draw_info.titles[folder_index])
             accuracy_axis.set_xlabel('time (tick)')
@@ -259,12 +264,12 @@ if __name__ == "__main__":
                 else:
                     end_weight_diff_x = next(
                         k for k, value in enumerate(weight_diff_x) if value > maximum_tick)  # find the end of axis
-                for _col in final_weight_diff_df.columns:
-                    if numpy.sum(final_weight_diff_df[_col]) == 0:
+                for _col in first_weight_diff_df.columns:
+                    if numpy.sum(first_weight_diff_df[_col]) == 0:
                         continue
                     weight_diff_axis.plot(weight_diff_x[0:end_weight_diff_x],
-                                          final_weight_diff_df[_col].iloc[0:end_weight_diff_x], label=_col, linewidth=2)
-                weight_diff_axis.axvline(x=herd_effect_delay, color='r', label='herd effect delay')
+                                          first_weight_diff_df[_col].iloc[0:end_weight_diff_x], label=_col, linewidth=2)
+                weight_diff_axis.axvline(x=first_herd_effect_delay, color='r', label='herd effect delay')
 
                 weight_diff_axis.grid()
                 weight_diff_axis.legend(ncol=4, prop={'size': 8})
