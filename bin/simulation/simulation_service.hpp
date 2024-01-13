@@ -1249,6 +1249,8 @@ private:
     std::map<std::string, std::vector<std::tuple<std::string, size_t>>> map_to_weight_pos;
 public:
     const std::string SKIP_COLUMN_CONTENT = "!SKIP";
+    const std::set<std::string> UPDATE_TYPE_OVERRIDE = {"init"};
+    const std::set<std::string> UPDATE_TYPE_DELTA = {"average", "train"};
 
 public:
     apply_delta_weight()
@@ -1356,9 +1358,21 @@ public:
 
             //apply delta weight
             if (tick == apply_tick) {
-                LOG(INFO) << "tick:" << tick << ", apply delta weight, node:" << node_name;
-                const auto& new_model = old_model + delta;
-                node_iter->second->solver->set_parameter(new_model);
+                LOG(INFO) << "tick:" << tick << ", apply delta weight, node:" << node_name << ", type:" << apply_type;
+                if (this->UPDATE_TYPE_DELTA.contains(apply_type))
+                {
+                    const auto& new_model = old_model + delta;
+                    node_iter->second->solver->set_parameter(new_model);
+                }
+                else if (this->UPDATE_TYPE_OVERRIDE.contains(apply_type))
+                {
+                    const auto& new_model = delta;
+                    node_iter->second->solver->set_parameter(new_model);
+                }
+                else
+                {
+                    LOG(FATAL) << "unknown apply type in apply delta weight service: " << apply_type;
+                }
 
                 std::shared_ptr<std::ifstream> file = this->delta_weight_file[node_name];
                 auto enabled_item = this->node_enabled_item[node_name];
