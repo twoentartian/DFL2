@@ -1221,3 +1221,259 @@ private:
         return tokens;
     }
 };
+
+template <typename model_datatype>
+class delta_weight_item
+{
+public:
+    delta_weight_item()
+    {
+        apply_tick = 0;
+        apply_type = "";
+    }
+
+    int apply_tick;
+    std::string apply_type;
+    Ml::caffe_parameter_net<model_datatype> delta_weight;
+};
+
+template <typename model_datatype>
+class apply_delta_weight : public service<model_datatype>
+{
+private:
+    std::map<std::string, std::shared_ptr<std::ifstream>> delta_weight_file;
+    std::map<std::string, delta_weight_item<model_datatype>> delta_weight_record;
+    std::map<std::string, std::set<std::string>> node_enabled_item;
+    std::map<std::string, std::vector<std::tuple<std::string, size_t>>> map_to_weight_pos;
+public:
+    const std::string SKIP_COLUMN_CONTENT = "!SKIP";
+
+public:
+    apply_delta_weight()
+    {
+        this->node_vector_container = nullptr;
+    }
+
+    std::tuple<service_status, std::string> apply_config(const configuration_file::json &config) override
+    {
+        this->enable = config["enable"];
+
+        //load config
+        const std::string config_str = config["config"];
+        auto node_apply_type_pairs = extract_node_and_apply_type(config_str);
+        for (const auto& [node, apply_type] : node_apply_type_pairs) {
+            const auto trim_node = trim(node);
+            const auto trim_apply_type = trim(apply_type);
+            node_enabled_item[trim_node].insert(trim_apply_type);
+        }
+
+        //load first line of csv
+        for (const auto& [node, enabled_item] : node_enabled_item)
+        {
+            const std::filesystem::path csv_path = std::filesystem::current_path() / (node + ".csv");
+            if (!std::filesystem::exists(csv_path))
+                LOG(FATAL) << csv_path.string() << " does not exist";
+
+            auto file = std::make_shared<std::ifstream>(csv_path, std::ios::in | std::ios::binary);
+            LOG_IF(FATAL, !file->is_open()) << "cannot open " << csv_path.string();
+            delta_weight_file.emplace(node, file);
+
+            //read the first line
+            std::string header_line;
+            std::getline(*file, header_line);
+
+            //process the csv file
+            size_t current_pos = -1;
+            current_pos = header_line.find_first_of(',', current_pos+1); //skip the first ','
+            current_pos = header_line.find_first_of(',', current_pos+1);  //skip the "type" column
+            //record the column now
+            std::vector<std::tuple<std::string, size_t>> column_record;
+            while (true)
+            {
+                size_t next_pos = header_line.find_first_of(',', current_pos+1);
+                if (next_pos == std::string::npos) break;
+                const std::string current_str = header_line.substr(current_pos+1, next_pos-current_pos-1);
+                current_pos = next_pos;
+                size_t dash_pos = current_str.find_first_of('-');
+                if (dash_pos == std::string::npos)
+                {
+                    column_record.emplace_back(SKIP_COLUMN_CONTENT, 0);
+                    continue; //this is not a delta weight, maybe something else
+                }
+                const std::string layer_name = current_str.substr(0, dash_pos);
+                const size_t weight_pos = std::stoull(current_str.substr(dash_pos+1));
+                column_record.emplace_back(layer_name, weight_pos);
+            }
+            map_to_weight_pos[node] = column_record;
+        }
+
+        return {service_status::success, ""};
+    }
+
+    std::tuple<service_status, std::string> init_service(const std::filesystem::path &output_path, std::unordered_map<std::string, node<model_datatype> *> &_node_container, std::vector<node<model_datatype> *> &_node_vector_container) override
+    {
+        if (this->enable == false) return {service_status::skipped, "not enabled"};
+
+        this->set_node_container(_node_container, _node_vector_container);
+
+        //read the next line of csv
+        for (const auto& [node, enabled_item] : node_enabled_item)
+        {
+            std::shared_ptr<std::ifstream> file = this->delta_weight_file[node];
+
+            auto result = find_next_line(file, enabled_item);
+            if (!result) continue;  //the next line is not found
+
+            const auto [apply_tick, apply_type, current_line] = *result;
+            auto delta_model = convert_line_to_delta_weight(current_line, node);
+
+            delta_weight_item<model_datatype> apply_item;
+            apply_item.delta_weight = delta_model;
+            apply_item.apply_type = apply_type;
+            apply_item.apply_tick = apply_tick;
+
+            delta_weight_record[node] = apply_item;
+        }
+
+        return {service_status::success, ""};
+    }
+
+    std::tuple<service_status, std::string> process_per_tick(int tick, service_trigger_type trigger) override
+    {
+        if (this->enable == false) return {service_status::skipped, "not enabled"};
+
+        if (trigger != service_trigger_type::end_of_tick) return {service_status::skipped, "not service_trigger_type::end_of_tick"};
+
+        for (auto& [node_name, delta_weight] : this->delta_weight_record) {
+            const auto node_iter = this->node_container->find(node_name);
+            if (node_iter == this->node_container->end()) LOG(FATAL) << node_name << " specified in apply_delta_weight does not exist";
+            const auto& old_model = node_iter->second->solver->get_parameter();
+            int apply_tick = delta_weight.apply_tick;
+            std::string apply_type = delta_weight.apply_type;
+            const Ml::caffe_parameter_net<model_datatype>& delta = delta_weight.delta_weight;
+
+            //apply delta weight
+            if (tick == apply_tick) {
+                LOG(INFO) << "tick:" << tick << ", apply delta weight, node:" << node_name;
+                const auto& new_model = old_model + delta;
+                node_iter->second->solver->set_parameter(new_model);
+
+                std::shared_ptr<std::ifstream> file = this->delta_weight_file[node_name];
+                auto enabled_item = this->node_enabled_item[node_name];
+                auto result = find_next_line(file, enabled_item);
+                if (!result) continue;  //the next line is not found
+
+                const auto [next_apply_tick, next_apply_type, current_line] = *result;
+                auto next_delta_model = convert_line_to_delta_weight(current_line, node_name);
+
+                delta_weight_item<model_datatype> apply_item;
+                apply_item.delta_weight = next_delta_model;
+                apply_item.apply_type = next_apply_type;
+                apply_item.apply_tick = next_apply_tick;
+                delta_weight = apply_item;
+            }
+        }
+
+        return {service_status::success, ""};
+    }
+
+    std::tuple<service_status, std::string> destruction_service() override
+    {
+        return {service_status::success, ""};
+    }
+
+private:
+    std::vector<std::pair<std::string, std::string>> extract_node_and_apply_type(const std::string& s) {
+        std::vector<std::pair<std::string, std::string>> result;
+        std::istringstream ss(s);
+        std::string item;
+        while (std::getline(ss, item, ',')) {
+            std::istringstream itemStream(item);
+            std::string numberStr, str;
+            if (std::getline(itemStream, numberStr, ':') && std::getline(itemStream, str)) {
+                result.emplace_back(numberStr, str);
+            }
+        }
+        return result;
+    }
+
+    std::string trim(const std::string& str) {
+        size_t first = str.find_first_not_of(' ');
+        if (std::string::npos == first) {
+            return str;
+        }
+        size_t last = str.find_last_not_of(' ');
+        return str.substr(first, (last - first + 1));
+    }
+
+    std::tuple<size_t, std::string> find_next_csv_item(const std::string& target_string, char target, size_t pos) {
+        size_t next_pos = target_string.find_first_of(',', pos);
+        const std::string output_str = target_string.substr(pos, next_pos - pos);
+        return std::make_tuple(next_pos, output_str);
+    }
+
+    std::optional<std::tuple<size_t, std::string, std::string>> find_next_line(std::shared_ptr<std::ifstream> file, const std::set<std::string>& enabled_types) {
+        while (true) {
+            std::string current_line;
+            std::getline(*file, current_line);
+
+            if (file->eof()) return std::nullopt;
+            LOG_IF(FATAL, file->bad()) << "error when reading delta weight file";
+
+            //read the first two column
+            size_t current_pos = 0, next_pos = 0;
+            next_pos = current_line.find_first_of(',', current_pos); //find the tick
+            std::string tick_str = current_line.substr(current_pos, next_pos-current_pos);
+            current_pos = next_pos + 1;
+
+            next_pos = current_line.find_first_of(',', current_pos);  //find the type
+            std::string type_str = current_line.substr(current_pos, next_pos-current_pos);
+            current_pos = next_pos + 1;
+
+            if (enabled_types.contains(type_str))
+                return {{std::stoull(tick_str), type_str, current_line.substr(current_pos)}};
+        }
+    }
+
+    Ml::caffe_parameter_net<model_datatype> convert_line_to_delta_weight(const std::string& line, const std::string& node) {
+        auto node_iter = this->node_container->find(node);
+        auto ml_model = node_iter->second->solver->get_parameter();
+        ml_model.set_all(0);
+        size_t current_pos = 0;
+        size_t column_index = 0;
+        while (true) {
+            const auto [next_pos, str_item] = find_next_csv_item(line, ',', current_pos);
+            if (next_pos == std::string::npos) break;
+            current_pos = next_pos + 1;
+
+            //find the location
+            const auto& map_to_weight = this->map_to_weight_pos[node];
+            const auto [layer_name, weight_index] = map_to_weight[column_index];
+            column_index++;
+            if (layer_name==SKIP_COLUMN_CONTENT) continue;
+
+            LOG_IF(FATAL, node_iter == this->node_container->end()) << node << " specified in apply delta weight service does not exist";
+            auto& layers = ml_model.getLayers();
+            boost::shared_ptr<Ml::tensor_blob_like<model_datatype>> blob = nullptr;
+            for (auto& layer : layers) {
+                if (layer.getName() == layer_name)
+                {
+                    blob = layer.getBlob_p();
+                    break;
+                }
+            }
+            LOG_IF(FATAL, blob==nullptr) << layer_name << " not found in the NL layer";
+            if constexpr (std::is_same_v<model_datatype, float>) {
+                float v = std::stof(str_item);
+                blob->getData()[weight_index] = v;
+            }
+            if constexpr (std::is_same_v<model_datatype, double>) {
+                double v = std::stod(str_item);
+                blob->getData()[weight_index] = v;
+            }
+        }
+
+        return ml_model;
+    }
+
+};

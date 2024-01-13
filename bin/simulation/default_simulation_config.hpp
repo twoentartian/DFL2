@@ -105,6 +105,12 @@ configuration_file::json get_default_simulation_configuration()
         services["delta_weight_after_training_averaging_record"] = delta_weight_after_training_averaging_record_service;
     }
     {
+        configuration_file::json apply_delta_weight = configuration_file::json::object();
+        apply_delta_weight["enable"] = false;
+        apply_delta_weight["config"] = "0:train, 0:init, 0:average";
+        services["apply_delta_weight"] = apply_delta_weight;
+    }
+    {
         configuration_file::json model_record_service = configuration_file::json::object();
         model_record_service["enable"] = false;
         model_record_service["path"] = "./models";
