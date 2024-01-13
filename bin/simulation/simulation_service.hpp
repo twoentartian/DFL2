@@ -1081,6 +1081,8 @@ public:
     {
         this->set_node_container(_node_container, _node_vector_container);
 
+        if (this->enable == false) return {service_status::skipped, "not enabled"};
+
         //create the output records path or not?
         this->output_records_path = output_path / this->path;
         if (not std::filesystem::exists(this->output_records_path))
