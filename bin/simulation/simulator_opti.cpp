@@ -366,6 +366,7 @@ int main(int argc, char *argv[])
 		services.emplace("model_record", new model_record<model_datatype>());
 		services.emplace("network_topology_manager", new network_topology_manager<model_datatype>());
         services.emplace("delta_weight_after_training_averaging_record", new delta_weight_after_training_averaging_record<model_datatype>());
+        services.emplace("apply_delta_weight", new apply_delta_weight<model_datatype>());
 		auto services_json = config_json["services"];
 		LOG_IF(FATAL, services_json.is_null()) << "services are not defined in configuration file";
 		
@@ -458,6 +459,13 @@ int main(int argc, char *argv[])
                 service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
             }
 
+            //apply_delta_weight
+            {
+                auto service_iter = services.find("apply_delta_weight");
+
+                service_iter->second->apply_config(check_and_get_config("apply_delta_weight"));
+                service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+            }
 
 			//final service check
 			{
