@@ -772,6 +772,8 @@ public:
     {
         if (this->enable == false) return {service_status::skipped, "not enabled"};
 
+        if (!this->nodes_to_record.contains(triggered_node_name)) return {service_status::skipped, "node does not record"};
+
         if (trigger != service_trigger_type::model_received) return {service_status::skipped, "not service_trigger_type::model_received"};
 
         const auto node_iter = this->node_container->find(triggered_node_name);
