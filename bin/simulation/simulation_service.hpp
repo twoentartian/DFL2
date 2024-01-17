@@ -787,7 +787,7 @@ public:
         const std::string& model_source_node_name = node_iter->second->simulation_service_data.just_received_model_source_node_name;
         const auto* model = node_iter->second->simulation_service_data.just_received_model_ptr;
         std::ofstream output_file(folder_of_this_node_tick / (model_source_node_name + ".bin"), std::ios::binary);
-        LOG_IF(WARNING, output_file.good()) << "cannot open file:" << folder_of_this_node_tick / (model_source_node_name + ".bin");
+        LOG_IF(WARNING, !output_file.good()) << "cannot open file:" << folder_of_this_node_tick / (model_source_node_name + ".bin");
         output_file << serialize_wrap<boost::archive::binary_oarchive>(*model).str();
         output_file.close();
 
