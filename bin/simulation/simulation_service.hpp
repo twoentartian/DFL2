@@ -1381,6 +1381,7 @@ public:
     std::tuple<service_status, std::string> apply_config(const configuration_file::json &config) override
     {
         this->enable = config["enable"];
+        if (this->enable == false) return {service_status::skipped, "not enabled"};
 
         //load config
         const std::string config_str = config["config"];
