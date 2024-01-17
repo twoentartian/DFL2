@@ -481,6 +481,7 @@ namespace Ml
 					LOG(WARNING) << "Unknown output_name in test";
 				}
 			}
+            LOG_IF(FATAL, std::isnan(output_loss)) << "loss is NAN";
 			return {output_accuracy,output_loss};
 		}
 		

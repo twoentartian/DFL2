@@ -619,7 +619,6 @@ int main(int argc, char *argv[])
 
 					auto[test_data, test_label] = get_dataset_by_node_type(test_dataset, *single_node, ml_test_batch_size, ml_dataset_all_possible_labels);
 					float self_accuracy = single_node->evaluate_model(test_data, test_label);
-                    LOG_IF(FATAL, self_accuracy==NAN) << "self accuracy is NAN";
 
 					single_node->last_measured_tick = tick;
 					std::string log_msg = (boost::format("tick: %1%, node: %2%, accuracy: %3%") % tick % single_node->name % self_accuracy).str();
