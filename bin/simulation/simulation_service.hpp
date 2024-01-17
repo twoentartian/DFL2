@@ -782,13 +782,11 @@ public:
         std::filesystem::path folder_of_this_node_tick = folder_of_this_node / std::to_string(tick);
         if (!std::filesystem::exists(folder_of_this_node_tick)) std::filesystem::create_directories(folder_of_this_node_tick);
 
-        tmt::ParallelExecution([&folder_of_this_node_tick, &node_iter](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node) {
-                    const std::string& model_source_node_name = node_iter->second->simulation_service_data.just_received_model_source_node_name;
-                    const auto* model = node_iter->second->simulation_service_data.just_received_model_ptr;
-                    std::ofstream output_file(folder_of_this_node_tick / (model_source_node_name + ".bin"));
-                    output_file << serialize_wrap<boost::archive::binary_oarchive>(*model).str();
-                    output_file.close();
-                }, this->node_vector_container->size(), this->node_vector_container->data());
+        const std::string& model_source_node_name = node_iter->second->simulation_service_data.just_received_model_source_node_name;
+        const auto* model = node_iter->second->simulation_service_data.just_received_model_ptr;
+        std::ofstream output_file(folder_of_this_node_tick / (model_source_node_name + ".bin"));
+        output_file << serialize_wrap<boost::archive::binary_oarchive>(*model).str();
+        output_file.close();
 
         return {service_status::success, ""};
     }
