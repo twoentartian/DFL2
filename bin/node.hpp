@@ -68,6 +68,13 @@ enum node_type
 	node_type_last_index
 };
 
+template<typename model_datatype>
+class simulation_service_data_type
+{
+public:
+    Ml::caffe_parameter_net<model_datatype>* just_received_model_ptr;
+    std::string just_received_model_source_node_name;
+};
 
 template<typename model_datatype>
 class node
@@ -106,6 +113,9 @@ public:
 	int last_measured_tick;
     bool model_trained;
     bool model_averaged;
+
+    //This variable is only for simulation service purpose
+    simulation_service_data_type<model_datatype> simulation_service_data;
 
 	virtual void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) = 0;
     

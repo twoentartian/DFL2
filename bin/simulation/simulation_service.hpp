@@ -9,6 +9,7 @@
 #include "boost_serialization_wrapper.hpp"
 
 #include <tmt.hpp>
+#include <util.hpp>
 
 #include "./node.hpp"
 #include "./simulation_util.hpp"
@@ -25,12 +26,16 @@ enum class service_status
 
 enum class service_trigger_type
 {
+    //process_per_tick trigger type
     start_of_tick,
     end_of_tick,
     start_of_training,
     end_of_training,
     start_of_averaging,
-    end_of_averaging
+    end_of_averaging,
+
+    //process_on_event trigger type
+    model_received,
 };
 
 template <typename model_datatype>
@@ -51,6 +56,8 @@ public:
 	virtual std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::unordered_map<std::string, node<model_datatype> *>&, std::vector<node<model_datatype>*>&) = 0;
 	
 	virtual std::tuple<service_status, std::string> process_per_tick(int tick, service_trigger_type trigger) = 0;
+
+    virtual std::tuple<service_status, std::string> process_on_event(int tick, service_trigger_type trigger, std::string triggered_node_name) = 0;
 	
 	virtual std::tuple<service_status, std::string> destruction_service() = 0;
 
@@ -156,6 +163,12 @@ public:
         
 		return {service_status::success, ""};
 	}
+
+    std::tuple<service_status, std::string> process_on_event(int tick, service_trigger_type trigger, std::string triggered_node_name) override
+    {
+        LOG(FATAL) << "not implemented";
+        return {service_status::fail_not_specified_reason, "not implemented"};
+    }
 	
 	std::tuple<service_status, std::string> destruction_service() override
 	{
@@ -254,6 +267,12 @@ public:
         
 		return {service_status::success, ""};
 	}
+
+    std::tuple<service_status, std::string> process_on_event(int tick, service_trigger_type trigger, std::string triggered_node_name) override
+    {
+        LOG(FATAL) << "not implemented";
+        return {service_status::fail_not_specified_reason, "not implemented"};
+    }
 	
 	std::tuple<service_status, std::string> destruction_service() override
 	{
@@ -321,6 +340,12 @@ public:
         }
 		return {service_status::success, ""};
 	}
+
+    std::tuple<service_status, std::string> process_on_event(int tick, service_trigger_type trigger, std::string triggered_node_name) override
+    {
+        LOG(FATAL) << "not implemented";
+        return {service_status::fail_not_specified_reason, "not implemented"};
+    }
 	
 	std::tuple<service_status, std::string> destruction_service() override
 	{
@@ -497,6 +522,12 @@ public:
 		
 		return {service_status::success, ""};
 	}
+
+    std::tuple<service_status, std::string> process_on_event(int tick, service_trigger_type trigger, std::string triggered_node_name) override
+    {
+        LOG(FATAL) << "not implemented";
+        return {service_status::fail_not_specified_reason, "not implemented"};
+    }
 	
 	std::tuple<service_status, std::string> destruction_service() override
 	{
@@ -588,6 +619,12 @@ public:
         
         return {service_status::success, ""};
     }
+
+    std::tuple<service_status, std::string> process_on_event(int tick, service_trigger_type trigger, std::string triggered_node_name) override
+    {
+        LOG(FATAL) << "not implemented";
+        return {service_status::fail_not_specified_reason, "not implemented"};
+    }
     
     std::tuple<service_status, std::string> destruction_service() override
     {
@@ -673,7 +710,89 @@ public:
     
         return {service_status::success, ""};
     }
+
+    std::tuple<service_status, std::string> process_on_event(int tick, service_trigger_type trigger, std::string triggered_node_name) override
+    {
+        LOG(FATAL) << "not implemented";
+        return {service_status::fail_not_specified_reason, "not implemented"};
+    }
     
+    std::tuple<service_status, std::string> destruction_service() override
+    {
+        return {service_status::success, ""};
+    }
+};
+
+template <typename model_datatype>
+class received_model_record : public service<model_datatype>
+{
+private:
+    std::string path;
+    std::filesystem::path storage_path;
+    std::set<std::string> nodes_to_record;
+
+public:
+
+public:
+    received_model_record()
+    {
+        this->node_vector_container = nullptr;
+    }
+
+    std::tuple<service_status, std::string> apply_config(const configuration_file::json &config) override
+    {
+        this->enable = config["enable"];
+        this->path = config["path"];
+        const std::string nodes_to_record_str = config["nodes"];
+        for (const auto& node_name : util::split(nodes_to_record_str, ','))
+        {
+            this->nodes_to_record.emplace(node_name);
+        }
+
+        return {service_status::success, ""};
+    }
+
+    std::tuple<service_status, std::string> init_service(const std::filesystem::path &output_path, std::unordered_map<std::string, node<model_datatype> *> &_node_container, std::vector<node<model_datatype> *> &_node_vector_container) override
+    {
+        if (this->enable == false) return {service_status::skipped, "not enabled"};
+
+        this->set_node_container(_node_container, _node_vector_container);
+        this->storage_path = output_path / path;
+        if (!std::filesystem::exists(storage_path)) std::filesystem::create_directories(storage_path);
+
+        return {service_status::success, ""};
+    }
+
+    std::tuple<service_status, std::string> process_per_tick(int tick, service_trigger_type trigger) override
+    {
+        return {service_status::skipped, "I only work on process_on_event"};
+    }
+
+    std::tuple<service_status, std::string> process_on_event(int tick, service_trigger_type trigger, std::string triggered_node_name) override
+    {
+        if (this->enable == false) return {service_status::skipped, "not enabled"};
+
+        if (trigger != service_trigger_type::model_received) return {service_status::skipped, "not service_trigger_type::model_received"};
+
+        const auto node_iter = this->node_container->find(triggered_node_name);
+        LOG_IF(FATAL, node_iter == this->node_container->end()) << triggered_node_name << " does not exist";
+
+        std::filesystem::path folder_of_this_node = storage_path / triggered_node_name;
+        if (!std::filesystem::exists(folder_of_this_node)) std::filesystem::create_directories(folder_of_this_node);
+        std::filesystem::path folder_of_this_node_tick = folder_of_this_node / std::to_string(tick);
+        if (!std::filesystem::exists(folder_of_this_node_tick)) std::filesystem::create_directories(folder_of_this_node_tick);
+
+        tmt::ParallelExecution([&folder_of_this_node_tick, &node_iter](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node) {
+                    const std::string& model_source_node_name = node_iter->second->simulation_service_data.just_received_model_source_node_name;
+                    const auto* model = node_iter->second->simulation_service_data.just_received_model_ptr;
+                    std::ofstream output_file(folder_of_this_node_tick / (model_source_node_name + ".bin"));
+                    output_file << serialize_wrap<boost::archive::binary_oarchive>(*model).str();
+                    output_file.close();
+                }, this->node_vector_container->size(), this->node_vector_container->data());
+
+        return {service_status::success, ""};
+    }
+
     std::tuple<service_status, std::string> destruction_service() override
     {
         return {service_status::success, ""};
@@ -788,6 +907,12 @@ public:
         }
 
         return {service_status::success, ""};
+    }
+
+    std::tuple<service_status, std::string> process_on_event(int tick, service_trigger_type trigger, std::string triggered_node_name) override
+    {
+        LOG(FATAL) << "not implemented";
+        return {service_status::fail_not_specified_reason, "not implemented"};
     }
 
     std::tuple<service_status, std::string> destruction_service() override
@@ -1073,7 +1198,7 @@ public:
         this->enable = config["enable"];
         this->path = config["path"];
         std::string nodes_to_record_str = config["nodes_to_record"];
-        this->nodes_to_record = split(nodes_to_record_str, ',');
+        this->nodes_to_record = util::split(nodes_to_record_str, ',');
         return {service_status::success, ""};
     }
 
@@ -1159,6 +1284,12 @@ public:
         return {service_status::success, ""};
     }
 
+    std::tuple<service_status, std::string> process_on_event(int tick, service_trigger_type trigger, std::string triggered_node_name) override
+    {
+        LOG(FATAL) << "not implemented";
+        return {service_status::fail_not_specified_reason, "not implemented"};
+    }
+
     std::tuple<service_status, std::string> destruction_service() override
     {
         for (auto& [key, file]: output_delta_weight_files) {
@@ -1211,17 +1342,6 @@ private:
         *file << std::endl;
     }
 
-    std::vector<std::string> split(const std::string &s, char delimiter) {
-        std::vector<std::string> tokens;
-        std::string token;
-        std::istringstream tokenStream(s);
-
-        while (std::getline(tokenStream, token, delimiter)) {
-            tokens.push_back(token);
-        }
-
-        return tokens;
-    }
 };
 
 template <typename model_datatype>
@@ -1391,6 +1511,12 @@ public:
         }
 
         return {service_status::success, ""};
+    }
+
+    std::tuple<service_status, std::string> process_on_event(int tick, service_trigger_type trigger, std::string triggered_node_name) override
+    {
+        LOG(FATAL) << "not implemented";
+        return {service_status::fail_not_specified_reason, "not implemented"};
     }
 
     std::tuple<service_status, std::string> destruction_service() override

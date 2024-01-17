@@ -357,6 +357,7 @@ int main(int argc, char *argv[])
             service_instance->process_per_tick(tick, trigger_type);
         }
     };
+
 	{
 		services.emplace("accuracy", new accuracy_record<model_datatype>());
 		services.emplace("model_weights_difference_record", new model_weights_difference_record<model_datatype>());
@@ -367,9 +368,10 @@ int main(int argc, char *argv[])
 		services.emplace("network_topology_manager", new network_topology_manager<model_datatype>());
         services.emplace("delta_weight_after_training_averaging_record", new delta_weight_after_training_averaging_record<model_datatype>());
         services.emplace("apply_delta_weight", new apply_delta_weight<model_datatype>());
+        services.emplace("received_model_record", new received_model_record<model_datatype>());
 		auto services_json = config_json["services"];
 		LOG_IF(FATAL, services_json.is_null()) << "services are not defined in configuration file";
-		
+
 		{
 			auto check_and_get_config = [&services_json](const std::string& service_name) -> auto{
 				auto json_config = services_json[service_name];
@@ -434,6 +436,14 @@ int main(int argc, char *argv[])
 				service_iter->second->apply_config(check_and_get_config("model_record"));
 				service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
 			}
+
+            //received_model_record
+            {
+                auto service_iter = services.find("received_model_record");
+
+                service_iter->second->apply_config(check_and_get_config("received_model_record"));
+                service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+            }
 			
 			//network_topology_manager
 			{
@@ -473,6 +483,8 @@ int main(int argc, char *argv[])
 			}
 		}
 	}
+    //prepare "process_on_event" services
+    const auto& received_model_record_service = services["received_model_record"];
 	
 	
 	////////////  BEGIN SIMULATION  ////////////
@@ -515,7 +527,7 @@ int main(int argc, char *argv[])
             trigger_service(tick, service_trigger_type::start_of_training);
 
 			////train the model
-			tmt::ParallelExecution_StepIncremental([&tick, &train_dataset, &ml_train_batch_size, &ml_dataset_all_possible_labels](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
+			tmt::ParallelExecution_StepIncremental([&tick, &train_dataset, &received_model_record_service, &ml_train_batch_size, &ml_dataset_all_possible_labels](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
 				if (tick >= single_node->next_train_tick)
 				{
                     single_node->model_trained = true;
@@ -558,6 +570,11 @@ int main(int argc, char *argv[])
                     for (auto [updating_node_name, updating_node] : single_node->peers)
                     {
                         node_model_update[updating_node_name]->add_model(parameter_output);
+                        updating_node->simulation_service_data.just_received_model_ptr = &parameter_output;
+                        updating_node->simulation_service_data.just_received_model_source_node_name = single_node->name;
+                        received_model_record_service->process_on_event(tick, service_trigger_type::model_received, updating_node_name);
+                        updating_node->simulation_service_data.just_received_model_ptr = nullptr;
+                        updating_node->simulation_service_data.just_received_model_source_node_name = "";
                     }
 				}
 				else
