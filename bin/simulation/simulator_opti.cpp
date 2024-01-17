@@ -57,6 +57,8 @@ void handler(int sig) {
 
 int main(int argc, char *argv[])
 {
+    signal(SIGSEGV, handler);
+
 	constexpr char config_file_path[] = "./simulator_config.json";
 	
 	//register node types
