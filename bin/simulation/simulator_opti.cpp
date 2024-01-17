@@ -586,11 +586,12 @@ int main(int argc, char *argv[])
                     for (auto [updating_node_name, updating_node] : single_node->peers)
                     {
                         node_model_update[updating_node_name]->add_model(parameter_output);
-                        updating_node->simulation_service_data.just_received_model_ptr = &parameter_output;
-                        updating_node->simulation_service_data.just_received_model_source_node_name = single_node->name;
-                        received_model_record_service->process_on_event(tick, service_trigger_type::model_received, updating_node_name);
-                        updating_node->simulation_service_data.just_received_model_ptr = nullptr;
-                        updating_node->simulation_service_data.just_received_model_source_node_name = "";
+                        {
+                            std::lock_guard guard(updating_node->simulation_service_data.just_received_model_ptr_lock);
+                            updating_node->simulation_service_data.just_received_model_ptr = &parameter_output;
+                            updating_node->simulation_service_data.just_received_model_source_node_name = single_node->name;
+                            received_model_record_service->process_on_event(tick, service_trigger_type::model_received, updating_node_name);
+                        }
                     }
 				}
 				else

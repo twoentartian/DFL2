@@ -74,6 +74,7 @@ class simulation_service_data_type
 public:
     Ml::caffe_parameter_net<model_datatype>* just_received_model_ptr;
     std::string just_received_model_source_node_name;
+    std::mutex just_received_model_ptr_lock;
 };
 
 template<typename model_datatype>
