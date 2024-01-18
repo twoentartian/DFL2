@@ -822,6 +822,7 @@ public:
     {
         this->enable = config["enable"];
         this->path = config["path"];
+        this->storage_path = std::filesystem::path(this->path);
 
         return {service_status::success, ""};
     }
@@ -831,8 +832,7 @@ public:
         if (this->enable == false) return {service_status::skipped, "not enabled"};
 
         this->set_node_container(_node_container, _node_vector_container);
-        this->storage_path = output_path / path;
-        LOG_IF(FATAL, !std::filesystem::exists(storage_path)) << path << " does not exist";
+        LOG_IF(FATAL, !std::filesystem::exists(storage_path)) << storage_path << " does not exist";
 
         for (const auto& entry_0 : std::filesystem::directory_iterator(this->storage_path)) {
             LOG_IF(FATAL, !std::filesystem::is_directory(entry_0)) << entry_0 << " is not a directory";
