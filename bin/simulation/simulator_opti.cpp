@@ -470,7 +470,7 @@ int main(int argc, char *argv[])
                 };
                 std::static_pointer_cast<apply_received_model<model_datatype>>(service_iter->second)->send_model_to_update_buffer_handler = add_model_to_update_buffer;
 
-                service_iter->second->apply_config(check_and_get_config("received_model_record"));
+                service_iter->second->apply_config(check_and_get_config("apply_received_model"));
                 service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
             }
 			
