@@ -10,6 +10,7 @@
 
 #include <tmt.hpp>
 #include <util.hpp>
+#include <ml_layer/caffe_model_parameters.hpp>
 
 #include "./node.hpp"
 #include "./simulation_util.hpp"
@@ -792,6 +793,103 @@ public:
         output_file.close();
 
         return {service_status::success, ""};
+    }
+
+    std::tuple<service_status, std::string> destruction_service() override
+    {
+        return {service_status::success, ""};
+    }
+};
+
+template <typename model_datatype>
+class apply_received_model : public service<model_datatype>
+{
+private:
+    std::string path;
+    std::filesystem::path storage_path;
+    std::map<std::string, std::map<int, std::map<std::string, std::filesystem::path>>> all_received_models;
+
+public:
+    std::function<void(const std::string&, const Ml::caffe_parameter_net<model_datatype>&)> send_model_to_update_buffer_handler;
+
+public:
+    apply_received_model()
+    {
+        this->node_vector_container = nullptr;
+    }
+
+    std::tuple<service_status, std::string> apply_config(const configuration_file::json &config) override
+    {
+        this->enable = config["enable"];
+        this->path = config["path"];
+
+        return {service_status::success, ""};
+    }
+
+    std::tuple<service_status, std::string> init_service(const std::filesystem::path &output_path, std::unordered_map<std::string, node<model_datatype> *> &_node_container, std::vector<node<model_datatype> *> &_node_vector_container) override
+    {
+        if (this->enable == false) return {service_status::skipped, "not enabled"};
+
+        this->set_node_container(_node_container, _node_vector_container);
+        this->storage_path = output_path / path;
+        LOG_IF(FATAL, !std::filesystem::exists(storage_path)) << path << " does not exist";
+
+        for (const auto& entry_0 : std::filesystem::directory_iterator(this->storage_path)) {
+            LOG_IF(FATAL, !std::filesystem::is_directory(entry_0)) << entry_0 << " is not a directory";
+            //get the node names
+            const auto& node_path = entry_0.path();
+            std::map<int, std::map<std::string, std::filesystem::path>> all_ticks;
+            for (const auto& entry_1 : std::filesystem::directory_iterator(node_path)) {
+                LOG_IF(FATAL, !std::filesystem::is_directory(entry_1)) << entry_1 << " is not a directory";
+                //get the tick
+                const auto& tick_path = entry_1.path();
+                std::map<std::string, std::filesystem::path> all_src_nodes_in_tick;
+                for (const auto& entry_2 : std::filesystem::directory_iterator(tick_path)) {
+                    const auto& src_node_path = entry_2.path();
+                    const auto& src_node_name = src_node_path.filename();
+                    all_src_nodes_in_tick[src_node_name] = src_node_path;
+                }
+                int tick = std::stoi(tick_path.filename());
+                all_ticks[tick] = all_src_nodes_in_tick;
+            }
+            const std::string node_name = node_path.filename();
+            all_received_models[node_name] = all_ticks;
+        }
+
+        return {service_status::success, ""};
+    }
+
+    std::tuple<service_status, std::string> process_per_tick(int tick, service_trigger_type trigger) override
+    {
+        if (this->enable == false) return {service_status::skipped, "not enabled"};
+
+        if (trigger != service_trigger_type::start_of_averaging) return {service_status::skipped, "not service_trigger_type::start_of_averaging"};
+
+        for (const auto& [node_name, all_ticks] : all_received_models) {
+            const auto tick_iter = all_ticks.find(tick);
+            if (tick_iter == all_ticks.end()) continue; //nothing to do for this tick
+
+            const auto node_iter = this->node_container->find(node_name);
+            LOG_IF(FATAL, node_iter==this->node_container->end()) << node_name << " not found";
+            //find node
+            for (const auto& [src_node_name, model_path] : tick_iter->second) {
+                std::ifstream input_file(model_path, std::ios::binary);
+                LOG_IF(WARNING, !input_file.good()) << "cannot open file:" << model_path.string();
+                std::stringstream ss;
+                ss << input_file.rdbuf();
+                input_file.close();
+                const Ml::caffe_parameter_net<model_datatype> model = deserialize_wrap<boost::archive::binary_iarchive, Ml::caffe_parameter_net<model_datatype>>(ss);
+                send_model_to_update_buffer_handler(node_name, model);
+            }
+        }
+
+        return {service_status::success, ""};
+    }
+
+    std::tuple<service_status, std::string> process_on_event(int tick, service_trigger_type trigger, std::string triggered_node_name) override
+    {
+        LOG(FATAL) << "not implemented";
+        return {service_status::fail_not_specified_reason, "not implemented"};
     }
 
     std::tuple<service_status, std::string> destruction_service() override

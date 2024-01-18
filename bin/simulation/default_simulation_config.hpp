@@ -125,6 +125,12 @@ configuration_file::json get_default_simulation_configuration()
         services["received_model_record"] = received_modeL_record;
     }
     {
+        configuration_file::json apply_received_model = configuration_file::json::object();
+        apply_received_model["enable"] = false;
+        apply_received_model["path"] = "./received_models";
+        services["apply_received_model"] = apply_received_model;
+    }
+    {
         configuration_file::json network_topology_manager_service = configuration_file::json::object();
 
         configuration_file::json network_topology_manager_service_read_from_file = configuration_file::json::object();

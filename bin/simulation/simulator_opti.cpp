@@ -385,6 +385,7 @@ int main(int argc, char *argv[])
         services.emplace("delta_weight_after_training_averaging_record", new delta_weight_after_training_averaging_record<model_datatype>());
         services.emplace("apply_delta_weight", new apply_delta_weight<model_datatype>());
         services.emplace("received_model_record", new received_model_record<model_datatype>());
+        services.emplace("apply_received_model", new apply_received_model<model_datatype>());
 		auto services_json = config_json["services"];
 		LOG_IF(FATAL, services_json.is_null()) << "services are not defined in configuration file";
 
@@ -456,6 +457,18 @@ int main(int argc, char *argv[])
             //received_model_record
             {
                 auto service_iter = services.find("received_model_record");
+
+                service_iter->second->apply_config(check_and_get_config("received_model_record"));
+                service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+            }
+
+            //apply_received_model
+            {
+                auto service_iter = services.find("apply_received_model");
+                auto add_model_to_update_buffer = [](const std::string& node_name, const Ml::caffe_parameter_net<model_datatype>& model){
+                    node_model_update[node_name]->add_model(model);
+                };
+                std::static_pointer_cast<apply_received_model<model_datatype>>(service_iter->second)->send_model_to_update_buffer_handler = add_model_to_update_buffer;
 
                 service_iter->second->apply_config(check_and_get_config("received_model_record"));
                 service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
