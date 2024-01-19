@@ -19,7 +19,8 @@ methods_to_test = [ {"func":nx.closeness_centrality, "name":"closeness_centralit
                     # {"func":nx.second_order_centrality, "name":"second_order_centrality"},
                     # {"func":nx.laplacian_centrality, "name":"laplacian_centrality"},
                     ]
-use_ratio = True
+use_ratio = False   #False - use freeman's graph centrality measure.
+                    #True - use Zaid's hypothesis
 if use_ratio:
     save_path = "herd_effect_and_graph_property_ratio.csv"
 else:
@@ -67,7 +68,7 @@ if __name__ == "__main__":
         folder_names_set.add(folder)
 
     if os.path.exists(save_path):
-        print(f"{save_path} already exists, loadding it")
+        print(f"{save_path} already exists, loading it")
         output_df = pandas.read_csv(save_path)
     else:
         final_output_df_content = []
