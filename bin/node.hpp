@@ -57,6 +57,7 @@ enum node_type
 	unknown_node_type = 0,
 	normal,
 	observer,
+    pontificator,
 	malicious_model_poisoning_random_model,
 	malicious_model_poisoning_random_model_by_turn,
 	malicious_model_poisoning_random_model_biased_0_1,
@@ -252,7 +253,46 @@ public:
 	{
 		return {};
 	}
-	
+};
+
+template<typename model_datatype>
+class pontificator_node : public node<model_datatype>
+{
+private:
+    std::optional<Ml::caffe_parameter_net<model_datatype>> parameter;
+
+public:
+    pontificator_node(std::string _name, size_t buf_size) : node<model_datatype>(_name, buf_size)
+    {
+        this->type = pontificator;
+    };
+
+    static std::string type_name()
+    {
+        return "pontificator";
+    }
+
+    static void registerNodeType()
+    {
+        node<model_datatype>::_registerNodeType(type_name(), new pontificator_node("template", 0));
+    }
+
+    node<model_datatype> *new_node(std::string _name, size_t buf_size) override
+    {
+        return new pontificator_node(_name, buf_size);
+    }
+
+    void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
+    {
+        if (!parameter)
+            parameter = {this->solver->get_parameter()};
+        this->solver->set_parameter(*parameter);
+    }
+
+    std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() override
+    {
+        return parameter;
+    }
 };
 
 template<typename model_datatype>
@@ -618,6 +658,7 @@ static void deregister_node_types()
     //register node types
     normal_node<model_datatype>::registerNodeType();
     observer_node<model_datatype>::registerNodeType();
+    pontificator_node<model_datatype>::registerNodeType();
     malicious_model_poisoning_random_model_node<model_datatype>::registerNodeType();
     malicious_model_poisoning_random_model_by_turn_node<model_datatype>::registerNodeType();
     malicious_model_poisoning_random_model_biased_0_1_node<model_datatype>::registerNodeType();
