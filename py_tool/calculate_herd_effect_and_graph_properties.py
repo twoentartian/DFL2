@@ -1,11 +1,12 @@
 import os
 import sys
 
-import numpy
+import numpy as np
 import pandas
 import matplotlib.pyplot as plt
 import json
 import networkx as nx
+from scipy import stats
 
 import draw_info
 
@@ -57,6 +58,16 @@ def graph_centrality(G, vertex_centrality_func, normalized = False):
         star_centrality = vertex_centrality_func(star_graph)
         output = output / sum_of_deviations_from_max(list(star_centrality.values()))
     return output
+
+
+def calculate_slope_intercept_for_loglog(x, y):
+    from sklearn.linear_model import LinearRegression
+    x = np.log(x)
+    y = np.log(y)
+    x = x.values
+    y = y.values
+    slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
+    return slope, intercept, r_value, p_value, std_err
 
 
 if __name__ == "__main__":
@@ -138,12 +149,24 @@ if __name__ == "__main__":
         axs[0, 0].scatter(output_df[method_name], output_df['herd_effect_delay'], label=f'herd_effect_delay vs {method_name}')
         # axs[0, 0].legend()
         axs[0, 0].grid()
+        axs[0, 0].set_yscale('log')
+        axs[0, 0].set_xscale('log')
+
+        # if method_name == "current_flow_betweenness_centrality":
+        if True:
+            slope, intercept, r_value, p_value, std_err = calculate_slope_intercept_for_loglog(output_df[method_name], output_df['herd_effect_delay'])
+            print(f"{method_name} -- slope: {slope}, intercept: {intercept}, stderr: {std_err}")
+            asymptote_x = np.log(output_df[method_name])
+            asymptote_y = [i * slope + intercept for i in asymptote_x]
+            asymptote_x = np.exp(asymptote_x)
+            asymptote_y = np.exp(asymptote_y)
+            line, = axs[0, 0].plot(asymptote_x, asymptote_y, alpha=0.8, c="tab:orange", label=f'asymptote: slope={slope:.2f}')
+            line.set_dashes((2,1))
+
         for x,y,test_name in zip(output_df[method_name], output_df['herd_effect_delay'], output_df.index):
             axs[0, 0].annotate(f"{test_name}", (x,y),textcoords="offset points",xytext=(3,3),ha='center')
-        fig.savefig(f"subtraction_graph_centrality_{method_name}.pdf")
-
-
-
-
-
+        if use_ratio:
+            fig.savefig(f"ratio_graph_centrality_{method_name}.pdf")
+        else:
+            fig.savefig(f"subtraction_graph_centrality_{method_name}.pdf")
 
