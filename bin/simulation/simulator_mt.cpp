@@ -8,6 +8,9 @@
 #include <set>
 #include <atomic>
 #include <chrono>
+#include <csignal>
+#include <execinfo.h>
+#include <boost/format.hpp>
 
 #include <glog/logging.h>
 
@@ -20,7 +23,7 @@
 #include <ml_layer.hpp>
 #include <thread_pool.hpp>
 #include <dll_importer.hpp>
-#include <boost/format.hpp>
+#include <memory_consumption.hpp>
 #include <utility>
 
 #include "../reputation_sdk.hpp"
@@ -40,9 +43,23 @@ using model_datatype = float;
 std::unordered_map<std::string, node<model_datatype> *> node_container;
 dll_loader<reputation_interface<model_datatype>> reputation_dll;
 
+void handler(int sig) {
+    void *array[10];
+    size_t size;
+
+    // get void*'s for all entries on the stack
+    size = backtrace(array, 10);
+
+    // print out all the frames to stderr
+    fprintf(stderr, "Error: signal %d:\n", sig);
+    backtrace_symbols_fd(array, size, STDERR_FILENO);
+    exit(1);
+}
 
 int main(int argc, char *argv[])
 {
+    signal(SIGSEGV, handler);
+
 	constexpr char config_file_path[] = "./simulator_config.json";
 	
 	//register node types
@@ -116,8 +133,8 @@ int main(int argc, char *argv[])
 		std::filesystem::path ml_reputation_dll(ml_reputation_dll_path);
 		std::filesystem::copy(ml_reputation_dll_path, output_path / ml_reputation_dll.filename());
 	}
-	
-	//load node configurations
+
+#pragma region load node configurations
 	auto nodes_json = config_json["nodes"];
 	for (auto &single_node: nodes_json)
 	{
@@ -244,8 +261,9 @@ int main(int argc, char *argv[])
 			iter->second->training_interval_tick.push_back(el);
 		}
 	}
-	
-	//load network topology configuration
+#pragma endregion
+
+#pragma region load network topology configuration
 	/** network topology configuration
 	 * you can use fully_connect, average_degree-{degree}, 1->2, 1--2, the topology items' order in the configuration file determines the order of adding connections.
 	 * fully_connect: connect all nodes, and ignore all other topology items.
@@ -377,6 +395,7 @@ int main(int argc, char *argv[])
 			}
 		}
 	}
+#pragma endregion
 	
 	//load node reputation
 	for (auto &target_node : node_container)
@@ -418,97 +437,148 @@ int main(int argc, char *argv[])
 	
 	////services
 	std::unordered_map<std::string, std::shared_ptr<service<model_datatype>>> services;
-	services.emplace("accuracy", new accuracy_record<model_datatype>());
-	services.emplace("model_weights_difference_record", new model_weights_difference_record<model_datatype>());
-	services.emplace("force_broadcast_average", new force_broadcast_model<model_datatype>());
-	services.emplace("time_based_hierarchy_service", new time_based_hierarchy_service<model_datatype>());
-    services.emplace("reputation_record", new reputation_record<model_datatype>());
-    services.emplace("model_record", new model_record<model_datatype>());
-    services.emplace("network_topology_manager", new network_topology_manager<model_datatype>());
-	auto services_json = config_json["services"];
-	LOG_IF(FATAL, services_json.is_null()) << "services are not defined in configuration file";
-	
+    //trigger service
+    const auto trigger_service = [&services](int tick, service_trigger_type trigger_type){
+        for (auto& [name, service_instance]: services)
+        {
+            service_instance->process_per_tick(tick, trigger_type);
+        }
+    };
+
     {
-        auto check_and_get_config = [&services_json](const std::string& service_name) -> auto{
-            auto json_config = services_json[service_name];
-            LOG_IF(FATAL, json_config.is_null()) << "service: \"" << service_name << "\" config item is empty";
-            return json_config;
-        };
-	    
-	    //accuracy service
+        services.emplace("accuracy", new accuracy_record<model_datatype>());
+        services.emplace("model_weights_difference_record", new model_weights_difference_record<model_datatype>());
+        services.emplace("force_broadcast_average", new force_broadcast_model<model_datatype>());
+        services.emplace("time_based_hierarchy_service", new time_based_hierarchy_service<model_datatype>());
+        services.emplace("reputation_record", new reputation_record<model_datatype>());
+        services.emplace("model_record", new model_record<model_datatype>());
+        services.emplace("network_topology_manager", new network_topology_manager<model_datatype>());
+        services.emplace("delta_weight_after_training_averaging_record", new delta_weight_after_training_averaging_record<model_datatype>());
+        services.emplace("apply_delta_weight", new apply_delta_weight<model_datatype>());
+        services.emplace("received_model_record", new received_model_record<model_datatype>());
+        services.emplace("apply_received_model", new apply_received_model<model_datatype>());
+        auto services_json = config_json["services"];
+        LOG_IF(FATAL, services_json.is_null()) << "services are not defined in configuration file";
+
         {
-            auto service_iter = services.find("accuracy");
+            auto check_and_get_config = [&services_json](const std::string& service_name) -> auto{
+                auto json_config = services_json[service_name];
+                LOG_IF(FATAL, json_config.is_null()) << "service: \"" << service_name << "\" config item is empty";
+                return json_config;
+            };
 
-            std::static_pointer_cast<accuracy_record<model_datatype>>(service_iter->second)->ml_solver_proto = ml_solver_proto;
-            std::static_pointer_cast<accuracy_record<model_datatype>>(service_iter->second)->test_dataset = &test_dataset;
-            std::static_pointer_cast<accuracy_record<model_datatype>>(service_iter->second)->ml_test_batch_size = ml_test_batch_size;
+            //accuracy service
+            {
+                auto service_iter = services.find("accuracy");
 
-            service_iter->second->apply_config(check_and_get_config("accuracy"));
-            service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
-        }
+                std::static_pointer_cast<accuracy_record<model_datatype>>(service_iter->second)->ml_solver_proto = ml_solver_proto;
+                std::static_pointer_cast<accuracy_record<model_datatype>>(service_iter->second)->test_dataset = &test_dataset;
+                std::static_pointer_cast<accuracy_record<model_datatype>>(service_iter->second)->ml_test_batch_size = ml_test_batch_size;
 
-        //model weights difference record
-        {
-            auto service_iter = services.find("model_weights_difference_record");
+                service_iter->second->apply_config(check_and_get_config("accuracy"));
+                service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+            }
 
-            service_iter->second->apply_config(check_and_get_config("model_weights_difference_record"));
-            service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
-        }
+            //model weights difference record
+            {
+                auto service_iter = services.find("model_weights_difference_record");
 
-        //force_broadcast
-        {
-            auto service_iter = services.find("force_broadcast_average");
+                service_iter->second->apply_config(check_and_get_config("model_weights_difference_record"));
+                service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+            }
 
-            service_iter->second->apply_config(check_and_get_config("force_broadcast_average"));
-            service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
-        }
+            //force_broadcast
+            {
+                auto service_iter = services.find("force_broadcast_average");
 
-        //time_based_hierarchy_service
-        {
-            auto service_iter = services.find("time_based_hierarchy_service");
+                service_iter->second->apply_config(check_and_get_config("force_broadcast_average"));
+                service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+            }
 
-            std::static_pointer_cast<time_based_hierarchy_service<model_datatype>>(service_iter->second)->ml_solver_proto = ml_solver_proto;
-            std::static_pointer_cast<time_based_hierarchy_service<model_datatype>>(service_iter->second)->test_dataset = &test_dataset;
-            std::static_pointer_cast<time_based_hierarchy_service<model_datatype>>(service_iter->second)->ml_test_batch_size = ml_test_batch_size;
-            std::static_pointer_cast<time_based_hierarchy_service<model_datatype>>(service_iter->second)->ml_dataset_all_possible_labels = &ml_dataset_all_possible_labels;
+            //time_based_hierarchy_service
+            {
+                auto service_iter = services.find("time_based_hierarchy_service");
 
-            service_iter->second->apply_config(check_and_get_config("time_based_hierarchy_service"));
-            service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
-        }
+                std::static_pointer_cast<time_based_hierarchy_service<model_datatype>>(service_iter->second)->ml_solver_proto = ml_solver_proto;
+                std::static_pointer_cast<time_based_hierarchy_service<model_datatype>>(service_iter->second)->test_dataset = &test_dataset;
+                std::static_pointer_cast<time_based_hierarchy_service<model_datatype>>(service_iter->second)->ml_test_batch_size = ml_test_batch_size;
+                std::static_pointer_cast<time_based_hierarchy_service<model_datatype>>(service_iter->second)->ml_dataset_all_possible_labels = &ml_dataset_all_possible_labels;
 
-        //reputation_record
-        {
-            auto service_iter = services.find("reputation_record");
+                service_iter->second->apply_config(check_and_get_config("time_based_hierarchy_service"));
+                service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+            }
 
-            service_iter->second->apply_config(check_and_get_config("reputation_record"));
-            service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
-        }
+            //reputation_record
+            {
+                auto service_iter = services.find("reputation_record");
 
-        //model record
-        {
-            auto service_iter = services.find("model_record");
-            std::static_pointer_cast<model_record<model_datatype>>(service_iter->second)->total_tick = ml_max_tick;
+                service_iter->second->apply_config(check_and_get_config("reputation_record"));
+                service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+            }
 
-            service_iter->second->apply_config(check_and_get_config("model_record"));
-            service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
-        }
+            //model record
+            {
+                auto service_iter = services.find("model_record");
+                std::static_pointer_cast<model_record<model_datatype>>(service_iter->second)->total_tick = ml_max_tick;
 
-        //network_topology_manager
-        {
-            auto service_iter = services.find("network_topology_manager");
+                service_iter->second->apply_config(check_and_get_config("model_record"));
+                service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+            }
 
-            service_iter->second->apply_config(check_and_get_config("network_topology_manager"));
-            service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
-        }
+            //received_model_record
+            {
+                auto service_iter = services.find("received_model_record");
 
+                service_iter->second->apply_config(check_and_get_config("received_model_record"));
+                service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+            }
 
+            //apply_received_model(not supported)
+            {
+                if (services_json["apply_received_model"]["enabled"])
+                    LOG(FATAL) << "apply_received_model is not supported in simulator_mt";
+            }
 
-        //final service check
-        {
-            LOG_IF(FATAL, services["network_topology_manager"]->enable && services["time_based_hierarchy_service"]->enable) << "you cannot enable time_based_hierarchy_service and network_topology_manager at same time";
+            //network_topology_manager
+            {
+                auto service_iter = services.find("network_topology_manager");
 
+                service_iter->second->apply_config(check_and_get_config("network_topology_manager"));
+                service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+            }
+
+            //network_topology_manager
+            {
+                auto service_iter = services.find("network_topology_manager");
+
+                service_iter->second->apply_config(check_and_get_config("network_topology_manager"));
+                service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+            }
+
+            //delta_weight_after_training_averaging_record
+            {
+                auto service_iter = services.find("delta_weight_after_training_averaging_record");
+
+                service_iter->second->apply_config(check_and_get_config("delta_weight_after_training_averaging_record"));
+                service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+            }
+
+            //apply_delta_weight
+            {
+                auto service_iter = services.find("apply_delta_weight");
+
+                service_iter->second->apply_config(check_and_get_config("apply_delta_weight"));
+                service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+            }
+
+            //final service check
+            {
+                LOG_IF(FATAL, services["network_topology_manager"]->enable && services["time_based_hierarchy_service"]->enable) << "you cannot enable time_based_hierarchy_service and network_topology_manager at same time";
+            }
         }
     }
+    //prepare "process_on_event" services
+    const auto& received_model_record_service = services["received_model_record"];
     
 	////////////  BEGIN SIMULATION  ////////////
 	std::mutex accuracy_container_lock;
@@ -526,7 +596,11 @@ int main(int argc, char *argv[])
 		{
 			std::cout << "tick: " << tick << " (" << ml_max_tick << ")" << std::endl;
 			LOG(INFO) << "tick: " << tick << " (" << ml_max_tick << ")";
-			
+
+            //services
+            trigger_service(tick, service_trigger_type::start_of_tick);
+
+            ////report simulation speed
 			if (tick != 0 && tick % report_time_remaining_per_tick_elapsed == 0)
 			{
 				auto now = std::chrono::system_clock::now();
@@ -538,8 +612,14 @@ int main(int argc, char *argv[])
 				std::tm est_finish_time_tm = *std::localtime(&est_finish_time);
 				std::cout << "speed: " << std::setprecision(2) << speed_ms_per_tick/1000 << "s/tick, est finish at: " << std::put_time( &est_finish_time_tm, "%Y-%m-%d %H:%M:%S") << std::endl;
 			}
-			
-			////train the model
+
+            ////report memory consumption
+            LOG(INFO) << "memory consumption (before training): " << get_memory_consumption_byte() / 1024 / 1024 << " MB";
+
+            //services
+            trigger_service(tick, service_trigger_type::start_of_training);
+
+            ////train the model
 			tmt::ParallelExecution_StepIncremental([&drop_rate_lock, &drop_rate, &tick, &train_dataset, &ml_train_batch_size, &ml_dataset_all_possible_labels](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
 				if (tick >= single_node->next_train_tick)
 				{
@@ -596,8 +676,17 @@ int main(int argc, char *argv[])
                     single_node->model_trained = false;
                 }
 			}, node_pointer_vector_container.size(), node_pointer_vector_container.data());
-			
-			////check fedavg buffer full
+
+            ////report memory consumption
+            LOG(INFO) << "memory consumption (after training, before averaging): " << get_memory_consumption_byte() / 1024 / 1024 << " MB";
+
+            //services
+            trigger_service(tick, service_trigger_type::end_of_training);
+
+            //services
+            trigger_service(tick, service_trigger_type::start_of_averaging);
+
+            ////check fedavg buffer full
 			tmt::ParallelExecution_StepIncremental([&tick,&test_dataset,&ml_test_batch_size,&ml_dataset_all_possible_labels,&solver_for_testing, &accuracy_container_lock, &accuracy_container](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
 				if (single_node->parameter_buffer.size() >= single_node->buffer_size) {
                     single_node->model_averaged = true;
@@ -666,14 +755,17 @@ int main(int argc, char *argv[])
                     single_node->model_averaged = false;
                 }
 			}, node_pointer_vector_container.size(), node_pointer_vector_container.data());
-			
-			//services
-			for (auto& [name, service_instance]: services)
-			{
-				service_instance->process_per_tick(tick, service_trigger_type::end_of_tick);
-			}
-            
-            //early stop?
+
+            //services
+            trigger_service(tick, service_trigger_type::end_of_averaging);
+
+            ////report memory consumption
+            LOG(INFO) << "memory consumption (after averaging): " << get_memory_consumption_byte() / 1024 / 1024 << " MB";
+
+            //services
+            trigger_service(tick, service_trigger_type::end_of_tick);
+
+            ////early stop?
             if (early_stop_enable)
             {
                 size_t counter_above_threshold = 0;
@@ -693,8 +785,10 @@ int main(int argc, char *argv[])
                 }
             }
 
-			
-			tick++;
+            ////report memory consumption
+            LOG(INFO) << "memory consumption (end of tick " << tick << "): " << get_memory_consumption_byte() / 1024 / 1024 << " MB";
+
+            tick++;
 		}
 	}
 	
@@ -702,81 +796,6 @@ int main(int argc, char *argv[])
 	{
 		service_instance->destruction_service();
 	}
-	
-//	// generate final summary for the whole network
-//	{
-//		{
-//			std::string log_msg = "generating final network summary";
-//			std::cout << log_msg << std::endl;
-//			LOG(INFO) << log_msg;
-//		}
-//
-//		auto whole_train = train_dataset.get_whole_dataset();
-//		auto whole_test = test_dataset.get_whole_dataset();
-//
-//		std::vector<std::vector<Ml::tensor_blob_like<model_datatype>>> network_output_train; // 0: node index, 1: data index
-//		std::vector<std::vector<Ml::tensor_blob_like<model_datatype>>> network_output_test; // 0: node index, 1: data index
-//		network_output_train.resize(node_pointer_vector_container.size());
-//        for (auto & i : network_output_train)
-//		{
-//			i.resize(std::get<0>(whole_train).size());
-//		}
-//		network_output_test.resize(node_pointer_vector_container.size());
-//        for (auto & i : network_output_test)
-//		{
-//			i.resize(std::get<0>(whole_test).size());
-//		}
-//		tmt::ParallelExecution_StepIncremental([&whole_train, &whole_test, &network_output_test, &network_output_train](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
-//			{
-//				std::vector<Ml::tensor_blob_like<model_datatype>> whole_train_x = std::get<0>(whole_train);
-//				std::vector<Ml::tensor_blob_like<model_datatype>> predict_train_y = single_node->solver->predict(whole_train_x);
-//				network_output_train[index] = predict_train_y;
-//			}
-//			{
-//				std::vector<Ml::tensor_blob_like<model_datatype>> whole_test_x = std::get<0>(whole_test);
-//				std::vector<Ml::tensor_blob_like<model_datatype>> predict_test_y = single_node->solver->predict(whole_test_x);
-//				network_output_test[index] = predict_test_y;
-//			}
-//		}, node_pointer_vector_container.size(), node_pointer_vector_container.data());
-//
-//		std::vector<Ml::tensor_blob_like<model_datatype>> network_prob_train, network_prob_test;
-//		network_prob_train = network_output_train[0];
-//		network_prob_test = network_output_test[0];
-//		for (int node_index = 1; node_index < network_output_train.size(); ++node_index) // starts from 1 because index 0 is the inital value
-//		{
-//			for (int sample_index = 0; sample_index < network_output_train[0].size(); ++sample_index)
-//			{
-//				network_prob_train[sample_index] = network_prob_train[sample_index] + network_output_train[node_index][sample_index];
-//			}
-//		}
-//		for (int node_index = 1; node_index < network_output_test.size(); ++node_index) // starts from 1 because index 0 is the inital value
-//		{
-//			for (int sample_index = 0; sample_index < network_output_test[0].size(); ++sample_index)
-//			{
-//				network_prob_test[sample_index] = network_prob_test[sample_index] + network_output_test[node_index][sample_index];
-//			}
-//		}
-//
-//		//find the largest value
-//		{
-//			auto predict_y_train = Ml::MlModel<model_datatype>::get_labels_from_probability(network_prob_train);
-//			const std::vector<Ml::tensor_blob_like<model_datatype>>& whole_train_y = std::get<1>(whole_train);
-//			int correct_count = Ml::MlModel<model_datatype>::count_correct_based_on_prediction(whole_train_y, predict_y_train);
-//			std::stringstream log_msg;
-//			log_msg << "whole train dataset, total:" << whole_train_y.size() << "  correct:" << correct_count << "  accuracy:" << float(correct_count) / float(whole_train_y.size());
-//			std::cout << log_msg.str() << std::endl;
-//			LOG(INFO) << log_msg.str();
-//		}
-//		{
-//			auto predict_y_test = Ml::MlModel<model_datatype>::get_labels_from_probability(network_prob_test);
-//			const std::vector<Ml::tensor_blob_like<model_datatype>>& whole_test_y = std::get<1>(whole_test);
-//			int correct_count = Ml::MlModel<model_datatype>::count_correct_based_on_prediction(whole_test_y, predict_y_test);
-//			std::stringstream log_msg;
-//			log_msg << "whole test dataset, total:" << whole_test_y.size() << "  correct:" << correct_count << "  accuracy:" << float(correct_count) / float(whole_test_y.size());
-//			std::cout << log_msg.str() << std::endl;
-//			LOG(INFO) << log_msg.str();
-//		}
-//	}
 	
 	delete[] solver_for_testing;
 	

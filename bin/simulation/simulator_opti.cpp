@@ -4,6 +4,7 @@
 #include <set>
 #include <atomic>
 #include <chrono>
+#include <csignal>
 #include <execinfo.h>
 
 #include <boost/asio/thread_pool.hpp>
