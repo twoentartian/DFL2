@@ -64,7 +64,7 @@ if __name__ == "__main__":
 
             # generate topology
             sizes = [size_a, size_b]
-            probabilities = [[paa, pab], [pab, pbb]]
+            probabilities = [[paa*k, pab/k], [pab/k, pbb*k]]
             G = nx.stochastic_block_model(sizes, probabilities)
             nx_lib.generate_topology_file(G, os.path.join(tool_folder_path, "temp"))
 
