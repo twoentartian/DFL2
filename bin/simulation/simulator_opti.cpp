@@ -699,7 +699,6 @@ int main(int argc, char *argv[])
 	{
 		service_instance->destruction_service();
 	}
-    delete[] solver_for_testing;
     for (auto& [_, ptr]: node_container)
     {
         delete ptr;
