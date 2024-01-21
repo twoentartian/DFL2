@@ -15,4 +15,6 @@ if __name__ == "__main__":
     delete_files_in_layer1_subfolders(current_directory, "simulator_config.json")
     delete_files_in_layer1_subfolders(current_directory, "run_simulator_opti.sh")
     delete_files_in_layer1_subfolders(current_directory, "DFL_simulator_opti")
+    delete_files_in_layer1_subfolders(current_directory, "run_simulator_mt.sh")
+    delete_files_in_layer1_subfolders(current_directory, "DFL_simulator_mt")
 
