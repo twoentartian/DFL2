@@ -535,7 +535,8 @@ int main(int argc, char *argv[])
 
             //apply_received_model(not supported)
             {
-                if (services_json["apply_received_model"]["enabled"])
+                bool apply_received_model_enable = services_json["apply_received_model"]["enable"];
+                if (apply_received_model_enable)
                     LOG(FATAL) << "apply_received_model is not supported in simulator_mt";
             }
 
