@@ -387,7 +387,7 @@ public:
 		accuracy_threshold_low = 0.0f;
 		
 		size_t solver_for_testing_size = std::thread::hardware_concurrency();
-		solver_for_testing = new Ml::MlCaffeModel<float, caffe::SGDSolver>[solver_for_testing_size];
+		solver_for_testing = new Ml::MlCaffeModel<model_datatype, caffe::SGDSolver>[solver_for_testing_size];
 	}
 	
 	std::tuple<service_status, std::string> apply_config(const configuration_file::json& config) override
@@ -537,7 +537,7 @@ public:
 			peer_change_file->flush();
 			peer_change_file->close();
 		}
-		delete[] solver_for_testing;
+        delete[] solver_for_testing;
 		
 		return {service_status::success, ""};
 	}
