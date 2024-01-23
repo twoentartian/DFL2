@@ -702,15 +702,14 @@ public:
 
         if (trigger != service_trigger_type::end_of_tick) return {service_status::skipped, "not service_trigger_type::end_of_tick"};
         if (tick % ml_model_record_interval_tick != 0) return {service_status::skipped, "not time yet"};
-        
-        std::filesystem::path folder_of_this_tick = storage_path / std::to_string(tick);
-        if (!std::filesystem::exists(folder_of_this_tick)) std::filesystem::create_directories(folder_of_this_tick);
-    
-        tmt::ParallelExecution([&folder_of_this_tick, this](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node)
+
+        tmt::ParallelExecution([&tick, this](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node)
         {
             if (!this->nodes_to_record.contains(single_node->name)) return;
+            std::filesystem::path folder_of_this_node = storage_path / std::to_string(single_node->name);
+            if (!std::filesystem::exists(folder_of_this_node)) std::filesystem::create_directories(folder_of_this_node);
             auto model = single_node->solver->get_parameter();
-            std::ofstream output_file(folder_of_this_tick / (single_node->name + ".bin"));
+            std::ofstream output_file(folder_of_this_node / (std::to_string(tick) + ".bin"));
             output_file << serialize_wrap<boost::archive::binary_oarchive>(model).str();
             output_file.close();
         }, this->node_vector_container->size(), this->node_vector_container->data());
