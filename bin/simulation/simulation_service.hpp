@@ -706,7 +706,7 @@ public:
         tmt::ParallelExecution([&tick, this](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node)
         {
             if (!this->nodes_to_record.contains(single_node->name)) return;
-            std::filesystem::path folder_of_this_node = storage_path / std::to_string(single_node->name);
+            std::filesystem::path folder_of_this_node = storage_path / single_node->name;
             if (!std::filesystem::exists(folder_of_this_node)) std::filesystem::create_directories(folder_of_this_node);
             auto model = single_node->solver->get_parameter();
             std::ofstream output_file(folder_of_this_node / (std::to_string(tick) + ".bin"));
