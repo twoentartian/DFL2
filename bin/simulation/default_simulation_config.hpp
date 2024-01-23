@@ -115,6 +115,7 @@ configuration_file::json get_default_simulation_configuration()
         model_record_service["enable"] = false;
         model_record_service["path"] = "./models";
         model_record_service["interval"] = 1000;
+        model_record_service["nodes"] = "0,1,2,3,4";
         services["model_record"] = model_record_service;
     }
     {

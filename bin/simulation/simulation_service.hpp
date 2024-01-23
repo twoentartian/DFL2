@@ -651,6 +651,7 @@ private:
     int ml_model_record_interval_tick;
     std::string path;
     std::filesystem::path storage_path;
+    std::set<std::string> nodes_to_record;
     
 public:
     int total_tick;
@@ -667,6 +668,11 @@ public:
         this->enable = config["enable"];
         this->ml_model_record_interval_tick = config["interval"];
         this->path = config["path"];
+        const std::string nodes_to_record_str = config["nodes"];
+        for (const auto& node_name : util::split(nodes_to_record_str, ','))
+        {
+            this->nodes_to_record.emplace(node_name);
+        }
         
         return {service_status::success, ""};
     }
@@ -695,14 +701,14 @@ public:
         if (this->enable == false) return {service_status::skipped, "not enabled"};
 
         if (trigger != service_trigger_type::end_of_tick) return {service_status::skipped, "not service_trigger_type::end_of_tick"};
-    
         if (tick % ml_model_record_interval_tick != 0) return {service_status::skipped, "not time yet"};
         
         std::filesystem::path folder_of_this_tick = storage_path / std::to_string(tick);
         if (!std::filesystem::exists(folder_of_this_tick)) std::filesystem::create_directories(folder_of_this_tick);
     
-        tmt::ParallelExecution([&folder_of_this_tick](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node)
+        tmt::ParallelExecution([&folder_of_this_tick, this](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node)
         {
+            if (!this->nodes_to_record.contains(single_node->name)) return;
             auto model = single_node->solver->get_parameter();
             std::ofstream output_file(folder_of_this_tick / (single_node->name + ".bin"));
             output_file << serialize_wrap<boost::archive::binary_oarchive>(model).str();
