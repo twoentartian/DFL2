@@ -28,6 +28,9 @@ target_link_libraries(maksim_topology_generator ${DFL_LINKER_LIBS})
 add_executable(topology_remove_receive topology_remove_receive.cpp)
 target_link_libraries(topology_remove_receive ${DFL_LINKER_LIBS})
 
+add_executable(model_util model_util.cpp)
+target_link_libraries(model_util ${DFL_LINKER_LIBS})
+
 # find CUDA
 if (NOT CPU_ONLY)
 include(CheckLanguage)
