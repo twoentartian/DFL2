@@ -69,6 +69,7 @@ configuration_file::json get_default_simulation_configuration()
 		configuration_file::json accuracy_service = configuration_file::json::object();
 		accuracy_service["enable"] = true;
 		accuracy_service["interval"] = 20;
+        accuracy_service["fixed_test_dataset"] = true;
 		services["accuracy"] = accuracy_service;
 	}
 	{

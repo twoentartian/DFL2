@@ -5,6 +5,7 @@
 #include <configure_file.hpp>
 #include <sstream>
 #include <filesystem>
+#include <optional>
 
 #include "boost_serialization_wrapper.hpp"
 
@@ -79,12 +80,15 @@ template <typename model_datatype>
 class accuracy_record : public service<model_datatype>
 {
 public:
-	//set these variables before init
-	std::string ml_solver_proto;
+    //set these variables before init
+    std::string ml_solver_proto;
+    Ml::data_converter<model_datatype>* test_dataset;
+    int ml_test_batch_size;
+private:
+    std::optional<std::tuple<std::vector<const Ml::tensor_blob_like<model_datatype>*>, std::vector<const Ml::tensor_blob_like<model_datatype>*>>> fixed_test_dataset;
 	int ml_test_interval_tick;
-	Ml::data_converter<model_datatype>* test_dataset;
-	int ml_test_batch_size;
-	
+    bool use_fixed_test_dataset;
+public:
 	accuracy_record()
 	{
 		ml_test_batch_size = 0;
@@ -124,7 +128,31 @@ public:
 		{
 			solver_for_testing[i].load_caffe_model(ml_solver_proto);
 		}
-		
+
+        //pick fixed test dataset
+        if (use_fixed_test_dataset) {
+            std::vector<const Ml::tensor_blob_like<model_datatype>*> all_test_data, all_test_label;
+            const std::vector<Ml::tensor_blob_like<model_datatype>>& all_labels = test_dataset->get_label();
+
+            const std::unordered_map<std::string, std::vector<Ml::tensor_blob_like<model_datatype>>>& data_by_label = test_dataset->get_container_by_label();
+            std::map<std::string, const Ml::tensor_blob_like<model_datatype>*> all_label_types;
+            for (const auto& single_label : all_labels) {
+                const std::string single_label_digest = single_label.get_str();
+                if (!all_label_types.contains(single_label_digest)) all_label_types.emplace(single_label_digest, &single_label);
+            }
+
+            const int single_label_sample_size = ml_test_batch_size / all_label_types.size();
+            LOG_IF(FATAL, single_label_sample_size*all_label_types.size() != ml_test_batch_size) << "test batch size % all_labels.size() != 0";
+            for (const auto& [single_label_digest, single_label] : all_label_types) {
+                const std::vector<Ml::tensor_blob_like<model_datatype>>& all_data_of_label = data_by_label.at(single_label_digest);
+                for (int i = 0; i < single_label_sample_size; ++i) {
+                    all_test_data.push_back(&all_data_of_label[i]);
+                    all_test_label.push_back(single_label);
+                }
+            }
+            fixed_test_dataset = {all_test_data, all_test_label};
+        }
+
 		return {service_status::success, ""};
 	}
 	
@@ -135,15 +163,20 @@ public:
         if (trigger != service_trigger_type::end_of_tick) return {service_status::skipped, "not service_trigger_type::end_of_tick"};
 
 		if (tick % ml_test_interval_tick != 0) return {service_status::skipped, "not time yet"};
-        
-        tmt::ParallelExecution([&tick, this](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node)
-                               {
-                                   const auto [test_data, test_label] = test_dataset->get_random_data(ml_test_batch_size);
-                                   auto model = single_node->solver->get_parameter();
-                                   solver_for_testing[thread_index].set_parameter(model);
-                                   auto accuracy = solver_for_testing[thread_index].evaluation(test_data, test_label);
-                                   single_node->nets_accuracy_only_record.emplace(tick, accuracy);
-                               }, this->node_vector_container->size(), this->node_vector_container->data());
+
+        tmt::ParallelExecution([&tick, this](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node) {
+            std::vector<const Ml::tensor_blob_like<model_datatype>*> test_data, test_label;
+            if (fixed_test_dataset.has_value()) {
+                std::tie(test_data, test_label) = *fixed_test_dataset;
+            }
+            else {
+                std::tie(test_data, test_label) = test_dataset->get_random_data(ml_test_batch_size);
+            }
+            auto model = single_node->solver->get_parameter();
+            solver_for_testing[thread_index].set_parameter(model);
+            auto accuracy = solver_for_testing[thread_index].evaluation(test_data, test_label);
+            single_node->nets_accuracy_only_record.emplace(tick, accuracy);
+        }, this->node_vector_container->size(), this->node_vector_container->data());
         
         //print accuracy to file
         *accuracy_file << tick;
