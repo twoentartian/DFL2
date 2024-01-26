@@ -16,6 +16,8 @@
 #include <util.hpp>
 #include "tensor_blob_like.hpp"
 
+#define EXCLUDE_BIAS 0
+
 namespace Ml
 {
     template <typename DType>
@@ -35,19 +37,23 @@ namespace Ml
         
         void fromLayer(const caffe::Layer<DType>& layer)
         {
+
             _name = layer.layer_param().name();
             _type = layer.layer_param().type();
             auto* layer_without_const = const_cast<caffe::Layer<DType>*>(&layer);
             auto& blobs = layer_without_const->blobs();
-            _blob_p.reset(new tensor_blob_like<DType>());
-            if (blobs.size() == 0)
+            _blob_p.clear();
+#if EXCLUDE_BIAS
+            size_t blob_count = std::min<size_t>(blobs.size(), 1);
+#else
+            size_t blob_count = blobs.size();
+#endif
+            for (int i = 0; i < blob_count; ++i)
             {
-                return;
-            }
-            else
-            {
-                auto& blob_model = *(blobs[0]);//blobs 0 stores the model data, blobs 1 stores the output blob.
-                _blob_p->fromBlob(blob_model);
+                auto& blob_model = *(blobs[i]);//blobs 0 stores the model data, blobs 1 stores the bias
+                boost::shared_ptr<Ml::tensor_blob_like<DType>> blob_p(new tensor_blob_like<DType>());
+                blob_p->fromBlob(blob_model);
+                _blob_p.push_back(blob_p);
             }
         }
 
@@ -64,7 +70,7 @@ namespace Ml
 
             auto& blobs = layer.blobs();
             //empty?
-            if (_blob_p->empty())
+            if (_blob_p.empty())
             {
                 blobs.clear();
                 return;
@@ -74,7 +80,10 @@ namespace Ml
             {
                 LOG(WARNING) << "layer "<< _name <<"'s blob is empty";
             }
-            _blob_p->toBlob(*(blobs[0]), reshape);
+            for (int i = 0; i < _blob_p.size(); ++i)
+            {
+                _blob_p[i]->toBlob(*(blobs[i]), reshape);
+            }
         }
 
         template<class Archive>
@@ -88,67 +97,97 @@ namespace Ml
 	    caffe_parameter_layer<DType> operator+(const caffe_parameter_layer<DType>& target) const
 	    {
 		    caffe_parameter_layer<DType> output = *this;
-		    output._blob_p.reset(new tensor_blob_like<DType>());
-		    *output._blob_p = *(this->_blob_p) + *target._blob_p;
+            for (int i = 0; i < this->_blob_p.size(); ++i)
+            {
+                output._blob_p[i].reset(new tensor_blob_like<DType>());
+                *output._blob_p[i] = *(this->_blob_p[i]) + *target._blob_p[i];
+            }
 		    return output;
 	    }
 	
 	    caffe_parameter_layer<DType> operator-(const caffe_parameter_layer<DType>& target) const
 	    {
-		    caffe_parameter_layer<DType> output = *this;
-		    output._blob_p.reset(new tensor_blob_like<DType>());
-		    *output._blob_p = *(this->_blob_p) - *target._blob_p;
-		    return output;
+            caffe_parameter_layer<DType> output = *this;
+            for (int i = 0; i < this->_blob_p.size(); ++i)
+            {
+                output._blob_p[i].reset(new tensor_blob_like<DType>());
+                *output._blob_p[i] = *(this->_blob_p[i]) - *target._blob_p[i];
+            }
+            return output;
 	    }
 	
 	    template<typename D>
 	    caffe_parameter_layer<DType> operator/(const D& target) const
 	    {
-		    caffe_parameter_layer<DType> output = *this;
-		    output._blob_p.reset(new tensor_blob_like<DType>());
-		    *output._blob_p = *(this->_blob_p) / target;
-		    return output;
+            caffe_parameter_layer<DType> output = *this;
+            for (int i = 0; i < this->_blob_p.size(); ++i)
+            {
+                output._blob_p[i].reset(new tensor_blob_like<DType>());
+                *output._blob_p[i] = *(this->_blob_p[i]) / target;
+            }
+            return output;
 	    }
 	
 	    template<typename D>
 	    caffe_parameter_layer<DType> operator*(const D& target) const
 	    {
-		    caffe_parameter_layer<DType> output = *this;
-		    output._blob_p.reset(new tensor_blob_like<DType>());
-		    *output._blob_p = *(this->_blob_p) * target;
-		    return output;
+            caffe_parameter_layer<DType> output = *this;
+            for (int i = 0; i < this->_blob_p.size(); ++i)
+            {
+                output._blob_p[i].reset(new tensor_blob_like<DType>());
+                *output._blob_p[i] = *(this->_blob_p[i]) * target;
+            }
+            return output;
 	    }
 	
 	    bool operator==(const caffe_parameter_layer<DType>& target) const
 	    {
-		    return *(this->_blob_p) == *(target._blob_p);
+            bool same = true;
+            for (int i = 0; i < this->_blob_p.size(); ++i) {
+                if (*(this->_blob_p[i]) != *(target._blob_p[i])) {
+                    same = false;
+                    break;
+                }
+            }
+            return same;
 	    }
 	
 	    bool operator!=(const caffe_parameter_layer<DType>& target) const
 	    {
-		    return *(this->_blob_p) != *(target._blob_p);
+		    return this->operator!=(target);
 	    }
 	    
 	    bool roughly_equal(const caffe_parameter_layer<DType>& target, DType diff_threshold) const
 	    {
 		    if (this->_blob_p->empty() != target._blob_p->empty()) return false;
-		    if (!this->_blob_p->empty()) return this->_blob_p->roughly_equal(*target._blob_p, diff_threshold);
-		    return true;
+            if (this->_blob_p->empty()) return true;
+            bool roughly_equal = true;
+            for (int i = 0; i < this->_blob_p.size(); ++i) {
+                if (!this->_blob_p->roughly_equal(*target._blob_p, diff_threshold)) {
+                    roughly_equal = false;
+                    break;
+                }
+            }
+		    return roughly_equal;
 	    }
 	
 	    [[nodiscard]] caffe_parameter_layer<DType> dot_divide(const caffe_parameter_layer<DType>& target) const
 	    {
 		    caffe_parameter_layer<DType> output = *this;
-		    output._blob_p.reset(new tensor_blob_like<DType>());
-		    *output._blob_p = this->_blob_p->dot_divide(*target._blob_p);
+            for (int i = 0; i < this->_blob_p.size(); ++i) {
+                output._blob_p[i].reset(new tensor_blob_like<DType>());
+                *output._blob_p[i] = this->_blob_p[i]->dot_divide(*target._blob_p[i]);
+            }
 		    return output;
 	    }
 	
 	    [[nodiscard]] caffe_parameter_layer<DType> dot_product(const caffe_parameter_layer<DType>& target) const
 	    {
 		    caffe_parameter_layer<DType> output = *this;
-		    output._blob_p.reset(new tensor_blob_like<DType>());
-		    *output._blob_p = this->_blob_p->dot_product(*target._blob_p);
+            for (int i = 0; i < this->_blob_p.size(); ++i) {
+                output._blob_p[i].reset(new tensor_blob_like<DType>());
+                *output._blob_p[i] = this->_blob_p[i]->dot_product(*target._blob_p[i]);
+            }
 		    return output;
 	    }
 
@@ -158,50 +197,62 @@ namespace Ml
 	
 	    void set_all(DType value)
 	    {
-		    if (!_blob_p) return;
-	    	_blob_p->set_all(value);
+            for (int i = 0; i < this->_blob_p.size(); ++i) {
+                _blob_p[i]->set_all(value);
+            }
 	    }
 	    
 	    void random(DType min, DType max)
 	    {
-		    if (!_blob_p) return;
-		    _blob_p->random(min, max);
+            for (int i = 0; i < this->_blob_p.size(); ++i) {
+                _blob_p[i]->random(min, max);
+            }
 	    }
 	
 	    DType sum()
 	    {
-		    if (this->_blob_p->empty()) return 0;
-		    return this->_blob_p->sum();
+            DType output = 0;
+            for (int i = 0; i < this->_blob_p.size(); ++i) {
+                output += this->_blob_p[i]->sum();
+            }
+            return output;
 	    }
 	    
 	    void abs()
 	    {
-		    if (!this->_blob_p->empty())
-		    	_blob_p->abs();
+            for (int i = 0; i < this->_blob_p.size(); ++i) {
+                _blob_p[i]->abs();
+            }
 	    }
 	
 	    size_t size() const
 	    {
-		    if (this->_blob_p->empty()) return 0;
-		    return this->_blob_p->size();
+            size_t output_size = 0;
+            for (int i = 0; i < this->_blob_p.size(); ++i) {
+                output_size += this->_blob_p[i]->size();
+            }
+            return output_size;
 	    }
 	    
 	    void patch_weight(const caffe_parameter_layer<DType>& patch, DType ignore = NAN)
 	    {
-		    if (!_blob_p) return;
-		    _blob_p->patch_weight(*patch._blob_p, ignore);
+            for (int i = 0; i < this->_blob_p.size(); ++i) {
+                _blob_p[i]->patch_weight(*patch._blob_p[i], ignore);
+            }
 	    }
 	
 	    void regulate_weights(DType min, DType max)
 	    {
-		    if (!_blob_p) return;
-		    _blob_p->regulate_weights(min, max);
+            for (int i = 0; i < this->_blob_p.size(); ++i) {
+                _blob_p[i]->regulate_weights(min, max);
+            }
 		}
 	
 	    void fix_nan()
 	    {
-		    if (!_blob_p) return;
-		    _blob_p->fix_nan();
+            for (int i = 0; i < this->_blob_p.size(); ++i) {
+                _blob_p[i]->fix_nan();
+            }
 		}
         
     private:
@@ -209,7 +260,7 @@ namespace Ml
 
         std::string _name;
         std::string _type;
-        boost::shared_ptr<tensor_blob_like<DType>> _blob_p;
+        std::vector<boost::shared_ptr<tensor_blob_like<DType>>> _blob_p;
     };
 
     template <typename DType>
@@ -434,9 +485,10 @@ namespace Ml
             _name = layer.getName();
             _type = layer.getType();
             _shape.clear();
-            if (layer.getBlob_p())
+            const auto& blob_p = layer.getBlob_p();
+            for (int i = 0; i < blob_p.size(); ++i)
             {
-                _shape = layer.getBlob_p()->getShape();
+                _shape.push_back(blob_p[i]->getShape());
             }
         }
 
@@ -454,8 +506,11 @@ namespace Ml
             }
             else
             {
-                auto& blob_model = *(blobs[0]);//blobs 0 stores the model data, blobs 1 stores the output blob.
-                _shape = blob_model.shape();
+                for (int i = 0; i < blobs.size(); ++i)
+                {
+                    auto& blob_model = *(blobs[i]);
+                    _shape.push_back(blob_model->shape());
+                }
             }
         }
 
@@ -493,7 +548,7 @@ namespace Ml
 
         std::string _name;
         std::string _type;
-        std::vector<int> _shape;
+        std::vector<std::vector<int>> _shape;
     };
 
     class caffe_net_structure

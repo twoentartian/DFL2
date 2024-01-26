@@ -26,29 +26,32 @@ namespace Ml
 			for (int i = 0; i < layers.size(); ++i)
 			{
 				auto& blob = layers[i].getBlob_p();
-				auto& blob_data = blob->getData();
-				if (blob_data.empty())
-				{
-					continue;
-				}
-				auto [max, min] = find_max_min(blob_data.data(), blob_data.size());
-				auto range = max - min;
-				auto lower_bound = min + range * filter_limit * 0.5;
-				auto higher_bound = max - range * filter_limit * 0.5;
-				
-				int drop_count = 0;
-				for (auto&& data: blob_data)
-				{
-					if(data < higher_bound && data > lower_bound)
-					{
-						//drop
-						drop_count++;
-						data = NAN;
-					}
-				}
-				
-				if (total_weight_count != nullptr) *total_weight_count += blob_data.size();
-				if (dropped_weight_count != nullptr) *dropped_weight_count += drop_count;
+                for (int j = 0; j < blob.size(); ++j)
+                {
+                    auto& blob_data = blob[j]->getData();
+                    if (blob_data.empty())
+                    {
+                        continue;
+                    }
+                    auto [max, min] = find_max_min(blob_data.data(), blob_data.size());
+                    auto range = max - min;
+                    auto lower_bound = min + range * filter_limit * 0.5;
+                    auto higher_bound = max - range * filter_limit * 0.5;
+    
+                    int drop_count = 0;
+                    for (auto&& data: blob_data)
+                    {
+                        if(data < higher_bound && data > lower_bound)
+                        {
+                            //drop
+                            drop_count++;
+                            data = NAN;
+                        }
+                    }
+    
+                    if (total_weight_count != nullptr) *total_weight_count += blob_data.size();
+                    if (dropped_weight_count != nullptr) *dropped_weight_count += drop_count;
+                }
 			}
 			net_output = net_diff.dot_divide(net_diff).dot_product(net_after);
 			

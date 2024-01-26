@@ -68,16 +68,21 @@ namespace Ml
 					auto& layer = model.getLayers()[layer_index];
 					auto& layer_output = output.getLayers()[layer_index];
 					auto& layer_counter = counter.getLayers()[layer_index];
-					for (size_t weight_index = 0; weight_index < layer.getBlob_p()->getData().size(); ++weight_index)
-					{
-						auto& blob_data = layer.getBlob_p()->getData()[weight_index];
-						auto& blob_data_output = layer_output.getBlob_p()->getData()[weight_index];
-						auto& blob_data_counter = layer_counter.getBlob_p()->getData()[weight_index];
-						
-						if (blob_data == ignore) continue;
-						blob_data_output += blob_data;
-						blob_data_counter ++;
-					}
+                    auto& layer_blobs = layer.getBlob_p();
+                    for (int i = 0; i < layer_blobs.size(); ++i)
+                    {
+                        auto& layer_data = layer_blobs[i]->getData();
+                        for (size_t weight_index = 0; weight_index < layer_data.size(); ++weight_index)
+                        {
+                            auto& blob_data = layer_data[weight_index];
+                            auto& blob_data_output = layer_output.getBlob_p()[i]->getData()[weight_index];
+                            auto& blob_data_counter = layer_counter.getBlob_p()[i]->getData()[weight_index];
+        
+                            if (blob_data == ignore) continue;
+                            blob_data_output += blob_data;
+                            blob_data_counter ++;
+                        }
+                    }
 				}
 			}
 			output = output.dot_divide(counter);

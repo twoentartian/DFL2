@@ -1462,18 +1462,24 @@ private:
         for (const Ml::caffe_parameter_layer<model_datatype>& layer : model.getLayers()) {
             const auto layer_size = layer.size();
             if (layer_size == 0) continue;
-            const auto& data = layer.getBlob_p()->getData();
+            const auto& blobs = layer.getBlob_p();
             model_datatype distance_sum = 0;
-            for (const auto& v : data) {
-                *file << "," << v;
-                distance_sum += v*v;
+            for (int i = 0; i < blobs.size(); ++i) {
+                const auto& data = blobs[i]->getData();
+                for (const auto& v : data) {
+                    *file << "," << v;
+                    distance_sum += v*v;
+                }
             }
             //store distance
             model_datatype distance = std::sqrt(distance_sum);
             *file << "," << distance;
             //calculate angle
-            for (const auto& v : data) {
-                *file << "," << v / distance;
+            for (int i = 0; i < blobs.size(); ++i) {
+                const auto& data = blobs[i]->getData();
+                for (const auto& v : data) {
+                    *file << "," << v / distance;
+                }
             }
         }
         *file << std::endl;
@@ -1734,7 +1740,7 @@ private:
 
             LOG_IF(FATAL, node_iter == this->node_container->end()) << node << " specified in apply delta weight service does not exist";
             auto& layers = ml_model.getLayers();
-            boost::shared_ptr<Ml::tensor_blob_like<model_datatype>> blob = nullptr;
+            std::vector<boost::shared_ptr<Ml::tensor_blob_like<model_datatype>>> blob;
             for (auto& layer : layers) {
                 if (layer.getName() == layer_name)
                 {
@@ -1742,14 +1748,25 @@ private:
                     break;
                 }
             }
-            LOG_IF(FATAL, blob==nullptr) << layer_name << " not found in the NL layer";
+            LOG_IF(FATAL, blob.empty()) << layer_name << " not found in the ML layer";
+            //calculate actual weight position
+            size_t remain_weight_index = weight_index, blob_index=0;
+            while (true) {
+                if (remain_weight_index < blob[blob_index]->size()) {
+                    break;
+                }
+                else {
+                    remain_weight_index -= blob[blob_index]->size();
+                    blob_index++;
+                }
+            }
             if constexpr (std::is_same_v<model_datatype, float>) {
                 float v = std::stof(str_item);
-                blob->getData()[weight_index] = v;
+                blob[blob_index]->getData()[remain_weight_index] = v;
             }
             if constexpr (std::is_same_v<model_datatype, double>) {
                 double v = std::stod(str_item);
-                blob->getData()[weight_index] = v;
+                blob[blob_index]->getData()[remain_weight_index] = v;
             }
         }
 
