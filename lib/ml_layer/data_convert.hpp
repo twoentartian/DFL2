@@ -171,7 +171,6 @@ namespace Ml{
                     if (iter->second == _data_fixed_sequence.size()) iter->second = 0;
                     counter ++;
                 }
-                LOG(INFO) << node_name << " gets until " << iter->second;
                 return {output_data, output_label};
             }
         }
