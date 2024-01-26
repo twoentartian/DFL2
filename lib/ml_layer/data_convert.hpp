@@ -2,6 +2,7 @@
 // Created by gzr on 01-05-21.
 //
 #pragma once
+#include <random>
 #include <sstream>
 #include <vector>
 #include <memory>
@@ -117,6 +118,20 @@ namespace Ml{
 	        {
 		        iter.second.shrink_to_fit();
 	        }
+
+            //generate a fixed sequence for use_random_data==false
+            std::vector<size_t> sequence;
+            sequence.reserve(num_items);
+            for (int i = 0; i < num_items; ++i) {
+                sequence.push_back(i);
+            }
+            std::shuffle(sequence.begin(), sequence.end(), std::mt19937(_dev()));
+            _data_fixed_sequence.reserve(sequence.size());
+            _label_fixed_sequence.reserve(sequence.size());
+            for (const auto& index : sequence) {
+                _data_fixed_sequence.push_back(&_data[index]);
+                _label_fixed_sequence.push_back(&_label[index]);
+            }
         }
 
         const std::vector<tensor_blob_like<DType>>& get_data() const
@@ -135,9 +150,30 @@ namespace Ml{
         }
 
         //return: <data,label>
-        std::tuple<std::vector<const tensor_blob_like<DType>*>, std::vector<const tensor_blob_like<DType>*>> get_random_data(size_t size)
+        std::tuple<std::vector<const tensor_blob_like<DType>*>, std::vector<const tensor_blob_like<DType>*>> get_random_data(size_t size, bool use_random_data = true, const std::string& node_name = "")
         {
-	        return _get_random_data(size, _data, _label);
+            if (use_random_data)
+	            return _get_random_data(size, _data, _label);
+            else {
+                LOG_ASSERT(!node_name.empty());
+                auto iter = _current_index_for_node_in_fixed_sequence.find(node_name);
+                if (iter == _current_index_for_node_in_fixed_sequence.end()) {
+                    const auto result = _current_index_for_node_in_fixed_sequence.emplace(node_name, 0);
+                    iter = result.first;
+                }
+
+                std::vector<const tensor_blob_like<DType>*> output_data, output_label;
+                size_t counter = 0;
+                while (counter < size) {
+                    output_data.push_back(_data_fixed_sequence[iter->second]);
+                    output_label.push_back(_label_fixed_sequence[iter->second]);
+                    iter->second ++;
+                    if (iter->second == _data_fixed_sequence.size()) iter->second = 0;
+                    counter ++;
+                }
+                LOG(INFO) << node_name << " gets until " << iter->second;
+                return {output_data, output_label};
+            }
         }
 	
 	    //return: <data,label>
@@ -243,6 +279,10 @@ namespace Ml{
 	
         std::unordered_map<std::string, std::vector<tensor_blob_like<DType>>> _data_tensor_by_label;
         std::unordered_map<std::string, tensor_blob_like<DType>> _label_tensor_by_label;
+
+        std::vector<const tensor_blob_like<DType>*> _data_fixed_sequence;
+        std::vector<const tensor_blob_like<DType>*> _label_fixed_sequence;
+        std::unordered_map<std::string, int> _current_index_for_node_in_fixed_sequence;
 	
 	    //return: <data,label>
 	    std::tuple<std::vector<const tensor_blob_like<DType>*>, std::vector<const tensor_blob_like<DType>*>> _get_random_data(size_t size, const std::vector<tensor_blob_like<DType>>& data_pool, const std::vector<tensor_blob_like<DType>>& label_pool)

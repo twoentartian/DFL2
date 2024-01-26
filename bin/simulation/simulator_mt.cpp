@@ -90,6 +90,7 @@ int main(int argc, char *argv[])
 	std::filesystem::copy(config_file_path, output_path / "simulator_config.json");
 	
 	//update global var
+    auto random_training_sequence = *config.get<bool>("random_training_sequence");
 	auto ml_solver_proto = *config.get<std::string>("ml_solver_proto");
 	auto ml_train_dataset = *config.get<std::string>("ml_train_dataset");
 	auto ml_train_dataset_label = *config.get<std::string>("ml_train_dataset_label");
@@ -621,13 +622,13 @@ int main(int argc, char *argv[])
             trigger_service(tick, service_trigger_type::start_of_training);
 
             ////train the model
-			tmt::ParallelExecution_StepIncremental([&drop_rate_lock, &drop_rate, &tick, &train_dataset, &ml_train_batch_size, &ml_dataset_all_possible_labels](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
+			tmt::ParallelExecution_StepIncremental([&drop_rate_lock, &drop_rate, &tick, &train_dataset, &ml_train_batch_size, &ml_dataset_all_possible_labels, random_training_sequence](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
 				if (tick >= single_node->next_train_tick)
 				{
                     single_node->model_trained = true;
                     
 					std::vector<const Ml::tensor_blob_like<model_datatype>*> train_data, train_label;
-					std::tie(train_data, train_label) = get_dataset_by_node_type(train_dataset, *single_node, ml_train_batch_size, ml_dataset_all_possible_labels);
+					std::tie(train_data, train_label) = get_dataset_by_node_type(train_dataset, *single_node, ml_train_batch_size, ml_dataset_all_possible_labels, random_training_sequence);
 					
 					static std::random_device dev;
 					static std::mt19937 rng(dev());

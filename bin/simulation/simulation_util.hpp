@@ -5,7 +5,7 @@
 //return: train_data,train_label
 template<typename model_datatype>
 std::tuple<std::vector<const Ml::tensor_blob_like<model_datatype>*>, std::vector<const Ml::tensor_blob_like<model_datatype>*>>
-get_dataset_by_node_type(Ml::data_converter<model_datatype> &dataset, const node<model_datatype> &target_node, int size, const std::vector<int> &ml_dataset_all_possible_labels)
+get_dataset_by_node_type(Ml::data_converter<model_datatype> &dataset, const node<model_datatype> &target_node, int size, const std::vector<int> &ml_dataset_all_possible_labels, bool use_random_training_sample_sequence=true)
 {
 	Ml::tensor_blob_like<model_datatype> label;
 	label.getShape() = {1};
@@ -13,10 +13,11 @@ get_dataset_by_node_type(Ml::data_converter<model_datatype> &dataset, const node
 	if (target_node.dataset_mode == dataset_mode_type::default_dataset)
 	{
 		//iid dataset
-		std::tie(train_data, train_label) = dataset.get_random_data(size);
+		std::tie(train_data, train_label) = dataset.get_random_data(size, use_random_training_sample_sequence, target_node.name);
 	}
 	else if (target_node.dataset_mode == dataset_mode_type::iid_dataset)
 	{
+        LOG_ASSERT(use_random_training_sample_sequence) << "use_random_training_sample_sequence cannot be false for iid_dataset";
 		static std::random_device dev;
 		static std::mt19937 rng(dev());
 		std::uniform_int_distribution<int> distribution(0, int(ml_dataset_all_possible_labels.size()) - 1);
@@ -32,6 +33,8 @@ get_dataset_by_node_type(Ml::data_converter<model_datatype> &dataset, const node
 	}
 	else if (target_node.dataset_mode == dataset_mode_type::non_iid_dataset)
 	{
+        LOG_ASSERT(use_random_training_sample_sequence) << "use_random_training_sample_sequence cannot be false for non_iid_dataset";
+
 		//non-iid dataset
 		static std::random_device dev;
 		static std::mt19937 rng(dev());
