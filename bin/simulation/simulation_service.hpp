@@ -102,6 +102,7 @@ public:
 	{
 		this->enable = config["enable"];
 		this->ml_test_interval_tick = config["interval"];
+        this->use_fixed_test_dataset = config["fixed_test_dataset"];
 		
 		return {service_status::success, ""};
 	}
