@@ -83,7 +83,12 @@ configuration_file::json get_default_simulation_configuration()
 	{
 		configuration_file::json force_broadcast_service = configuration_file::json::object();
 		force_broadcast_service["enable"] = false;
-		force_broadcast_service["broadcast_interval"] = 100;
+        force_broadcast_service["sample_config_items"] = {"after_train:at:10,20,30,40",
+                                                          "after_train:every:10",
+                                                          "before_train:every:10,",
+                                                          "before_average:at:0",
+                                                          "after_average:every:100"};
+		force_broadcast_service["config_items"] = {"before_train:at:0", "after_train:every:100"};
 		services["force_broadcast_average"] = force_broadcast_service;
 	}
 	{

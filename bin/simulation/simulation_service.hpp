@@ -324,18 +324,92 @@ private:
 template <typename model_datatype>
 class force_broadcast_model : public service<model_datatype>
 {
+private:
+    service_trigger_type to_ConfigItem_type(const std::string& str) {
+        if (str == "before_train") {
+            return service_trigger_type::start_of_training;
+        }
+        else if (str == "after_train") {
+            return service_trigger_type::end_of_training;
+        }
+        else if (str == "before_average") {
+            return service_trigger_type::start_of_averaging;
+        }
+        else if (str == "after_average") {
+            return service_trigger_type::end_of_averaging;
+        }
+        else {
+            LOG(FATAL) << "unknown ConfigItem_type: " << str;
+        }
+    }
+
+    enum ConfigItem_trigger_time {
+        at,
+        every,
+
+        ConfigItem_trigger_type_Last
+    };
+
+    ConfigItem_trigger_time to_ConfigItem_trigger_time(const std::string& str) {
+        if (str == "at") {
+            return ConfigItem_trigger_time::at;
+        }
+        else if (str == "every") {
+            return ConfigItem_trigger_time::every;
+        }
+        else {
+            LOG(FATAL) << "unknown ConfigItem_trigger_type: " << str;
+            return ConfigItem_trigger_time::ConfigItem_trigger_type_Last;
+        }
+    }
+
+    struct ConfigItem {
+        service_trigger_type type;
+        ConfigItem_trigger_time at_or_every;
+        std::set<int> ticks;
+    };
+
+    ConfigItem parseConfigItem(const std::string &item) {
+        ConfigItem result;
+        auto colonPos = item.find(':');
+        auto commaPos = item.find(',');
+
+        // Extract category and type
+        result.type = to_ConfigItem_type(item.substr(0, colonPos));
+        auto typeAndNumbers = item.substr(colonPos + 1);
+        auto typeEnd = typeAndNumbers.find(':');
+        result.at_or_every = to_ConfigItem_trigger_time(typeAndNumbers.substr(0, typeEnd));
+
+        // Extract numbers
+        auto numbersStr = typeAndNumbers.substr(typeEnd + 1);
+        auto numberTokens = util::split(numbersStr, ',');
+        for (const auto &token : numberTokens) {
+            if (!token.empty()) {
+                result.ticks.emplace(std::stoi(token));
+            }
+        }
+
+        LOG_IF(FATAL, result.ticks.size() != 1 && result.at_or_every == ConfigItem_trigger_time::every) << "only one value can be provided as interval";
+        return result;
+    }
+
+private:
+    std::map<service_trigger_type, std::vector<ConfigItem>> all_config_items;
+
 public:
-	int tick_to_broadcast;
-	
 	force_broadcast_model()
 	{
-		tick_to_broadcast = 0;
+
 	}
 	
 	std::tuple<service_status, std::string> apply_config(const configuration_file::json& config) override
 	{
 		this->enable = config["enable"];
-		this->tick_to_broadcast = config["broadcast_interval"];
+		std::vector<std::string> all_config_items_str = config["config_items"];
+        for (const auto& config_str : all_config_items_str) {
+            ConfigItem configItem = parseConfigItem(config_str);
+            all_config_items[configItem.type].push_back(configItem);
+        }
 		
 		return {service_status::success, ""};
 	}
@@ -351,27 +425,30 @@ public:
 	{
 		if (this->enable == false) return {service_status::skipped, "not enabled"};
 
-        if (trigger != service_trigger_type::end_of_tick) return {service_status::skipped, "not service_trigger_type::end_of_tick"};
-        
-        auto model_sum = (*this->node_vector_container)[0]->solver->get_parameter();
-		model_sum.set_all(0);
-        if (tick % tick_to_broadcast == 0 && tick != 0)
-		{
-			LOG(INFO) << "force_broadcast_model triggered at tick: " << tick;
-			for (auto& node: *(this->node_container))
-			{
-                model_sum = model_sum + node.second->solver->get_parameter();
-			}
-			model_sum = model_sum / this->node_container->size();
-			
-			for (auto& node: *(this->node_container))
-			{
-                node.second->solver->set_parameter(model_sum);
-			}
-		}
-        else
-        {
-            return {service_status::skipped, "not time yet"};
+        bool triggered = false;
+        const auto triggered_type = all_config_items.find(trigger);
+        if (triggered_type != all_config_items.end()) { //get something to do
+            const auto triggered_items = triggered_type->second;
+            for (const ConfigItem& each_item : triggered_items) {
+                if (each_item.at_or_every == ConfigItem_trigger_time::at) {
+                    if (each_item.ticks.contains(tick)) {
+                        triggered = true;
+                        break;
+                    }
+                }
+                else if (each_item.at_or_every == ConfigItem_trigger_time::every) {
+                    if (tick % *each_item.ticks.begin() == 0 and tick != 0) {
+                        triggered = true;
+                        break;
+                    }
+                }
+                else {
+                    LOG(FATAL) << "unknown ConfigItem_trigger_time";
+                }
+            }
+        }
+        if (triggered) {
+            trigger_forced_broadcast(tick);
         }
 		return {service_status::success, ""};
 	}
@@ -386,6 +463,23 @@ public:
 	{
 		return {service_status::success, ""};
 	}
+
+private:
+    void trigger_forced_broadcast(int tick) {
+        auto model_sum = (*this->node_vector_container)[0]->solver->get_parameter();
+        model_sum.set_all(0);
+        LOG(INFO) << "force_broadcast_model triggered at tick: " << tick;
+        for (auto& node: *(this->node_container))
+        {
+            model_sum = model_sum + node.second->solver->get_parameter();
+        }
+        model_sum = model_sum / this->node_container->size();
+
+        for (auto& node: *(this->node_container))
+        {
+            node.second->solver->set_parameter(model_sum);
+        }
+    }
 };
 
 template <typename model_datatype>
