@@ -25,16 +25,18 @@ BOOST_AUTO_TEST_CASE (structure_same_test)
 	Ml::MlCaffeModel<float,caffe::SGDSolver> model2;
 	model2.load_caffe_model("../../../dataset/MNIST/lenet_solver_memory.prototxt");
 	model2.set_parameter(model1.get_parameter());
-	
-	
+
 	Ml::caffe_parameter_net<float> net1 = model1.get_parameter();
 	for (int i = 0; i < net1.getLayers().size(); ++i)
 	{
-		auto& data = net1.getLayers()[i].getBlob_p().get()->getData();
-		for (auto&& s : data)
-		{
-			s = 0;
-		}
+        const auto& data_blobs = net1.getLayers()[i].getBlob_p();
+        for (const auto& blob : data_blobs) {
+            auto& data = blob.get()->getData();
+            for (auto&& s : data)
+            {
+                s = 0;
+            }
+        }
 	}
 	model1.set_parameter(net1);
 	std::string structure1 = model1.get_network_structure_info();
@@ -51,21 +53,24 @@ BOOST_AUTO_TEST_CASE (get_model_parameter)
 	model2.load_caffe_model("../../../dataset/MNIST/lenet_solver_memory.prototxt");
 	model2.set_parameter(model1.get_parameter());
 	Ml::caffe_parameter_net<float> parameter1 = model1.get_parameter();
-	for (int i = 0; i < parameter1.getLayers().size(); ++i)
-	{
-		auto& data = parameter1.getLayers()[i].getBlob_p()->getData();
-		for (auto&& s : data)
-		{
-			s = 0;
-		}
-	}
+    for (int i = 0; i < parameter1.getLayers().size(); ++i)
+    {
+        const auto& data_blobs = parameter1.getLayers()[i].getBlob_p();
+        for (const auto& blob : data_blobs) {
+            auto& data = blob.get()->getData();
+            for (auto&& s : data)
+            {
+                s = 0;
+            }
+        }
+    }
 	model1.set_parameter(parameter1);
 	auto parameter2 = model1.get_parameter();
 	bool pass = true;
 	for (int i = 0; i < parameter1.getLayers().size(); ++i)
 	{
-		auto& data1 = parameter1.getLayers()[i].getBlob_p()->getData();
-		auto& data2 = parameter2.getLayers()[i].getBlob_p()->getData();
+		auto& data1 = parameter1.getLayers()[i].getBlob_p();
+		auto& data2 = parameter2.getLayers()[i].getBlob_p();
 		if(data1 != data2) pass = false;
 		break;
 	}
@@ -80,14 +85,17 @@ BOOST_AUTO_TEST_CASE (serialization)
 	model2.load_caffe_model("../../../dataset/MNIST/lenet_solver_memory.prototxt");
 	
 	Ml::caffe_parameter_net<float> parameter1 = model1.get_parameter();
-	for (int i = 0; i < parameter1.getLayers().size(); ++i)
-	{
-		auto& data = parameter1.getLayers()[i].getBlob_p()->getData();
-		for (auto&& s : data)
-		{
-			s = 0;
-		}
-	}
+    for (int i = 0; i < parameter1.getLayers().size(); ++i)
+    {
+        const auto& data_blobs = parameter1.getLayers()[i].getBlob_p();
+        for (const auto& blob : data_blobs) {
+            auto& data = blob.get()->getData();
+            for (auto&& s : data)
+            {
+                s = 0;
+            }
+        }
+    }
 	model1.set_parameter(parameter1);
 	
 	auto ss = model1.serialization(Ml::model_serialization_boost_binary);
@@ -96,8 +104,8 @@ BOOST_AUTO_TEST_CASE (serialization)
 	bool pass = true;
 	for (int i = 0; i < parameter1.getLayers().size(); ++i)
 	{
-		auto& data1 = parameter1.getLayers()[i].getBlob_p()->getData();
-		auto& data2 = parameter2.getLayers()[i].getBlob_p()->getData();
+        auto& data1 = parameter1.getLayers()[i].getBlob_p();
+        auto& data2 = parameter2.getLayers()[i].getBlob_p();
 		if(data1 != data2) pass = false;
 		break;
 	}
@@ -318,7 +326,7 @@ BOOST_AUTO_TEST_CASE (caffe_ext_predict)
 	int all_count = 0;
 	for (int i = 0; i < predict_labels.size(); ++i)
 	{
-		if (predict_labels[i].roughly_equal(test_y[i], 0.1))
+		if (predict_labels[i].roughly_equal(*test_y[i], 0.1))
 		{
 			correct_count++;
 		}

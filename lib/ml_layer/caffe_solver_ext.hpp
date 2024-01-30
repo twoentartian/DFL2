@@ -248,16 +248,16 @@ namespace Ml
 			return output;
 		}
 		
-		std::vector<std::vector<tensor_blob_like<DType>>> PredictDataset(const std::vector<tensor_blob_like<DType>>& data)
+		std::vector<std::vector<tensor_blob_like<DType>>> PredictDataset(const std::vector<const tensor_blob_like<DType>*>& data)
 		{
 			CHECK(!data.empty()) << "empty test data, data size == 0";
 			{
 				int data_length = 1;
-				for (auto&& dimension: data[0].getShape())
+				for (auto&& dimension: data[0]->getShape())
 				{
 					data_length *= dimension;
 				}
-				CHECK(data_length == data[0].getData().size()) << "data shape and data size mismatch";
+				CHECK(data_length == data[0]->getData().size()) << "data shape and data size mismatch";
 			}
 			CHECK(checkValidFirstLayer_memoryLayer()) << "the first layer is not MemoryData layer";
 			std::vector<std::vector<tensor_blob_like<DType>>> output;

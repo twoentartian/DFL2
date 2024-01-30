@@ -43,7 +43,7 @@ namespace Ml
         
         virtual DType evaluation(const std::vector<const tensor_blob_like<DType>*>& data, const std::vector<const tensor_blob_like<DType>*>& label) = 0;
         
-        virtual std::vector<tensor_blob_like<DType>> predict(const std::vector<tensor_blob_like<DType>>& data) = 0;
+        virtual std::vector<tensor_blob_like<DType>> predict(const std::vector<const tensor_blob_like<DType>*>& data) = 0;
         
         virtual std::string get_network_structure_info() = 0;
 
