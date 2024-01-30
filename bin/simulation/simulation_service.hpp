@@ -1869,3 +1869,66 @@ private:
     }
 
 };
+
+template <typename model_datatype>
+class compiled_services : public service<model_datatype>{
+public:
+    static constexpr bool ENABLE_SET_NODE_0_WEIGHT = false;
+
+    std::tuple<service_status, std::string> apply_config(const configuration_file::json& config) override
+    {
+        return {service_status::success, ""};   //compiled services cannot have config
+    }
+
+    std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::unordered_map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
+    {
+        this->set_node_container(_node_container, _node_vector_container);
+
+        return {service_status::success, ""};
+    }
+
+    std::tuple<service_status, std::string> process_per_tick(int tick, service_trigger_type trigger) override
+    {
+        // set all weights of node 0 to a value at tick 0
+        if (ENABLE_SET_NODE_0_WEIGHT) {
+            LOG(WARNING) << "ENABLE_SET_NODE_0_WEIGHT is true, the model weight of node 0 will be set to specific values";
+
+            if (tick == 0 && trigger == service_trigger_type::start_of_tick) {
+                const auto node_0_iter = this->node_container->find("0");
+                LOG_IF(FATAL, node_0_iter == this->node_container->end()) << "node 0 does not exist";
+                Ml::caffe_parameter_net<model_datatype> model = node_0_iter->second->solver.get()->get_parameter();
+                std::vector<Ml::caffe_parameter_layer<model_datatype>>& layers = model.getLayers();
+                std::random_device rd;
+                std::mt19937 gen(rd());
+                std::uniform_real_distribution<> dis(-0.001,0.001);
+                for (auto& layer : layers) {
+                    for (boost::shared_ptr<Ml::tensor_blob_like<model_datatype>> blob : layer.getBlob_p()) {
+                        auto& tensor_data = blob->getData();
+                        for (auto& data : tensor_data) {
+                            data = dis(gen);
+                        }
+                    }
+                }
+                node_0_iter->second->solver.get()->set_parameter(model);
+            }
+        }
+
+        return {service_status::success, ""};
+    }
+
+    std::tuple<service_status, std::string> process_on_event(int tick, service_trigger_type trigger, std::string triggered_node_name) override
+    {
+        LOG(FATAL) << "not implemented";
+        return {service_status::fail_not_specified_reason, "not implemented"};
+    }
+
+    std::tuple<service_status, std::string> destruction_service() override
+    {
+        return {service_status::success, ""};
+    }
+
+private:
+    void trigger_model_weight_override() {
+
+    }
+};
