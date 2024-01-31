@@ -1898,8 +1898,15 @@ class compiled_services : public service<model_datatype>{
 public:
     static constexpr bool ENABLE_SET_NODE_0_WEIGHT = false;
 
+    bool enable_model_randomness;
+    float init_model_randomness;
+
+
     std::tuple<service_status, std::string> apply_config(const configuration_file::json& config) override
     {
+        enable_model_randomness = config["enable_model_randomness"];
+        init_model_randomness = config["init_model_randomness"];
+
         return {service_status::success, ""};   //compiled services cannot have config
     }
 
@@ -1913,26 +1920,38 @@ public:
     std::tuple<service_status, std::string> process_per_tick(int tick, service_trigger_type trigger) override
     {
         // set all weights of node 0 to a value at tick 0
-        if (ENABLE_SET_NODE_0_WEIGHT) {
+        if (ENABLE_SET_NODE_0_WEIGHT && tick == 0 && trigger == service_trigger_type::start_of_tick) {
             LOG(WARNING) << "ENABLE_SET_NODE_0_WEIGHT is true, the model weight of node 0 will be set to specific values";
 
-            if (tick == 0 && trigger == service_trigger_type::start_of_tick) {
-                const auto node_0_iter = this->node_container->find("0");
-                LOG_IF(FATAL, node_0_iter == this->node_container->end()) << "node 0 does not exist";
-                Ml::caffe_parameter_net<model_datatype> model = node_0_iter->second->solver.get()->get_parameter();
-                std::vector<Ml::caffe_parameter_layer<model_datatype>>& layers = model.getLayers();
-                std::random_device rd;
-                std::mt19937 gen(rd());
-                std::uniform_real_distribution<> dis(-0.001,0.001);
-                for (auto& layer : layers) {
-                    for (boost::shared_ptr<Ml::tensor_blob_like<model_datatype>> blob : layer.getBlob_p()) {
-                        auto& tensor_data = blob->getData();
-                        for (auto& data : tensor_data) {
-                            data = dis(gen);
-                        }
+            const auto node_0_iter = this->node_container->find("0");
+            LOG_IF(FATAL, node_0_iter == this->node_container->end()) << "node 0 does not exist";
+            Ml::caffe_parameter_net<model_datatype> model = node_0_iter->second->solver.get()->get_parameter();
+            std::vector<Ml::caffe_parameter_layer<model_datatype>>& layers = model.getLayers();
+            std::random_device rd;
+            std::mt19937 gen(rd());
+            std::uniform_real_distribution<> dis(-0.001,0.001);
+            for (auto& layer : layers) {
+                for (boost::shared_ptr<Ml::tensor_blob_like<model_datatype>> blob : layer.getBlob_p()) {
+                    auto& tensor_data = blob->getData();
+                    for (auto& data : tensor_data) {
+                        data = dis(gen);
                     }
                 }
-                node_0_iter->second->solver.get()->set_parameter(model);
+            }
+            node_0_iter->second->solver.get()->set_parameter(model);
+        }
+
+        //override the initial models with a specific model + randomness
+        if (enable_model_randomness && tick == 0 && trigger == service_trigger_type::start_of_tick) {
+            LOG(WARNING) << "enable_model_randomness is true, setting the model to a mixture of node 0 and randomness model";
+
+            const auto node_0_iter = this->node_container->find("0");
+            LOG_IF(FATAL, node_0_iter == this->node_container->end()) << "node 0 does not exist";
+            Ml::caffe_parameter_net<model_datatype> model_0 = node_0_iter->second->solver.get()->get_parameter();
+            for (auto& node: *(this->node_container))
+            {
+                auto model = model_0 * (1-init_model_randomness) + node.second->solver->get_parameter() * init_model_randomness;
+                node.second->solver->set_parameter(model);
             }
         }
 

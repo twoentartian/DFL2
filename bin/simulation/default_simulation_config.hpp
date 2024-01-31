@@ -141,6 +141,13 @@ configuration_file::json get_default_simulation_configuration()
         services["apply_received_model"] = apply_received_model;
     }
     {
+        configuration_file::json compiled_services = configuration_file::json::object();
+        compiled_services["enable_model_randomness"] = false;
+        compiled_services["init_model_randomness"] = 0.5;
+        services["compiled_services"] = compiled_services;
+    }
+
+    {
         configuration_file::json network_topology_manager_service = configuration_file::json::object();
 
         configuration_file::json network_topology_manager_service_read_from_file = configuration_file::json::object();

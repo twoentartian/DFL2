@@ -513,6 +513,7 @@ int main(int argc, char *argv[])
             {
                 auto service_iter = services.find("compiled_services");
 
+                service_iter->second->apply_config(check_and_get_config("compiled_services"));
                 service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
             }
 
