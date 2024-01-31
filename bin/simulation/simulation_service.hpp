@@ -367,29 +367,37 @@ private:
         service_trigger_type type;
         ConfigItem_trigger_time at_or_every;
         std::set<int> ticks;
+        std::optional<std::string> src_node_name;
     };
 
     ConfigItem parseConfigItem(const std::string &item) {
         ConfigItem result;
-        auto colonPos = item.find(':');
-        auto commaPos = item.find(',');
+        auto colonPositions = util::split(item, ':');  // Use the split function to find all colon positions.
 
-        // Extract category and type
-        result.type = to_ConfigItem_type(item.substr(0, colonPos));
-        auto typeAndNumbers = item.substr(colonPos + 1);
-        auto typeEnd = typeAndNumbers.find(':');
-        result.at_or_every = to_ConfigItem_trigger_time(typeAndNumbers.substr(0, typeEnd));
+        if (colonPositions.size() < 3) {
+            LOG(FATAL) << "Invalid input format for item: " << item;
+            return result;
+        }
 
-        // Extract numbers
-        auto numbersStr = typeAndNumbers.substr(typeEnd + 1);
-        auto numberTokens = util::split(numbersStr, ',');
+        // Extract category, type, and the rest
+        result.type = to_ConfigItem_type(colonPositions[0]);
+        result.at_or_every = to_ConfigItem_trigger_time(colonPositions[1]);
+
+        // The last part could be the optional item or part of the number sequence
+        std::string numbersPart = colonPositions[2];
+        if (colonPositions.size() > 3) {
+            // If more than 3 parts, the last part is the optional item
+            result.src_node_name = {colonPositions[3]};
+        }
+
+        // Split the numbersPart by ',' to extract numbers
+        auto numberTokens = util::split(numbersPart, ',');
         for (const auto &token : numberTokens) {
             if (!token.empty()) {
                 result.ticks.emplace(std::stoi(token));
             }
         }
 
-        LOG_IF(FATAL, result.ticks.size() != 1 && result.at_or_every == ConfigItem_trigger_time::every) << "only one value can be provided as interval";
         return result;
     }
 
@@ -427,18 +435,21 @@ public:
 
         bool triggered = false;
         const auto triggered_type = all_config_items.find(trigger);
+        const ConfigItem* triggered_config_item;
         if (triggered_type != all_config_items.end()) { //get something to do
-            const auto triggered_items = triggered_type->second;
+            const auto& triggered_items = triggered_type->second;
             for (const ConfigItem& each_item : triggered_items) {
                 if (each_item.at_or_every == ConfigItem_trigger_time::at) {
                     if (each_item.ticks.contains(tick)) {
                         triggered = true;
+                        triggered_config_item = &each_item;
                         break;
                     }
                 }
                 else if (each_item.at_or_every == ConfigItem_trigger_time::every) {
                     if (tick % *each_item.ticks.begin() == 0 and tick != 0) {
                         triggered = true;
+                        triggered_config_item = &each_item;
                         break;
                     }
                 }
@@ -448,7 +459,7 @@ public:
             }
         }
         if (triggered) {
-            trigger_forced_broadcast(tick);
+            trigger_forced_broadcast(triggered_config_item->src_node_name, tick);
         }
 		return {service_status::success, ""};
 	}
@@ -465,19 +476,31 @@ public:
 	}
 
 private:
-    void trigger_forced_broadcast(int tick) {
-        auto model_sum = (*this->node_vector_container)[0]->solver->get_parameter();
-        model_sum.set_all(0);
-        LOG(INFO) << "force_broadcast_model triggered at tick: " << tick;
-        for (auto& node: *(this->node_container))
-        {
-            model_sum = model_sum + node.second->solver->get_parameter();
+    void trigger_forced_broadcast(std::optional<std::string> src_node_name, int tick) {
+        if (src_node_name.has_value()) {
+            LOG(INFO) << "force_broadcast_model, src node:" << *src_node_name << ", triggered at tick: " << tick;
+            auto node_iter = this->node_container->find(*src_node_name);
+            LOG_IF(FATAL, node_iter == this->node_container->end()) << *src_node_name << " does not exist";
+            const auto& model = node_iter->second->solver->get_parameter();
+            for (auto& node: *(this->node_container)) {
+                node.second->solver->set_parameter(model);
+            }
         }
-        model_sum = model_sum / this->node_container->size();
+        else {
+            LOG(INFO) << "force_broadcast_model triggered at tick: " << tick;
+            auto model_sum = (*this->node_vector_container)[0]->solver->get_parameter();
+            model_sum.set_all(0);
 
-        for (auto& node: *(this->node_container))
-        {
-            node.second->solver->set_parameter(model_sum);
+            for (auto& node: *(this->node_container))
+            {
+                model_sum = model_sum + node.second->solver->get_parameter();
+            }
+            model_sum = model_sum / this->node_container->size();
+
+            for (auto& node: *(this->node_container))
+            {
+                node.second->solver->set_parameter(model_sum);
+            }
         }
     }
 };

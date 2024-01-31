@@ -87,7 +87,8 @@ configuration_file::json get_default_simulation_configuration()
                                                           "after_train:every:10",
                                                           "before_train:every:10,",
                                                           "before_average:at:0",
-                                                          "after_average:every:100"};
+                                                          "after_average:every:100",
+                                                          "before_average:at:0:{node_name}"};
 		force_broadcast_service["config_items"] = {"before_train:at:0", "after_train:every:100"};
 		services["force_broadcast_average"] = force_broadcast_service;
 	}
