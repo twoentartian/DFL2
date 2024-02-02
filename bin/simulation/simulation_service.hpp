@@ -246,10 +246,11 @@ public:
 		this->set_node_container(_node_container, _node_vector_container);
 		
 		model_weights_file.reset(new std::ofstream(output_path / "model_weight_diff.csv", std::ios::binary));
+        LOG_ASSERT(model_weights_file->good());
 		*model_weights_file << "tick";
         
-        auto weights = (*this->node_vector_container)[0]->solver->get_parameter();
-		auto layers = weights.getLayers();
+        const auto& weights = (*this->node_vector_container)[0]->solver->get_parameter();
+		const auto& layers = weights.getLayers();
 		
 		for (auto& single_layer: layers)
 		{
@@ -268,8 +269,8 @@ public:
 
         if (tick % ml_model_weight_diff_record_interval_tick != 0) return {service_status::skipped, "not time yet"};
         
-        auto weights = (*this->node_vector_container)[0]->solver->get_parameter();
-        auto layers = weights.getLayers();
+        const auto& weights = (*this->node_vector_container)[0]->solver->get_parameter();
+        const auto& layers = weights.getLayers();
         size_t number_of_layers = layers.size();
         auto *weight_diff_sums = new std::atomic<float>[number_of_layers];
         for (int i = 0; i < number_of_layers; ++i) weight_diff_sums[i] = 0;
@@ -319,6 +320,139 @@ public:
 
 private:
 	std::shared_ptr<std::ofstream> model_weights_file;
+};
+
+
+template <typename model_datatype>
+class model_weights_variance_record : public service<model_datatype>
+{
+public:
+    //set these variables before init
+    int model_weights_variance_record_interval_tick;
+    
+    model_weights_variance_record()
+    {
+        this->node_vector_container = nullptr;
+        model_weights_variance_record_interval_tick = 0;
+    }
+    
+    std::tuple<service_status, std::string> apply_config(const configuration_file::json& config) override
+    {
+        this->enable = config["enable"];
+        this->model_weights_variance_record_interval_tick = config["interval"];
+        
+        return {service_status::success, ""};
+    }
+    
+    std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::unordered_map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
+    {
+        //LOG_IF(FATAL, node_vector_container == nullptr) << "node_vector_container is not set";
+        this->set_node_container(_node_container, _node_vector_container);
+        
+        model_weights_file.reset(new std::ofstream(output_path / "model_weight_var.csv", std::ios::binary));
+        LOG_ASSERT(model_weights_file->good());
+        *model_weights_file << "tick";
+    
+        for (const auto& [node_name, node] : *(this->node_container)) {
+            const Ml::caffe_parameter_net<model_datatype>& model = node->solver->get_parameter();
+            const std::vector<Ml::caffe_parameter_layer<model_datatype>>& layers = model.getLayers();
+    
+            for (auto& single_layer: layers)
+            {
+                if (single_layer.getBlob_p().size() == 0) continue;
+                *model_weights_file << "," << node_name << "-" << single_layer.getName();
+                layer_order.push_back(single_layer.getName());
+            }
+        }
+        *model_weights_file << std::endl;
+        
+        return {service_status::success, ""};
+    }
+    
+    std::tuple<service_status, std::string> process_per_tick(int tick, service_trigger_type trigger) override
+    {
+        if (this->enable == false) return {service_status::skipped, "not enabled"};
+        
+        if (trigger != service_trigger_type::end_of_tick) return {service_status::skipped, "not service_trigger_type::end_of_tick"};
+        
+        if (tick % model_weights_variance_record_interval_tick != 0) return {service_status::skipped, "not time yet"};
+    
+        std::unordered_map<std::string, std::unordered_map<std::string, model_datatype>> variances;
+        std::mutex variances_lock;
+    
+        tmt::ParallelExecution([this, &variances, &variances_lock](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node)
+                               {
+                                   std::unordered_map<std::string, model_datatype> vars;
+                                   const auto& model = single_node->solver->get_parameter();
+                                   const std::vector<Ml::caffe_parameter_layer<model_datatype>>& layers = model.getLayers();
+                                   for (const Ml::caffe_parameter_layer<model_datatype>& single_layer : layers)
+                                   {
+                                       const auto& blobs = single_layer.getBlob_p();
+                                       if (blobs.size() == 0) continue;
+                                       model_datatype var = calculate_variance(blobs[0]->getData()); //we only care about the normal weights, not biased weights.
+                                       vars.emplace(single_layer.getName(), var);
+                                   }
+                                   {
+                                       std::lock_guard guard(variances_lock);
+                                       variances[single_node->name] = vars;
+                                   }
+                               }, this->node_vector_container->size() - 1, this->node_vector_container->data());
+        
+        *model_weights_file << tick;
+        for (const auto& [node_name, vars] : variances)
+        {
+            for (const auto& layer_name : this->layer_order)
+            {
+                const auto variance = vars.at(layer_name);
+                *model_weights_file << "," << variance;
+            }
+        }
+        *model_weights_file << std::endl;
+        
+        return {service_status::success, ""};
+    }
+    
+    std::tuple<service_status, std::string> process_on_event(int tick, service_trigger_type trigger, std::string triggered_node_name) override
+    {
+        LOG(FATAL) << "not implemented";
+        return {service_status::fail_not_specified_reason, "not implemented"};
+    }
+    
+    std::tuple<service_status, std::string> destruction_service() override
+    {
+        model_weights_file->flush();
+        model_weights_file->close();
+        
+        return {service_status::success, ""};
+    }
+
+private:
+    std::shared_ptr<std::ofstream> model_weights_file;
+    std::vector<std::string> layer_order;
+    
+    model_datatype calculate_mean(const std::vector<model_datatype>& data) {
+        model_datatype sum = 0.0;
+        for (const double& value : data) {
+            sum += value;
+        }
+        return sum / static_cast<double>(data.size());
+    }
+    
+    model_datatype calculate_variance(const std::vector<model_datatype>& data) {
+        if (data.empty()) {
+            return 0.0; // Handle empty data
+        }
+    
+        model_datatype mean = calculate_mean(data);
+        model_datatype variance = 0.0;
+        
+        for (const double& value : data) {
+            double diff = value - mean;
+            variance += diff * diff;
+        }
+        
+        return variance / static_cast<model_datatype>(data.size());
+    }
 };
 
 template <typename model_datatype>

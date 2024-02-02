@@ -80,6 +80,12 @@ configuration_file::json get_default_simulation_configuration()
 		weights_service["interval"] = 20;
 		services["model_weights_difference_record"] = weights_service;
 	}
+    {
+        configuration_file::json model_weights_variance_record_service = configuration_file::json::object();
+        model_weights_variance_record_service["enable"] = true;
+        model_weights_variance_record_service["interval"] = 20;
+        services["model_weights_variance_record"] = model_weights_variance_record_service;
+    }
 	{
 		configuration_file::json force_broadcast_service = configuration_file::json::object();
 		force_broadcast_service["enable"] = false;
