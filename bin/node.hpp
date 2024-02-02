@@ -57,6 +57,7 @@ enum node_type
 	unknown_node_type = 0,
 	normal,
 	observer,
+    no_training,
     pontificator,
 	malicious_model_poisoning_random_model,
 	malicious_model_poisoning_random_model_by_turn,
@@ -253,6 +254,42 @@ public:
 	{
 		return {};
 	}
+};
+
+
+template<typename model_datatype>
+class no_training_node : public node<model_datatype>
+{
+public:
+    no_training_node(std::string _name, size_t buf_size) : node<model_datatype>(_name, buf_size)
+    {
+        this->type = no_training;
+    };
+    
+    static std::string type_name()
+    {
+        return "no_training";
+    }
+    
+    static void registerNodeType()
+    {
+        node<model_datatype>::_registerNodeType(type_name(), new no_training_node("template", 0));
+    }
+    
+    node<model_datatype> *new_node(std::string _name, size_t buf_size) override
+    {
+        return new no_training_node(_name, buf_size);
+    }
+    
+    void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
+    {
+//        this->solver->train(data, label, display);
+    }
+    
+    std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() override
+    {
+        return {this->solver->get_parameter()};
+    }
 };
 
 template<typename model_datatype>
@@ -643,6 +680,7 @@ static void register_node_types()
 	//register node types
 	normal_node<model_datatype>::registerNodeType();
 	observer_node<model_datatype>::registerNodeType();
+    no_training_node<model_datatype>::registerNodeType();
     pontificator_node<model_datatype>::registerNodeType();
 	malicious_model_poisoning_random_model_node<model_datatype>::registerNodeType();
 	malicious_model_poisoning_random_model_by_turn_node<model_datatype>::registerNodeType();
