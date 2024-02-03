@@ -66,7 +66,10 @@ enum node_type
 	malicious_data_poisoning_shuffle_label,
 	malicious_data_poisoning_shuffle_label_biased_1,
 	malicious_data_poisoning_random_data,
-	
+
+    normal_label_0_4,
+    normal_label_5_9,
+
 	node_type_last_index
 };
 
@@ -673,6 +676,76 @@ public:
 	}
 };
 
+template<typename model_datatype>
+class normal_node_label_0_4 : public node<model_datatype>
+{
+public:
+    normal_node_label_0_4(std::string _name, size_t buf_size) : node<model_datatype>(_name, buf_size)
+    {
+        this->type = normal_label_0_4;
+    };
+
+    static std::string type_name()
+    {
+        return "normal_node_label_0_4";
+    }
+
+    static void registerNodeType()
+    {
+        node<model_datatype>::_registerNodeType(type_name(), new normal_node_label_0_4("template", 0));
+    }
+
+    node<model_datatype> *new_node(std::string _name, size_t buf_size) override
+    {
+        return new normal_node_label_0_4(_name, buf_size);
+    }
+
+    void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
+    {
+        this->solver->train(data, label, display);
+    }
+
+    std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() override
+    {
+        return {this->solver->get_parameter()};
+    }
+};
+
+template<typename model_datatype>
+class normal_node_label_5_9 : public node<model_datatype>
+{
+public:
+    normal_node_label_5_9(std::string _name, size_t buf_size) : node<model_datatype>(_name, buf_size)
+    {
+        this->type = normal_label_5_9;
+    };
+
+    static std::string type_name()
+    {
+        return "normal_node_label_5_9";
+    }
+
+    static void registerNodeType()
+    {
+        node<model_datatype>::_registerNodeType(type_name(), new normal_node_label_5_9("template", 0));
+    }
+
+    node<model_datatype> *new_node(std::string _name, size_t buf_size) override
+    {
+        return new normal_node_label_5_9(_name, buf_size);
+    }
+
+    void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
+    {
+        this->solver->train(data, label, display);
+    }
+
+    std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() override
+    {
+        return {this->solver->get_parameter()};
+    }
+};
+
 
 template<typename model_datatype>
 static void register_node_types()
@@ -689,6 +762,9 @@ static void register_node_types()
 	malicious_data_poisoning_shuffle_label_node<model_datatype>::registerNodeType();
 	malicious_data_poisoning_shuffle_label_biased_1_node<model_datatype>::registerNodeType();
 	malicious_data_poisoning_random_data_node<model_datatype>::registerNodeType();
+
+    normal_node_label_0_4<model_datatype>::registerNodeType();
+    normal_node_label_5_9<model_datatype>::registerNodeType();
 }
 
 #endif //DFL_NODE_HPP

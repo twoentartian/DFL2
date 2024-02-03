@@ -10,6 +10,34 @@ get_dataset_by_node_type(Ml::data_converter<model_datatype> &dataset, const node
 	Ml::tensor_blob_like<model_datatype> label;
 	label.getShape() = {1};
 	std::vector<const Ml::tensor_blob_like<model_datatype>*> train_data, train_label;
+
+    //process special cases first
+    if (target_node.type == node_type::normal_label_0_4 || target_node.type == node_type::normal_label_5_9) {
+        int min=0,max=0;
+        if (target_node.type == node_type::normal_label_0_4) {
+            min = 0;
+            max = 4;
+        }
+        if (target_node.type == node_type::normal_label_5_9) {
+            min = 5;
+            max = 9;
+        }
+        LOG_ASSERT(min!=max);
+        static std::random_device dev;
+        static std::mt19937 rng(dev());
+        std::uniform_int_distribution<int> distribution(min, max);
+        for (int i = 0; i < size; ++i)
+        {
+            int label_int = ml_dataset_all_possible_labels[distribution(rng)];
+            label.getData() = {model_datatype(label_int)};
+            auto[train_data_slice, train_label_slice] = dataset.get_random_data_by_label(label, 1);
+            assert(!train_data_slice.empty() && !train_label_slice.empty());
+            train_data.insert(train_data.end(), train_data_slice.begin(), train_data_slice.end());
+            train_label.insert(train_label.end(), train_label_slice.begin(), train_label_slice.end());
+        }
+        return {train_data, train_label};
+    }
+
 	if (target_node.dataset_mode == dataset_mode_type::default_dataset)
 	{
 		//iid dataset

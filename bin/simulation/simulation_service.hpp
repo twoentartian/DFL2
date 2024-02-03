@@ -1897,6 +1897,7 @@ template <typename model_datatype>
 class compiled_services : public service<model_datatype>{
 public:
     static constexpr bool ENABLE_SET_NODE_0_WEIGHT = false;
+    static constexpr bool ENABLE_TRAIN_0_4_FIRST_10000_TICK_5_9_LATER_10000_TICK = false;
 
     bool enable_model_randomness;
     float init_model_randomness;
@@ -1952,6 +1953,22 @@ public:
             {
                 auto model = model_0 * (1-init_model_randomness) + node.second->solver->get_parameter() * init_model_randomness;
                 node.second->solver->set_parameter(model);
+            }
+        }
+
+        //ENABLE_TRAIN_0_4_FIRST_10000_TICK_5_9_LATER_10000_TICK
+        if(ENABLE_TRAIN_0_4_FIRST_10000_TICK_5_9_LATER_10000_TICK) {
+            if (tick == 0 && trigger == service_trigger_type::start_of_tick) {
+                LOG(WARNING) << "ENABLE_TRAIN_0_4_FIRST_10000_TICK_5_9_LATER_10000_TICK is true, setting all nodes to normal_label_0_4";
+                for (auto& node: *(this->node_container)) {
+                    node.second->type = node_type::normal_label_0_4;
+                }
+            }
+            if (tick == 10000 && trigger == service_trigger_type::start_of_tick) {
+                LOG(WARNING) << "ENABLE_TRAIN_0_4_FIRST_10000_TICK_5_9_LATER_10000_TICK is true, setting all nodes to normal";
+                for (auto& node: *(this->node_container)) {
+                    node.second->type = node_type::normal;
+                }
             }
         }
 
