@@ -353,6 +353,7 @@ public:
         LOG_ASSERT(model_weights_file->good());
         *model_weights_file << "tick";
     
+        bool first_node = true;
         for (const auto& [node_name, node] : *(this->node_container)) {
             const Ml::caffe_parameter_net<model_datatype>& model = node->solver->get_parameter();
             const std::vector<Ml::caffe_parameter_layer<model_datatype>>& layers = model.getLayers();
@@ -361,8 +362,12 @@ public:
             {
                 if (single_layer.getBlob_p().size() == 0) continue;
                 *model_weights_file << "," << node_name << "-" << single_layer.getName();
-                layer_order.push_back(single_layer.getName());
+                if (first_node) {
+                    layer_order.push_back(single_layer.getName());
+                }
             }
+            first_node = false;
+            node_order.push_back(node_name);
         }
         *model_weights_file << std::endl;
         
@@ -373,16 +378,16 @@ public:
     {
         if (this->enable == false) return {service_status::skipped, "not enabled"};
         
-        if (trigger != service_trigger_type::end_of_tick) return {service_status::skipped, "not service_trigger_type::end_of_tick"};
+        if (trigger != service_trigger_type::start_of_tick) return {service_status::skipped, "not service_trigger_type::end_of_tick"};
         
         if (tick % model_weights_variance_record_interval_tick != 0) return {service_status::skipped, "not time yet"};
     
-        std::unordered_map<std::string, std::unordered_map<std::string, model_datatype>> variances;
+        std::map<std::string, std::map<std::string, model_datatype>> variances;
         std::mutex variances_lock;
     
         tmt::ParallelExecution([this, &variances, &variances_lock](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node)
                                {
-                                   std::unordered_map<std::string, model_datatype> vars;
+                                   std::map<std::string, model_datatype> vars;
                                    const auto& model = single_node->solver->get_parameter();
                                    const std::vector<Ml::caffe_parameter_layer<model_datatype>>& layers = model.getLayers();
                                    for (const Ml::caffe_parameter_layer<model_datatype>& single_layer : layers)
@@ -396,11 +401,12 @@ public:
                                        std::lock_guard guard(variances_lock);
                                        variances[single_node->name] = vars;
                                    }
-                               }, this->node_vector_container->size() - 1, this->node_vector_container->data());
+                               }, this->node_vector_container->size(), this->node_vector_container->data());
         
         *model_weights_file << tick;
-        for (const auto& [node_name, vars] : variances)
+        for (const auto& node_name : this->node_order)
         {
+            const auto vars = variances.at(node_name);
             for (const auto& layer_name : this->layer_order)
             {
                 const auto variance = vars.at(layer_name);
@@ -429,6 +435,7 @@ public:
 private:
     std::shared_ptr<std::ofstream> model_weights_file;
     std::vector<std::string> layer_order;
+    std::vector<std::string> node_order;
     
     model_datatype calculate_mean(const std::vector<model_datatype>& data) {
         model_datatype sum = 0.0;
