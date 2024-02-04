@@ -416,10 +416,6 @@ int main(int argc, char *argv[])
 	Ml::data_converter<model_datatype> test_dataset;
 	test_dataset.load_dataset_mnist(ml_test_dataset, ml_test_dataset_label);
 	
-    //open drop_rate.txt
-	std::ofstream drop_rate(output_path / "drop_rate.txt", std::ios::binary);
-	std::mutex drop_rate_lock;
-	
 	//node vector container
 	std::vector<node<model_datatype>*> node_pointer_vector_container;
 	node_pointer_vector_container.reserve(node_container.size());
@@ -632,7 +628,7 @@ int main(int argc, char *argv[])
             trigger_service(tick, service_trigger_type::start_of_training);
 
             ////train the model
-			tmt::ParallelExecution_StepIncremental([&drop_rate_lock, &drop_rate, &tick, &train_dataset, &ml_train_batch_size, &ml_dataset_all_possible_labels, random_training_sequence](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
+			tmt::ParallelExecution_StepIncremental([&tick, &train_dataset, &ml_train_batch_size, &ml_dataset_all_possible_labels, random_training_sequence](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
 				if (tick >= single_node->next_train_tick)
 				{
                     single_node->model_trained = true;
@@ -663,11 +659,6 @@ int main(int argc, char *argv[])
 						size_t total_weight = 0, dropped_count = 0;
 						auto compressed_model = Ml::model_compress::compress_by_diff_get_model(parameter_before, parameter_after, single_node->filter_limit, &total_weight, &dropped_count);
 						std::string compress_model_str = Ml::model_compress::compress_by_diff_lz_compress(compressed_model);
-						{
-							std::lock_guard guard(drop_rate_lock);
-							drop_rate << "node:" << single_node->name << "    tick:" << tick << "    drop:" << ((float) dropped_count) / float(total_weight) << "(" << dropped_count << "/" << total_weight << ")"
-							          << "    compressed_size:" << compress_model_str.size() << std::endl;
-						}
 						parameter_output = compressed_model;
 						type = Ml::model_compress_type::compressed_by_diff;
 					}
@@ -815,9 +806,6 @@ int main(int argc, char *argv[])
         delete ptr;
     }
     node<model_datatype>::deregister_all_node_types();
-
-    drop_rate.flush();
-    drop_rate.close();
 
 	return 0;
 }
