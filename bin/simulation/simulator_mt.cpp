@@ -651,8 +651,7 @@ int main(int argc, char *argv[])
 					}
 					auto parameter_after = *output_opt;
 					auto parameter_output = parameter_after;
-					
-					Ml::model_compress_type type;
+
 					if (single_node->model_generation_type == Ml::model_compress_type::compressed_by_diff)
 					{
 						//drop models
@@ -660,11 +659,6 @@ int main(int argc, char *argv[])
 						auto compressed_model = Ml::model_compress::compress_by_diff_get_model(parameter_before, parameter_after, single_node->filter_limit, &total_weight, &dropped_count);
 						std::string compress_model_str = Ml::model_compress::compress_by_diff_lz_compress(compressed_model);
 						parameter_output = compressed_model;
-						type = Ml::model_compress_type::compressed_by_diff;
-					}
-					else
-					{
-						type = Ml::model_compress_type::normal;
 					}
 					
 					//add ML network to FedAvg buffer
