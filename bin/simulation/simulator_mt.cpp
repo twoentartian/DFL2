@@ -449,6 +449,7 @@ int main(int argc, char *argv[])
     {
         services.emplace("accuracy", new accuracy_record<model_datatype>());
         services.emplace("model_weights_difference_record", new model_weights_difference_record<model_datatype>());
+        services.emplace("model_weights_variance_record", new model_weights_variance_record<model_datatype>());
         services.emplace("force_broadcast_average", new force_broadcast_model<model_datatype>());
         services.emplace("time_based_hierarchy_service", new time_based_hierarchy_service<model_datatype>());
         services.emplace("reputation_record", new reputation_record<model_datatype>());
@@ -458,6 +459,7 @@ int main(int argc, char *argv[])
         services.emplace("apply_delta_weight", new apply_delta_weight<model_datatype>());
         services.emplace("received_model_record", new received_model_record<model_datatype>());
         services.emplace("apply_received_model", new apply_received_model<model_datatype>());
+        services.emplace("compiled_services", new compiled_services<model_datatype>());
         auto services_json = config_json["services"];
         LOG_IF(FATAL, services_json.is_null()) << "services are not defined in configuration file";
 
@@ -485,6 +487,14 @@ int main(int argc, char *argv[])
                 auto service_iter = services.find("model_weights_difference_record");
 
                 service_iter->second->apply_config(check_and_get_config("model_weights_difference_record"));
+                service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+            }
+
+            //model weights variance record
+            {
+                auto service_iter = services.find("model_weights_variance_record");
+
+                service_iter->second->apply_config(check_and_get_config("model_weights_variance_record"));
                 service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
             }
 
@@ -549,14 +559,6 @@ int main(int argc, char *argv[])
                 service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
             }
 
-            //network_topology_manager
-            {
-                auto service_iter = services.find("network_topology_manager");
-
-                service_iter->second->apply_config(check_and_get_config("network_topology_manager"));
-                service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
-            }
-
             //delta_weight_after_training_averaging_record
             {
                 auto service_iter = services.find("delta_weight_after_training_averaging_record");
@@ -570,6 +572,14 @@ int main(int argc, char *argv[])
                 auto service_iter = services.find("apply_delta_weight");
 
                 service_iter->second->apply_config(check_and_get_config("apply_delta_weight"));
+                service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+            }
+
+            //compiled_services
+            {
+                auto service_iter = services.find("compiled_services");
+
+                service_iter->second->apply_config(check_and_get_config("compiled_services"));
                 service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
             }
 

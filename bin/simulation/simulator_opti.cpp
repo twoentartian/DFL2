@@ -494,14 +494,6 @@ int main(int argc, char *argv[])
 				service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
 			}
 
-            //network_topology_manager
-            {
-                auto service_iter = services.find("network_topology_manager");
-
-                service_iter->second->apply_config(check_and_get_config("network_topology_manager"));
-                service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
-            }
-
             //delta_weight_after_training_averaging_record
             {
                 auto service_iter = services.find("delta_weight_after_training_averaging_record");
