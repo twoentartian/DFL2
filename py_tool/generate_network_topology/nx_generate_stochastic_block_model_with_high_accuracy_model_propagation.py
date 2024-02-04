@@ -45,35 +45,61 @@ if __name__ == "__main__":
     # generate stage script files
     block_a = range(0, size_a, 1)
     block_b = range(size_a, size_a+size_b, 1)
+
     # a to b
     tick_to_enable = size_a * 150
+    script_a_to_b = []
+    script_b_to_a = []
+
+    node_config = {
+        "enable": False
+    }
+    changed_nodes = {}
+    for node in block_b:
+        changed_nodes[str(node)] = node_config
+    script_a_to_b.append({
+        "tick": 0,
+        "script": changed_nodes,
+    })
+
     node_config = {
         "enable": True
     }
     changed_nodes = {}
     for node in block_b:
         changed_nodes[str(node)] = node_config
-    script_a_to_b = []
     script_a_to_b.append({
         "tick": tick_to_enable,
         "script": changed_nodes,
     })
+
     f = open("script_a_to_b.json", "w")
     f.write(json.dumps(script_a_to_b, indent=4))
     f.close()
+
     # b to a
-    tick_to_enable = size_b * 150
+    node_config = {
+        "enable": False
+    }
+    changed_nodes = {}
+    for node in block_a:
+        changed_nodes[str(node)] = node_config
+    script_b_to_a.append({
+        "tick": 0,
+        "script": changed_nodes,
+    })
+
     node_config = {
         "enable": True
     }
     changed_nodes = {}
     for node in block_a:
         changed_nodes[str(node)] = node_config
-    script_b_to_a = []
     script_b_to_a.append({
         "tick": tick_to_enable,
         "script": changed_nodes,
     })
+
     f = open("script_b_to_a.json", "w")
     f.write(json.dumps(script_b_to_a, indent=4))
     f.close()
