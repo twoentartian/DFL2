@@ -1,0 +1,23 @@
+[
+  {
+    "tick": 1,
+    "script": {
+      "node_0": {
+        "enable": true,
+        "buffer_size": 8,
+        "training_interval_tick": [8,9,10,11,12]
+      }
+    }
+  },
+  {
+    "tick": 1000,
+    "script": {
+      "node_0": {
+        "enable": false,
+        "buffer_size": 8,
+        "training_interval_tick": [8,9,10,11,12]
+      }
+    }
+  }
+
+]

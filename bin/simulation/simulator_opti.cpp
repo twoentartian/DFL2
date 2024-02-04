@@ -389,6 +389,7 @@ int main(int argc, char *argv[])
         services.emplace("apply_delta_weight", new apply_delta_weight<model_datatype>());
         services.emplace("received_model_record", new received_model_record<model_datatype>());
         services.emplace("apply_received_model", new apply_received_model<model_datatype>());
+        services.emplace("stage_manager", new stage_manager_service<model_datatype>());
         services.emplace("compiled_services", new compiled_services<model_datatype>());
 		auto services_json = config_json["services"];
 		LOG_IF(FATAL, services_json.is_null()) << "services are not defined in configuration file";
@@ -507,6 +508,14 @@ int main(int argc, char *argv[])
                 auto service_iter = services.find("apply_delta_weight");
 
                 service_iter->second->apply_config(check_and_get_config("apply_delta_weight"));
+                service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+            }
+
+            //stage_manager_service
+            {
+                auto service_iter = services.find("stage_manager");
+
+                service_iter->second->apply_config(check_and_get_config("stage_manager"));
                 service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
             }
 

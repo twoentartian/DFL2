@@ -59,7 +59,7 @@ configuration_file::json get_default_simulation_configuration()
 	nodes.push_back(node);
 	node["name"] = "2";
 	node["dataset_mode"] = "iid";
-	node["node_type"] = "malicious_model_poisoning_random_model";
+	node["node_type"] = "observer";
 	nodes.push_back(node);
 	
 	output["nodes"] = nodes;
@@ -139,6 +139,12 @@ configuration_file::json get_default_simulation_configuration()
         received_modeL_record["path"] = "./received_models";
         received_modeL_record["nodes"] = "0,1,2,3,4";
         services["received_model_record"] = received_modeL_record;
+    }
+    {
+        configuration_file::json stage_manager = configuration_file::json::object();
+        stage_manager["enable"] = false;
+        stage_manager["script_path"] = "./script.json";
+        services["stage_manager"] = stage_manager;
     }
     {
         configuration_file::json apply_received_model = configuration_file::json::object();

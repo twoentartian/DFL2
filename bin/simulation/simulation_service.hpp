@@ -2034,6 +2034,103 @@ private:
 
 };
 
+
+template <typename model_datatype>
+class stage_manager_service : public service<model_datatype>
+{
+public:
+    //set these variables before init
+
+private:
+    std::filesystem::path stage_script;
+    std::map<int, std::map<std::string, configuration_file::json>> all_scripts_for_nodes;
+
+public:
+    stage_manager_service()
+    {
+
+    }
+
+    std::tuple<service_status, std::string> apply_config(const configuration_file::json& config) override
+    {
+        this->enable = config["enable"];
+        this->stage_script = std::filesystem::path(config["script_path"]);
+
+        return {service_status::success, ""};
+    }
+
+    std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::unordered_map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
+    {
+        this->set_node_container(_node_container, _node_vector_container);
+
+        if (!this->enable) return {service_status::skipped, "not enabled"};
+
+        LOG_IF(FATAL, !std::filesystem::exists(stage_script)) << "stage script file path " << stage_script.string() << " does not exist.";
+        std::ifstream script_file(stage_script, std::ios::binary);
+        LOG_ASSERT(script_file.is_open());
+        std::string content;
+        content.assign((std::istreambuf_iterator<char>(script_file)),(std::istreambuf_iterator<char>()));
+        script_file.close();
+        configuration_file::json script_file_json = configuration_file::json::parse(content);
+        LOG_ASSERT(script_file_json.is_array());
+        for (const auto& single_script : script_file_json) {
+            int tick = single_script["tick"].get<int>();
+            std::map<std::string, configuration_file::json> scripts_at_this_tick;
+            for (const auto& [node_name, node_script] : single_script["script"].items()) {
+                scripts_at_this_tick[node_name] = node_script;
+            }
+            all_scripts_for_nodes[tick] = scripts_at_this_tick;
+        }
+        return {service_status::success, ""};
+    }
+
+    std::tuple<service_status, std::string> process_per_tick(int tick, service_trigger_type trigger) override
+    {
+        if (!this->enable) return {service_status::skipped, "not enabled"};
+
+        if (trigger != service_trigger_type::start_of_tick) return {service_status::skipped, "not service_trigger_type::start_of_tick"};
+
+        const auto tick_find_iter = all_scripts_for_nodes.find(tick);
+        if (tick_find_iter == all_scripts_for_nodes.end()) {
+            return {service_status::skipped, "not time yet"};
+        }
+        const auto& node_and_script = tick_find_iter->second;
+        for (const auto& [node_name, node_script] : node_and_script) {
+            auto node_iter = this->node_container->find(node_name);
+            LOG_ASSERT(node_iter != this->node_container->end()) << "info: " << node_name << " does not exist";
+            auto& target_node = node_iter->second;
+            apply_config_to_node(node_script, target_node);
+        }
+
+        return {service_status::success, ""};
+    }
+
+    std::tuple<service_status, std::string> process_on_event(int tick, service_trigger_type trigger, std::string triggered_node_name) override
+    {
+        LOG(FATAL) << "not implemented";
+        return {service_status::fail_not_specified_reason, "not implemented"};
+    }
+
+    std::tuple<service_status, std::string> destruction_service() override
+    {
+
+        return {service_status::success, ""};
+    }
+
+private:
+    void apply_config_to_node(const configuration_file::json& script, node<model_datatype>* node) {
+        if (script.contains("enable")) {
+            node->enable = script["enable"].get<bool>();
+        }
+        if (script.contains("buffer_size")) {
+            node->enable = script["buffer_size"].get<int>();
+        }
+        if (script.contains("training_interval_tick")) {
+            node->training_interval_tick = script["training_interval_tick"].get<std::vector<int>>();
+        }
+    }
+};
+
 template <typename model_datatype>
 class compiled_services : public service<model_datatype>{
 public:
