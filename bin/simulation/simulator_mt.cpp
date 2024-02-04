@@ -670,8 +670,11 @@ int main(int argc, char *argv[])
 					//add ML network to FedAvg buffer
 					for (auto [updating_node_name, updating_node] : single_node->peers)
 					{
-						std::lock_guard guard(updating_node->parameter_buffer_lock);
-						updating_node->parameter_buffer.emplace_back(single_node->name, type, parameter_output);
+                        //only add send model to other nodes if they are enabled.
+                        if (updating_node->enable) {
+                            std::lock_guard guard(updating_node->parameter_buffer_lock);
+                            updating_node->parameter_buffer.emplace_back(single_node->name, type, parameter_output);
+                        }
 					}
 				}
                 else

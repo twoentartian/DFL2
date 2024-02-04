@@ -604,7 +604,8 @@ int main(int argc, char *argv[])
                     //add ML network to FedAvg buffer
                     for (auto [updating_node_name, updating_node] : single_node->peers)
                     {
-                        node_model_update[updating_node_name]->add_model(parameter_output);
+                        //only add send model to other nodes if they are enabled.
+                        if (updating_node->enable) node_model_update[updating_node_name]->add_model(parameter_output);
                         {
                             std::lock_guard guard(updating_node->simulation_service_data.just_received_model_ptr_lock);
                             updating_node->simulation_service_data.just_received_model_ptr = &parameter_output;
