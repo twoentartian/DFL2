@@ -56,19 +56,19 @@ enum node_type
 {
 	unknown_node_type = 0,
 	normal,
-	observer,
-    no_training,
-    pontificator,
-	malicious_model_poisoning_random_model,
-	malicious_model_poisoning_random_model_by_turn,
-	malicious_model_poisoning_random_model_biased_0_1,
-	malicious_duplication_attack,
-	malicious_data_poisoning_shuffle_label,
-	malicious_data_poisoning_shuffle_label_biased_1,
-	malicious_data_poisoning_random_data,
+	observer,       //node that only performs averaging, will not send models
+    no_training,    //nodes will not perform training, but will send models
+    pontificator,   //nodes will always propagate its initial model
+	malicious_model_poisoning_random_model,             //always send random models
+	malicious_model_poisoning_random_model_by_turn,     //send random models by turns(one good model + one malicious model)
+	malicious_model_poisoning_random_model_biased_0_1,  //subtract 0-0.1 from the model weights
+	malicious_duplication_attack,                       //duplicate other's model and send it to others
+	malicious_data_poisoning_shuffle_label,             //shuffle the label of training dataset and send it as training dataset to nodes
+	malicious_data_poisoning_shuffle_label_biased_1,    //add 1 to the label of training dataset and send it as training dataset to nodes
+	malicious_data_poisoning_random_data,               //use uniformly random training dataset to train the model
 
-    normal_label_0_4,
-    normal_label_5_9,
+    normal_label_0_4,   //normal nodes but only receive training dataset whose labels are from 0 to 4
+    normal_label_5_9,   //normal nodes but only receive training dataset whose labels are from 5 to 9
 
 	node_type_last_index
 };
@@ -89,6 +89,7 @@ public:
 	node(std::string _name, size_t buf_size) : name(std::move(_name)), next_train_tick(0), buffer_size(buf_size), planned_buffer_size(buf_size), dataset_mode(dataset_mode_type::unknown), model_generation_type(Ml::model_compress_type::unknown), filter_limit(0.0f), last_measured_accuracy(0.0f), last_measured_tick(0), type(node_type::unknown_node_type)
 	{
 		solver.reset(new Ml::MlCaffeModel<model_datatype, caffe::SGDSolver>());
+        enable = true;
 	}
 	
 	virtual ~node() = default;
@@ -104,6 +105,7 @@ public:
 	
 	size_t buffer_size;
 	size_t planned_buffer_size;
+    bool enable;
 	
 	std::vector<std::tuple<std::string, Ml::model_compress_type, Ml::caffe_parameter_net<model_datatype>>> parameter_buffer;
 	std::mutex parameter_buffer_lock;
@@ -215,11 +217,13 @@ public:
  
 	void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
 	{
+        if (!this->enable) return;
         this->solver->train(data, label, display);
 	}
 	
 	std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() override
 	{
+        if (!this->enable) return {};
         return {this->solver->get_parameter()};
 	}
 };
@@ -250,11 +254,13 @@ public:
 	
 	void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
 	{
-	
+        if (!this->enable) return;
+
 	}
 	
 	std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() override
 	{
+        if (!this->enable) return {};
 		return {};
 	}
 };
@@ -286,11 +292,13 @@ public:
     
     void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
     {
-//        this->solver->train(data, label, display);
+        if (!this->enable) return;
+
     }
     
     std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() override
     {
+        if (!this->enable) return {};
         return {this->solver->get_parameter()};
     }
 };
@@ -324,6 +332,7 @@ public:
 
     void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
     {
+        if (!this->enable) return;
         if (!parameter)
             parameter = {this->solver->get_parameter()};
         this->solver->set_parameter(*parameter);
@@ -331,6 +340,7 @@ public:
 
     std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() override
     {
+        if (!this->enable) return {};
         return parameter;
     }
 };
@@ -361,17 +371,14 @@ public:
     
     void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
     {
+        if (!this->enable) return;
         this->solver->train(data, label, display);
     }
 	
 	std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() override
 	{
+        if (!this->enable) return {};
 		Ml::caffe_parameter_net<model_datatype> output = this->solver->get_parameter();
-		
-//		auto factor = output;
-//		factor.random(0.7,1);
-//		output = output.dot_product(factor);
-		
 		output.random(0,0.001);
 
 		return {output};
@@ -411,11 +418,13 @@ public:
     
     void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
     {
+        if (!this->enable) return;
         this->solver->train(data, label, display);
     }
 	
 	std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() override
 	{
+        if (!this->enable) return {};
 		Ml::caffe_parameter_net<model_datatype> output;
 		if (turn == 0)
 		{
@@ -424,9 +433,6 @@ public:
 		else
 		{
 			output = this->solver->get_parameter();
-//			auto factor = output;
-//			factor.random(0.7,1);
-//			output = output.dot_product(factor);
 			output.random(0,0.001);
 		}
 		turn = (turn + 1) % 2;
@@ -461,17 +467,17 @@ public:
     
     void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
     {
+        if (!this->enable) return;
         this->solver->train(data, label, display);
     }
 	
 	std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() override
 	{
+        if (!this->enable) return {};
 		Ml::caffe_parameter_net<model_datatype> output = this->solver->get_parameter();
 		auto factor = output;
 		factor.random(0, 0.1);
 		output = output - factor;
-		//output.fix_nan();
-		
 		return {output};
 	}
 };
@@ -502,11 +508,13 @@ public:
     
     void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
     {
-    
+        if (!this->enable) return;
+
     }
 	
 	std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() override
 	{
+        if (!this->enable) return {};
         return {this->solver->get_parameter()};
 	}
 };
@@ -537,6 +545,8 @@ public:
 	
 	void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
 	{
+        if (!this->enable) return;
+
 		std::vector<const Ml::tensor_blob_like<model_datatype>*> label_duplicate;
         label_duplicate.reserve(label.size());
         
@@ -565,6 +575,7 @@ public:
 	
 	std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() override
 	{
+        if (!this->enable) return {};
         return {this->solver->get_parameter()};
 	}
 };
@@ -595,6 +606,8 @@ public:
     
     void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
 	{
+        if (!this->enable) return;
+
         std::vector<const Ml::tensor_blob_like<model_datatype>*> label_duplicate;
         label_duplicate.reserve(label.size());
         for (const auto& single_label: label)
@@ -622,6 +635,7 @@ public:
 	
 	std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() override
 	{
+        if (!this->enable) return {};
         return {this->solver->get_parameter()};
 	}
 };
@@ -652,6 +666,8 @@ public:
     
     void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
 	{
+        if (!this->enable) return;
+
         std::vector<const Ml::tensor_blob_like<model_datatype>*> data_duplicate;
         data_duplicate.reserve(data.size());
         for (const auto& single_data: data)
@@ -672,6 +688,7 @@ public:
 	
 	std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() override
 	{
+        if (!this->enable) return {};
         return {this->solver->get_parameter()};
 	}
 };
@@ -702,11 +719,13 @@ public:
 
     void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
     {
+        if (!this->enable) return;
         this->solver->train(data, label, display);
     }
 
     std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() override
     {
+        if (!this->enable) return {};
         return {this->solver->get_parameter()};
     }
 };
@@ -737,11 +756,13 @@ public:
 
     void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
     {
+        if (!this->enable) return;
         this->solver->train(data, label, display);
     }
 
     std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() override
     {
+        if (!this->enable) return {};
         return {this->solver->get_parameter()};
     }
 };
