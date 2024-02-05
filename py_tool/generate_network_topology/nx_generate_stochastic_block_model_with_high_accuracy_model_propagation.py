@@ -78,6 +78,7 @@ if __name__ == "__main__":
     f.close()
 
     # b to a
+    tick_to_enable = size_b * 150
     node_config = {
         "enable": False
     }
