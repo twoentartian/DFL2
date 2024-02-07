@@ -42,6 +42,7 @@ std::unordered_map<std::string, node<model_datatype> *> node_container;
 std::unordered_map<std::string, std::shared_ptr<opti_model_update<model_datatype>>> node_model_update;
 ////set model updating algorithm
 using model_updating_algorithm = train_50_average_50<model_datatype>;
+//using model_updating_algorithm = train_50_average_50_fix_variance_auto<model_datatype>;
 
 void handler(int sig) {
     void *array[10];
