@@ -16,6 +16,9 @@ target_link_libraries (reputation_HalfFedAvg ${DFL_LINKER_LIBS})
 add_library (reputation_ML_hcluster SHARED "hcluster_reputation.cpp")
 target_link_libraries (reputation_ML_hcluster ${DFL_LINKER_LIBS})
 
+add_library (50_train_50_average_based_on_accuracy SHARED "50_train_50_average_based_on_accuracy.cpp")
+target_link_libraries (50_train_50_average_based_on_accuracy ${DFL_LINKER_LIBS})
+
 add_library (reputation_001 SHARED "reputation_001.cpp")
 target_link_libraries (reputation_001 ${DFL_LINKER_LIBS})
 
@@ -83,7 +86,7 @@ add_library (reputation_2_training_98_averaging SHARED "2_training_98_averaging.
 target_link_libraries (reputation_2_training_98_averaging ${DFL_LINKER_LIBS})
 
 add_custom_target(DFL_reputations DEPENDS reputation_api_sample reputation_FedAvg reputation_HalfFedAvg reputation_ML_hcluster
-        reputation_001 reputation_005
+        reputation_001 reputation_005 50_train_50_average_based_on_accuracy
         reputation_100_training_0_averaging
         reputation_98_training_2_averaging reputation_96_training_4_averaging
         reputation_94_training_6_averaging reputation_92_training_8_averaging
