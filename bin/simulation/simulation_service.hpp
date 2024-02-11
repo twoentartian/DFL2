@@ -378,44 +378,59 @@ public:
     std::tuple<service_status, std::string> process_per_tick(int tick, service_trigger_type trigger) override
     {
         if (this->enable == false) return {service_status::skipped, "not enabled"};
-        
-        if (trigger != service_trigger_type::start_of_tick) return {service_status::skipped, "not service_trigger_type::end_of_tick"};
-        
+
         if (tick % model_weights_variance_record_interval_tick != 0) return {service_status::skipped, "not time yet"};
-    
-        std::map<std::string, std::map<std::string, model_datatype>> variances;
-        std::mutex variances_lock;
-    
-        tmt::ParallelExecution([this, &variances, &variances_lock](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node)
-                               {
-                                   std::map<std::string, model_datatype> vars;
-                                   const auto& model = single_node->solver->get_parameter();
-                                   const std::vector<Ml::caffe_parameter_layer<model_datatype>>& layers = model.getLayers();
-                                   for (const Ml::caffe_parameter_layer<model_datatype>& single_layer : layers)
-                                   {
-                                       const auto& blobs = single_layer.getBlob_p();
-                                       if (blobs.size() == 0) continue;
-                                       model_datatype var = calculate_variance(blobs[0]->getData()); //we only care about the normal weights, not biased weights.
-                                       vars.emplace(single_layer.getName(), var);
-                                   }
-                                   {
-                                       std::lock_guard guard(variances_lock);
-                                       variances[single_node->name] = vars;
-                                   }
-                               }, this->node_vector_container->size(), this->node_vector_container->data());
-        
-        *model_weights_file << tick;
-        for (const auto& node_name : this->node_order)
-        {
-            const auto vars = variances.at(node_name);
-            for (const auto& layer_name : this->layer_order)
-            {
-                const auto variance = vars.at(layer_name);
-                *model_weights_file << "," << variance;
-            }
+
+        float tick_float = tick;
+        bool triggered = false;
+        if (trigger == service_trigger_type::start_of_tick) {
+            tick_float = tick_float;
+            triggered = true;
         }
-        *model_weights_file << std::endl;
-        
+        if (trigger == service_trigger_type::end_of_training) {
+            tick_float = tick_float + 0.5;
+            triggered = true;
+        }
+        if (trigger == service_trigger_type::end_of_averaging) {
+            tick_float = tick_float + 0.9;
+            triggered = true;
+        }
+
+        if (triggered) {
+            std::map<std::string, std::map<std::string, model_datatype>> variances;
+            std::mutex variances_lock;
+
+            tmt::ParallelExecution([this, &variances, &variances_lock](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node)
+                                   {
+                                       std::map<std::string, model_datatype> vars;
+                                       const auto& model = single_node->solver->get_parameter();
+                                       const std::vector<Ml::caffe_parameter_layer<model_datatype>>& layers = model.getLayers();
+                                       for (const Ml::caffe_parameter_layer<model_datatype>& single_layer : layers)
+                                       {
+                                           const auto& blobs = single_layer.getBlob_p();
+                                           if (blobs.size() == 0) continue;
+                                           model_datatype var = calculate_variance(blobs[0]->getData()); //we only care about the normal weights, not biased weights.
+                                           vars.emplace(single_layer.getName(), var);
+                                       }
+                                       {
+                                           std::lock_guard guard(variances_lock);
+                                           variances[single_node->name] = vars;
+                                       }
+                                   }, this->node_vector_container->size(), this->node_vector_container->data());
+
+            *model_weights_file << tick_float;
+            for (const auto& node_name : this->node_order)
+            {
+                const auto vars = variances.at(node_name);
+                for (const auto& layer_name : this->layer_order)
+                {
+                    const auto variance = vars.at(layer_name);
+                    *model_weights_file << "," << variance;
+                }
+            }
+            *model_weights_file << std::endl;
+        }
+
         return {service_status::success, ""};
     }
     

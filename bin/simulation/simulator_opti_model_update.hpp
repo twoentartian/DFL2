@@ -212,10 +212,10 @@ public:
         Ml::caffe_parameter_net<model_datatype> output = self_model * 0.5 + _buffered_model/_model_count * 0.5;
         //modify variance
         std::map<std::string, model_datatype> self_variance = opti_model_update_util::get_variance_for_model(output);
-        std::map<std::string, model_datatype> average_variance;
+        std::map<std::string, model_datatype> sum_variance;
         for (const auto& variance_of_a_model : _variances) {
             for (const auto& [layer_name, variance] : variance_of_a_model) {
-                average_variance[layer_name] += variance;
+                sum_variance[layer_name] += variance;
             }
         }
         for (Ml::caffe_parameter_layer<model_datatype>& layer : output.getLayers()) {
@@ -223,15 +223,15 @@ public:
             const auto& blobs = layer.getBlob_p();
             if (!blobs.empty()) {
                 auto self_layer_variance = self_variance[name];
-                auto average_layer_variance = average_variance[name];
-                auto target_variance = average_layer_variance / _model_count;
+                auto sum_layer_variance = sum_variance[name];
+                auto target_variance = sum_layer_variance / _model_count;
 //                scale_variance(blobs[0]->getData(), self_layer_variance + (average_variance[name] - self_layer_variance) *(variance_ratio_to_average_received_model_variance));
                 //factor = 1.01 -> loss=NAN at tick 5030
                 //factor = 0.99 -> no NAN until tick 10000
 
-                opti_model_update_util::scale_variance(blobs[0]->getData(), (average_layer_variance / _model_count)*1.00f);
+                opti_model_update_util::scale_variance(blobs[0]->getData(), (sum_layer_variance / _model_count)*1.00f);
 
-                LOG(INFO) << "scale variance from " << self_layer_variance << " to " << target_variance << " -- " << average_layer_variance << "/" << _model_count;
+                LOG(INFO) << "scale variance from " << self_layer_variance << " to " << target_variance << " -- " << sum_layer_variance << "(total variance)" << "/" << _model_count;
             }
         }
 
