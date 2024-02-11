@@ -40,7 +40,7 @@ public:
 	}
 
     //merge_if_missing_list: {"services, services/accuracy"}
-	configuration_file_return_code LoadConfiguration(const std::string& filePath, const std::vector<std::string>& merge_if_missing_list = {}, bool generate_if_not_exist = true, bool over_write_if_error = false)
+	configuration_file_return_code LoadConfiguration(const std::string& filePath, const std::vector<json::json_pointer>& merge_if_missing_list = {}, bool generate_if_not_exist = true, bool over_write_if_error = false)
 	{
 		_current_configuration_path = filePath;
 		if (!std::filesystem::exists(filePath))
@@ -106,21 +106,30 @@ public:
 				}
 			}
 
-            //merge_if_missing_list
+            //update merge_if_missing_list
             for (const auto& item_to_merge : merge_if_missing_list) {
-                json& current_item = _currentConfiguration[item_to_merge];
-                json& default_item = _defaultConfiguration[item_to_merge];
-                if (current_item.is_null()) return ItemNotFound;
+                json default_item = _defaultConfiguration[item_to_merge];
+                json current_item = _currentConfiguration[item_to_merge];
                 if (default_item.is_null()) return ItemNotFound;
-
+                if (current_item.is_null()) return ItemNotFound;
                 for (json::iterator it = default_item.begin(); it != default_item.end(); ++it) {
-                    if (!current_item.contains(it.key())) {
+                    //check existence
+                    auto it_in_current_item = current_item.find(it.key());
+                    if (it_in_current_item == current_item.end()) {
                         is_missing_config = true;
                         current_item[it.key()] = it.value();
+                        continue;
+                    }
+                    //check type match
+                    if (it.value().type_name() != it_in_current_item.value().type_name()) {
+                        is_missing_config = true;
+                        current_item[it.key()] = it.value();
+                        continue;
                     }
                 }
+                _currentConfiguration[item_to_merge] = current_item;
             }
-			
+
 			//write back config
 			if (is_missing_config)
 			{
@@ -208,6 +217,7 @@ private:
         while ((pos_end = s.find(delimiter, pos_start)) != std::string::npos) {
             token = s.substr (pos_start, pos_end - pos_start);
             pos_start = pos_end + delim_len;
+            if (token.empty()) continue;
             res.push_back (token);
         }
 
