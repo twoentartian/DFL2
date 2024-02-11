@@ -12,6 +12,7 @@ public:
 	
 	enum configuration_file_return_code
 	{
+        ItemNotFound = -5,
 		InvalidPath = -4,
 		DefaultConfigNotProvided = -3,
 		FileNotFound = -2,
@@ -37,8 +38,9 @@ public:
 		}
 		return NoError;
 	}
-	
-	configuration_file_return_code LoadConfiguration(const std::string& filePath, bool generate_if_not_exist = true, bool over_write_if_error = false)
+
+    //merge_if_missing_list: {"services, services/accuracy"}
+	configuration_file_return_code LoadConfiguration(const std::string& filePath, const std::vector<std::string>& merge_if_missing_list = {}, bool generate_if_not_exist = true, bool over_write_if_error = false)
 	{
 		_current_configuration_path = filePath;
 		if (!std::filesystem::exists(filePath))
@@ -103,6 +105,21 @@ public:
 					_currentConfiguration[it.key()] = it.value();
 				}
 			}
+
+            //merge_if_missing_list
+            for (const auto& item_to_merge : merge_if_missing_list) {
+                json& current_item = _currentConfiguration[item_to_merge];
+                json& default_item = _defaultConfiguration[item_to_merge];
+                if (current_item.is_null()) return ItemNotFound;
+                if (default_item.is_null()) return ItemNotFound;
+
+                for (json::iterator it = default_item.begin(); it != default_item.end(); ++it) {
+                    if (!current_item.contains(it.key())) {
+                        is_missing_config = true;
+                        current_item[it.key()] = it.value();
+                    }
+                }
+            }
 			
 			//write back config
 			if (is_missing_config)
@@ -182,4 +199,19 @@ private:
 		ofs.close();
 		return NoError;
 	}
+
+    std::vector<std::string> string_split(std::string s, std::string delimiter) {
+        size_t pos_start = 0, pos_end, delim_len = delimiter.length();
+        std::string token;
+        std::vector<std::string> res;
+
+        while ((pos_end = s.find(delimiter, pos_start)) != std::string::npos) {
+            token = s.substr (pos_start, pos_end - pos_start);
+            pos_start = pos_end + delim_len;
+            res.push_back (token);
+        }
+
+        res.push_back (s.substr (pos_start));
+        return res;
+    }
 };
