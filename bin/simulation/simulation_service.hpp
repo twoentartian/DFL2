@@ -346,8 +346,9 @@ public:
     
     std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::unordered_map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
     {
-        //LOG_IF(FATAL, node_vector_container == nullptr) << "node_vector_container is not set";
         this->set_node_container(_node_container, _node_vector_container);
+
+        if (this->enable == false) return {service_status::skipped, "not enabled"};
         
         model_weights_file.reset(new std::ofstream(output_path / "model_weight_var.csv", std::ios::binary));
         LOG_ASSERT(model_weights_file->good());
