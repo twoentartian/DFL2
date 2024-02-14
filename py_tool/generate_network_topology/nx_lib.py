@@ -40,7 +40,7 @@ def save_network_info(graph: nx.Graph, save_file_name: str, enable_topology: boo
             labels[node] = node
         nx.draw_networkx_labels(Gcc, pos, labels, ax=ax0, font_size=3, font_color='r')
 
-        ax0.set_title("Scale-Free Network G")
+        ax0.set_title("Network G")
         ax0.set_axis_off()
 
     ax1.plot(degree_sequence, "b-", marker="o")
