@@ -15,7 +15,7 @@ def generate_topology_file(graph: nx.Graph, save_file_name: str):
     f.close()
 
 
-def save_network_info(graph: nx.Graph, save_file_name: str, enable_topology: bool = False):
+def save_network_info(graph: nx.Graph, save_file_name: str, enable_topology: bool = False, only_mainland_in_topology=True):
     degree_sequence = sorted((d for n, d in graph.degree()), reverse=True)
 
     if enable_topology:
@@ -31,7 +31,10 @@ def save_network_info(graph: nx.Graph, save_file_name: str, enable_topology: boo
         ax2 = fig.add_subplot(axgrid[:, 2:])
 
     if enable_topology:
-        Gcc = graph.subgraph(sorted(nx.connected_components(graph), key=len, reverse=True)[0])
+        if only_mainland_in_topology:
+            Gcc = graph.subgraph(sorted(nx.connected_components(graph), key=len, reverse=True)[0])
+        else:
+            Gcc = graph
         pos = nx.spring_layout(Gcc, seed=10396953)
         nx.draw_networkx_nodes(Gcc, pos, ax=ax0, node_size=20)
         nx.draw_networkx_edges(Gcc, pos, ax=ax0, alpha=0.4)
@@ -95,6 +98,14 @@ def get_graph_from_dfl_simulation_config(config_file_path):
 
 def combine_two_networks(G0: nx.Graph, G1: nx.Graph) -> nx.Graph:
     output: nx.Graph = nx.Graph()
+
+    all_nodes = []
+    for node in G0.nodes:
+        all_nodes.append(node)
+    for node in G1.nodes:
+        all_nodes.append(node)
+    output.add_nodes_from(all_nodes)
+
     all_edges = []
     for edge in G0.edges:
         all_edges.append((edge[0], edge[1]))
