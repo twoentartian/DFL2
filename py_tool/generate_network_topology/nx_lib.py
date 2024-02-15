@@ -12,6 +12,9 @@ def generate_topology_file(graph: nx.Graph, save_file_name: str):
     for node, neighbor_dict in graph.adjacency():
         for single_neighbor in neighbor_dict:
             f.write(str(node) + " " + str(single_neighbor) + "\n")
+    for node in graph.nodes:
+        if len(list(graph.neighbors(node))) == 0:
+            f.write(str(node) + "\n")
     f.close()
 
 
