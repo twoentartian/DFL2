@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <random>
 #include <set>
+#include <cctype>
 #include <glog/logging.h>
 #include <configure_file.hpp>
 
@@ -31,6 +32,23 @@ configuration_file::json get_default_simulation_configuration()
     malicious_node["malicious_data_poisoning_shuffle_label"] = 1;
     output["special_node"] = malicious_node;
     return output;
+}
+
+int countIntegersInString(const std::string& str) {
+    int count = 0;
+    bool inNumber = false; // Flag to track if we're currently in a sequence of digits
+
+    for (size_t i = 0; i < str.length(); ++i) {
+        if (isdigit(str[i])) {
+            if (!inNumber) {
+                inNumber = true; // We've started a new number
+                ++count;
+            }
+        } else {
+            inNumber = false; // No longer in a sequence of digits
+        }
+    }
+    return count;
 }
 
 int main(int argc, char* argv[])
@@ -66,11 +84,24 @@ int main(int argc, char* argv[])
         while (std::getline(input_file, line))
         {
             std::istringstream iss(line);
-            int a, b;
-            if (!(iss >> a >> b)) {LOG(FATAL) << "the format is not a pair of int. Line: " << line << std::endl;}
-
-            total_nodes_and_peers[a].insert(b);
-            total_nodes_and_peers[b].insert(a);
+            int integerCount = countIntegersInString(line);
+            if (integerCount == 1) {
+                int a;
+                if (!(iss >> a)) {LOG(FATAL) << "the format is not a pair of int. Line: " << line;}
+                if (!total_nodes_and_peers.contains(a)) {
+                    std::set<int> temp;
+                    total_nodes_and_peers[a] = temp;
+                }
+            }
+            else if (integerCount == 2) {
+                int a, b;
+                if (!(iss >> a >> b)) {LOG(FATAL) << "the format is not a pair of int. Line: " << line;}
+                total_nodes_and_peers[a].insert(b);
+                total_nodes_and_peers[b].insert(a);
+            }
+            else {
+                LOG(FATAL) << "unknown format: " << line;
+            }
         }
     }
 
