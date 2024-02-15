@@ -157,7 +157,12 @@ int main(int argc, char* argv[])
 			node["name"] = std::to_string(target_node);
 			node["dataset_mode"] = dataset_mode;
 			node["training_interval_tick"] = my_config_json["training_interval_tick"];
-            node["buffer_size"] = static_cast<int>(social_network_buffer_to_peer_ratio * static_cast<float>(peers.size()));
+            if (peers.empty()) {
+                node["buffer_size"] = static_cast<int>(1);
+            }
+            else {
+                node["buffer_size"] = static_cast<int>(social_network_buffer_to_peer_ratio * static_cast<float>(peers.size()));
+            }
 			node["model_generation_type"] = model_generation_type;
 			node["filter_limit"] = filter_limit;
 			node["node_type"] = "normal";
