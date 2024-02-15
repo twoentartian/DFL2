@@ -1,19 +1,47 @@
 #pragma once
 
 #include <mutex>
+#include <map>
 #include <ml_layer.hpp>
 
 template <typename model_datatype>
 class opti_model_update {
 public:
 	opti_model_update() = default;
-	
+
+    virtual std::shared_ptr<opti_model_update> create_shared() = 0;
+
+    virtual std::string get_name() = 0;
+
 	virtual void add_model(const Ml::caffe_parameter_net<model_datatype>& model) = 0;
 	
 	virtual Ml::caffe_parameter_net<model_datatype> get_output_model(const Ml::caffe_parameter_net<model_datatype>& self_model, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_data, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_label) = 0;
 	
 	virtual size_t get_model_count() = 0;
+
+    static std::optional<std::shared_ptr<opti_model_update>> create_update_algorithm_from_name(const std::string& name) {
+        auto iter = _all_update_algorithms.find(name);
+        if (iter == _all_update_algorithms.end()) {
+            return {};
+        }
+        return {iter->second->create_shared()};
+    }
+
+private:
+    static std::map<std::string, std::shared_ptr<opti_model_update>> _all_update_algorithms;
+
+protected:
+    static void _registerAlgorithm(std::shared_ptr<opti_model_update> algo)
+    {
+        const std::string& name = algo->get_name();
+        auto iter = _all_update_algorithms.find(name);
+        if (iter == _all_update_algorithms.end())
+        {
+            _all_update_algorithms.emplace(name, algo);
+        }
+    }
 };
+template<typename model_datatype> std::map<std::string, std::shared_ptr<opti_model_update<model_datatype>>> opti_model_update<model_datatype>::_all_update_algorithms;
 
 namespace opti_model_update_util {
     template<typename model_datatype>
@@ -78,6 +106,14 @@ public:
 		_is_first_model = true;
 	}
 
+    std::shared_ptr<opti_model_update<model_datatype>> create_shared() override {
+        return std::make_shared<train_50_average_50>();
+    }
+
+    std::string get_name() override {
+        return "train_50_average_50";
+    }
+
 	void add_model(const Ml::caffe_parameter_net<model_datatype>& model) override {
 		std::lock_guard guard(_lock);
 		_model_count++;
@@ -103,6 +139,10 @@ public:
 	size_t get_model_count() override {
 		return _model_count;
 	}
+
+    static void register_algorithm() {
+        opti_model_update<model_datatype>::_registerAlgorithm(std::make_shared<train_50_average_50>());
+    }
 	
 private:
 	std::mutex _lock;
@@ -112,82 +152,19 @@ private:
 };
 
 template <typename model_datatype>
-class train_50_average_50_fix_variance : public opti_model_update<model_datatype> {
-public:
-    static constexpr model_datatype variance_ratio_to_average_received_model_variance = 0.1;
-
-    train_50_average_50_fix_variance() {
-        _model_count = 0;
-        _is_first_model = true;
-    }
-
-    void add_model(const Ml::caffe_parameter_net<model_datatype>& model) override {
-        std::lock_guard guard(_lock);
-        _model_count++;
-        if (_is_first_model) {
-            _is_first_model = false;
-            _buffered_model = model;
-        }
-        else {
-            _buffered_model = _buffered_model + model;
-        }
-        //add variance
-        std::map<std::string, model_datatype> variance_per_layer = opti_model_update_util::get_variance_for_model(model);
-        _variances.push_back(variance_per_layer);
-
-        return;
-    }
-
-    Ml::caffe_parameter_net<model_datatype> get_output_model(const Ml::caffe_parameter_net<model_datatype>& self_model, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_data, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_label) override {
-        std::lock_guard guard(_lock);
-        Ml::caffe_parameter_net<model_datatype> output = self_model * 0.5 + _buffered_model/_model_count * 0.5;
-        //modify variance
-        std::map<std::string, model_datatype> self_variance = opti_model_update_util::get_variance_for_model(output);
-        std::map<std::string, model_datatype> average_variance;
-        for (const auto& variance_of_a_model : _variances) {
-            for (const auto& [layer_name, variance] : variance_of_a_model) {
-                average_variance[layer_name] += variance;
-            }
-        }
-        for (Ml::caffe_parameter_layer<model_datatype>& layer : output.getLayers()) {
-            const std::string& name = layer.getName();
-            const auto& blobs = layer.getBlob_p();
-            if (!blobs.empty()) {
-                auto self_layer_variance = self_variance[name];
-//                scale_variance(blobs[0]->getData(), self_layer_variance + (average_variance[name] - self_layer_variance) *(variance_ratio_to_average_received_model_variance));
-                opti_model_update_util::scale_variance(blobs[0]->getData(), average_variance[name] * (variance_ratio_to_average_received_model_variance));
-            }
-        }
-
-        std::map<std::string, model_datatype> self_variance_after_scaling = opti_model_update_util::get_variance_for_model(output);
-
-        _model_count = 0;
-        _variances.clear();
-        _is_first_model = true;
-        return output;
-    }
-
-    size_t get_model_count() override {
-        return _model_count;
-    }
-
-protected:
-    std::mutex _lock;
-    bool _is_first_model;
-    Ml::caffe_parameter_net<model_datatype> _buffered_model;
-    std::vector<std::map<std::string, model_datatype>> _variances;
-    size_t _model_count;
-
-
-};
-
-
-template <typename model_datatype>
 class train_50_average_50_fix_variance_auto : public opti_model_update<model_datatype> {
 public:
     train_50_average_50_fix_variance_auto() {
         _model_count = 0;
         _is_first_model = true;
+    }
+
+    std::shared_ptr<opti_model_update<model_datatype>> create_shared() override {
+        return std::make_shared<train_50_average_50_fix_variance_auto>();
+    }
+
+    std::string get_name() override {
+        return "train_50_average_50_fix_variance_auto";
     }
 
     void add_model(const Ml::caffe_parameter_net<model_datatype>& model) override {
@@ -247,6 +224,10 @@ public:
         return _model_count;
     }
 
+    static void register_algorithm() {
+        opti_model_update<model_datatype>::_registerAlgorithm(std::make_shared<train_50_average_50_fix_variance_auto>());
+    }
+
 protected:
     std::mutex _lock;
     bool _is_first_model;
@@ -261,6 +242,14 @@ public:
 	train_100_average_0() {
 		_model_count = 0;
 	}
+
+    std::shared_ptr<opti_model_update<model_datatype>> create_shared() override {
+        return std::make_shared<train_100_average_0>();
+    }
+
+    std::string get_name() override {
+        return "train_100_average_0";
+    }
 	
 	void add_model(const Ml::caffe_parameter_net<model_datatype>& model) override {
 	}
@@ -273,6 +262,17 @@ public:
 		return _model_count;
 	}
 
+    static void register_algorithm() {
+        opti_model_update<model_datatype>::_registerAlgorithm(std::make_shared<train_100_average_0>());
+    }
+
 private:
 	size_t _model_count;
 };
+
+template <typename model_datatype>
+void register_model_updating_algorithms() {
+    train_50_average_50<model_datatype>::register_algorithm();
+    train_100_average_0<model_datatype>::register_algorithm();
+    train_50_average_50_fix_variance_auto<model_datatype>::register_algorithm();
+}

@@ -41,8 +41,9 @@ using model_datatype = float;
 std::unordered_map<std::string, node<model_datatype> *> node_container;
 std::unordered_map<std::string, std::shared_ptr<opti_model_update<model_datatype>>> node_model_update;
 ////set model updating algorithm
-using model_updating_algorithm = train_50_average_50<model_datatype>;
+//using model_updating_algorithm = train_50_average_50<model_datatype>;
 //using model_updating_algorithm = train_50_average_50_fix_variance_auto<model_datatype>;
+std::string model_updating_algorithm_name = "";
 
 void handler(int sig) {
     void *array[10];
@@ -62,7 +63,10 @@ int main(int argc, char *argv[])
     signal(SIGSEGV, handler);
 
 	constexpr char config_file_path[] = "./simulator_config.json";
-	
+
+    //register model averaging algorithm
+    register_model_updating_algorithms<model_datatype>();
+
 	//register node types
 	register_node_types<model_datatype>();
 	
@@ -93,6 +97,7 @@ int main(int argc, char *argv[])
 	std::filesystem::copy(config_file_path, output_path / "simulator_config.json");
 	
 	//update global var
+    model_updating_algorithm_name = *config.get<std::string>("simulator_opti_averaging_algorithm");
     auto random_training_sequence = *config.get<bool>("random_training_sequence");
 	auto ml_solver_proto = *config.get<std::string>("ml_solver_proto");
 	auto ml_train_dataset = *config.get<std::string>("ml_train_dataset");
@@ -147,8 +152,16 @@ int main(int argc, char *argv[])
 
         auto [iter, status] = node_container.emplace(node_name, temp_node);
         //add to model update buffer
-        auto model_buffer = std::make_shared<model_updating_algorithm>();
-        node_model_update.emplace(node_name, model_buffer);
+        if (model_updating_algorithm_name == "train_50_average_50") {
+
+        }
+        else if (model_updating_algorithm_name == "train_50_average_50_fix_variance") {
+
+        }
+
+        auto model_buffer = opti_model_update<model_datatype>::create_update_algorithm_from_name(model_updating_algorithm_name);
+        LOG_IF(FATAL, !model_buffer.has_value()) << model_updating_algorithm_name << " is not a valid updating algorithm";
+        node_model_update.emplace(node_name, *model_buffer);
 
         //load models solver
         iter->second->solver->load_caffe_model(ml_solver_proto);
