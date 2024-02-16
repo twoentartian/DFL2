@@ -38,6 +38,8 @@ enum class service_trigger_type
 
     //process_on_event trigger type
     model_received,
+
+    service_trigger_type_index
 };
 
 template <typename model_datatype>
@@ -498,6 +500,7 @@ private:
         else {
             LOG(FATAL) << "unknown ConfigItem_type: " << str;
         }
+        return service_trigger_type::service_trigger_type_index;
     }
 
     enum ConfigItem_trigger_time {
@@ -2059,7 +2062,7 @@ public:
 
 private:
     std::filesystem::path stage_script;
-    std::map<int, std::map<std::string, configuration_file::json>> all_scripts_for_nodes;
+    std::map<int, std::map<std::string, configuration_file::json>> all_scripts;
 
 public:
     stage_manager_service()
@@ -2092,10 +2095,10 @@ public:
         for (const auto& single_script : script_file_json) {
             int tick = single_script["tick"].get<int>();
             std::map<std::string, configuration_file::json> scripts_at_this_tick;
-            for (const auto& [node_name, node_script] : single_script["script"].items()) {
-                scripts_at_this_tick[node_name] = node_script;
+            for (const auto& [name, actions] : single_script["script"].items()) {
+                scripts_at_this_tick[name] = actions;
             }
-            all_scripts_for_nodes[tick] = scripts_at_this_tick;
+            all_scripts[tick] = scripts_at_this_tick;
         }
         return {service_status::success, ""};
     }
@@ -2106,16 +2109,63 @@ public:
 
         if (trigger != service_trigger_type::start_of_tick) return {service_status::skipped, "not service_trigger_type::start_of_tick"};
 
-        const auto tick_find_iter = all_scripts_for_nodes.find(tick);
-        if (tick_find_iter == all_scripts_for_nodes.end()) {
+        const auto tick_find_iter = all_scripts.find(tick);
+        if (tick_find_iter == all_scripts.end()) {
             return {service_status::skipped, "not time yet"};
         }
         const auto& node_and_script = tick_find_iter->second;
-        for (const auto& [node_name, node_script] : node_and_script) {
-            auto node_iter = this->node_container->find(node_name);
-            LOG_ASSERT(node_iter != this->node_container->end()) << "info: " << node_name << " does not exist";
-            auto& target_node = node_iter->second;
-            apply_config_to_node(node_script, target_node);
+        for (const auto& [node_name, script_item_json] : node_and_script) {
+            if (node_name == "remove_edge") {   //special operations
+                for (const auto& edge : script_item_json) {
+                    const std::string edge_str = edge;
+                    {
+                        const size_t index = edge_str.find("--");
+                        if (index != std::string::npos) {
+                            std::string node_0_name = edge_str.substr(0, index);
+                            std::string node_1_name = edge_str.substr(index+2);
+                            remove_peer_of_node(node_0_name, node_1_name);
+                            remove_peer_of_node(node_1_name, node_0_name);
+                        }
+                    }
+                    {
+                        const size_t index = edge_str.find("->");
+                        if (index != std::string::npos) {
+                            std::string node_0_name = edge_str.substr(0, index);
+                            std::string node_1_name = edge_str.substr(index+2);
+                            remove_peer_of_node(node_0_name, node_1_name);
+                        }
+                    }
+                }
+            }
+            else if (node_name == "add_edge") { //special operations
+                for (const auto& edge : script_item_json) {
+                    const std::string edge_str = edge;
+                    {
+                        const size_t index = edge_str.find("--");
+                        if (index != std::string::npos) {
+                            std::string node_0_name = edge_str.substr(0, index);
+                            std::string node_1_name = edge_str.substr(index+2);
+                            add_peer_of_node(node_0_name, node_1_name);
+                            add_peer_of_node(node_1_name, node_0_name);
+                        }
+                    }
+                    {
+                        const size_t index = edge_str.find("->");
+                        if (index != std::string::npos) {
+                            std::string node_0_name = edge_str.substr(0, index);
+                            std::string node_1_name = edge_str.substr(index+2);
+                            add_peer_of_node(node_0_name, node_1_name);
+                        }
+                    }
+                }
+            }
+            else {
+                //simple node names
+                auto node_iter = this->node_container->find(node_name);
+                LOG_ASSERT(node_iter != this->node_container->end()) << "info: " << node_name << " does not exist";
+                auto& target_node = node_iter->second;
+                apply_config_to_node(script_item_json, target_node);
+            }
         }
 
         return {service_status::success, ""};
@@ -2144,6 +2194,27 @@ private:
         if (script.contains("training_interval_tick")) {
             node->training_interval_tick = script["training_interval_tick"].get<std::vector<int>>();
         }
+    }
+
+    bool remove_peer_of_node(const std::string& node_name, const std::string& peer_name) {
+        auto node_iter = this->node_container->find(node_name);
+        const auto peer_iter = node_iter->second->peers.find(peer_name);
+        if (peer_iter == node_iter->second->peers.end()) {
+            return false;
+        }
+        node_iter->second->peers.erase(peer_iter);
+        return true;
+    }
+
+    bool add_peer_of_node(const std::string& node_name, const std::string& peer_name) {
+        auto node_iter = this->node_container->find(node_name);
+        const auto peer_iter = node_iter->second->peers.find(peer_name);
+        if (peer_iter != node_iter->second->peers.end()) {
+            return false;
+        }
+        const auto peer_inst_iter = this->node_container->find(peer_name);
+        node_iter->second->peers.emplace(peer_name, peer_inst_iter->second);
+        return true;
     }
 };
 
