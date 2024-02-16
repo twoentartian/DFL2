@@ -79,7 +79,9 @@ int main(int argc, char *argv[])
 	//load configuration
 	configuration_file config;
 	config.SetDefaultConfiguration(get_default_simulation_configuration());
-	auto load_config_rc = config.LoadConfiguration(config_file_path);
+    auto load_config_rc = config.LoadConfiguration(config_file_path, {
+            "/services"_json_pointer, "/services/accuracy"_json_pointer,
+            "/services/force_broadcast_average"_json_pointer, "/services/model_record"_json_pointer});    //"services/accuracy" is due to the "fixed_test_dataset" field
 	if (load_config_rc < 0)
 	{
 		LOG(FATAL) << "cannot load configuration file, wrong format?";
