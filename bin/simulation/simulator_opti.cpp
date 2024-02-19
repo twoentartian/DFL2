@@ -152,13 +152,6 @@ int main(int argc, char *argv[])
 
         auto [iter, status] = node_container.emplace(node_name, temp_node);
         //add to model update buffer
-        if (model_updating_algorithm_name == "train_50_average_50") {
-
-        }
-        else if (model_updating_algorithm_name == "train_50_average_50_fix_variance") {
-
-        }
-
         auto model_buffer = opti_model_update<model_datatype>::create_update_algorithm_from_name(model_updating_algorithm_name);
         LOG_IF(FATAL, !model_buffer.has_value()) << model_updating_algorithm_name << " is not a valid updating algorithm";
         node_model_update.emplace(node_name, *model_buffer);
