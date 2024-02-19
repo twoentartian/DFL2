@@ -2090,6 +2090,15 @@ public:
         std::string content;
         content.assign((std::istreambuf_iterator<char>(script_file)),(std::istreambuf_iterator<char>()));
         script_file.close();
+
+        //backup stage script file
+        {
+            std::ofstream backup_script_file(output_path / stage_script.filename(), std::ios::binary);
+            LOG_ASSERT(backup_script_file.is_open());
+            backup_script_file << content;
+            backup_script_file.close();
+        }
+
         configuration_file::json script_file_json = configuration_file::json::parse(content);
         LOG_ASSERT(script_file_json.is_array());
         for (const auto& single_script : script_file_json) {
