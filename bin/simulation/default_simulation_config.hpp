@@ -23,7 +23,7 @@ configuration_file::json get_default_simulation_configuration()
 	output["ml_test_dataset"] = "../../../dataset/MNIST/t10k-images.idx3-ubyte";
 	output["ml_test_dataset_label"] = "../../../dataset/MNIST/t10k-labels.idx1-ubyte";
 	
-	output["ml_max_tick"] = 1200;
+	output["ml_max_tick"] = 10000;
 	output["ml_train_batch_size"] = 64;
 	output["ml_test_batch_size"] = 100;
 	output["ml_non_iid_normal_weight"] = configuration_file::json::array({10.0, 15.0});
@@ -84,6 +84,11 @@ configuration_file::json get_default_simulation_configuration()
 		weights_service["interval"] = 20;
 		services["model_weights_difference_record"] = weights_service;
 	}
+    {
+        configuration_file::json model_abs_change_during_averaging = configuration_file::json::object();
+        model_abs_change_during_averaging["enable"] = false;
+        services["model_abs_change_during_averaging"] = model_abs_change_during_averaging;
+    }
     {
         configuration_file::json model_weights_variance_record_service = configuration_file::json::object();
         model_weights_variance_record_service["enable"] = true;

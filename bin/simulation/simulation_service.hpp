@@ -37,7 +37,10 @@ enum class service_trigger_type
     end_of_averaging,
 
     //process_on_event trigger type
-    model_received,
+    model_before_training,
+    model_after_training,
+    model_after_averaging,
+    model_added_to_average_buffer,
 
     service_trigger_type_index
 };
@@ -324,6 +327,110 @@ private:
 	std::shared_ptr<std::ofstream> model_weights_file;
 };
 
+template <typename model_datatype>
+class model_abs_change_during_averaging : public service<model_datatype>
+{
+public:
+    model_abs_change_during_averaging()
+    {
+        this->node_vector_container = nullptr;
+    }
+
+    std::tuple<service_status, std::string> apply_config(const configuration_file::json& config) override
+    {
+        this->enable = config["enable"];
+
+        return {service_status::success, ""};
+    }
+
+    std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::unordered_map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
+    {
+        //LOG_IF(FATAL, node_vector_container == nullptr) << "node_vector_container is not set";
+        this->set_node_container(_node_container, _node_vector_container);
+
+        model_abs_change_file.reset(new std::ofstream(output_path / "modeL_abs_change_per_averaging.txt", std::ios::binary));
+        LOG_ASSERT(model_abs_change_file->good());
+
+        return {service_status::success, ""};
+    }
+
+    std::tuple<service_status, std::string> process_per_tick(int tick, service_trigger_type trigger) override
+    {
+        if (this->enable == false) return {service_status::skipped, "not enabled"};
+
+        //nothing to do
+        return {service_status::success, ""};
+    }
+
+    std::tuple<service_status, std::string> process_on_event(int tick, service_trigger_type trigger, std::string triggered_node_name) override
+    {
+        if (this->enable == false) return {service_status::skipped, "not enabled"};
+        if (trigger == service_trigger_type::model_added_to_average_buffer) {
+            const auto& parameter = *((*this->node_container)[triggered_node_name]->simulation_service_data.just_received_model_ptr);
+            auto abs = get_parameter_abs(parameter);
+            abs_of_received_models[triggered_node_name].push_back(abs);
+        }
+        if (trigger == service_trigger_type::model_after_averaging) {
+            const auto& parameter = *((*this->node_container)[triggered_node_name]->simulation_service_data.average_output_ptr);
+            const auto iter_abs_of_received_models_for_triggered_node = abs_of_received_models.find(triggered_node_name);
+            LOG_ASSERT(iter_abs_of_received_models_for_triggered_node != abs_of_received_models.end());
+            {
+                std::lock_guard guard(model_abs_change_file_lock);
+                *model_abs_change_file << "averaging at tick:" << tick << ",node:" << triggered_node_name <<",";
+                for (const auto& v : iter_abs_of_received_models_for_triggered_node->second) {
+                    *model_abs_change_file << v << " ";
+                }
+                iter_abs_of_received_models_for_triggered_node->second.clear();
+                *model_abs_change_file << " -->> " << get_parameter_abs(parameter) << std::endl;
+            }
+        }
+
+        if (trigger == service_trigger_type::model_before_training) {
+            const auto& parameter = *((*this->node_container)[triggered_node_name]->simulation_service_data.model_before_training_ptr);
+            abs_of_model_before_training[triggered_node_name] = get_parameter_abs(parameter);
+        }
+        if (trigger == service_trigger_type::model_after_training) {
+            const auto& parameter = *((*this->node_container)[triggered_node_name]->simulation_service_data.model_before_training_ptr);
+            const auto iter_abs_of_model_before_training_for_triggered_node = abs_of_model_before_training.find(triggered_node_name);
+            LOG_ASSERT(iter_abs_of_model_before_training_for_triggered_node != abs_of_model_before_training.end());
+            {
+                std::lock_guard guard(model_abs_change_file_lock);
+                *model_abs_change_file << "training at tick:" << tick << ",node:" << triggered_node_name <<",";
+                *model_abs_change_file << iter_abs_of_model_before_training_for_triggered_node->second << " ";
+                *model_abs_change_file << " -->> " << get_parameter_abs(parameter) << std::endl;
+            }
+        }
+
+        return {service_status::fail_not_specified_reason, "not implemented"};
+    }
+
+    std::tuple<service_status, std::string> destruction_service() override
+    {
+        model_abs_change_file->flush();
+        model_abs_change_file->close();
+
+        return {service_status::success, ""};
+    }
+
+private:
+    std::shared_ptr<std::ofstream> model_abs_change_file;
+    std::mutex model_abs_change_file_lock;
+    std::map<std::string, std::vector<model_datatype>> abs_of_received_models;
+    std::map<std::string, model_datatype> abs_of_model_before_training;
+
+    model_datatype get_parameter_abs(const Ml::caffe_parameter_net<model_datatype>& parameter) {
+        model_datatype total = 0;
+        for (const Ml::caffe_parameter_layer<model_datatype>& layer : parameter.getLayers()) {
+            for (const auto& blob_vec : layer.getBlob_p()) {
+                const Ml::tensor_blob_like<model_datatype>& tensor_blob = *blob_vec;
+                for (const auto& v : tensor_blob.getData()) {
+                    total += v*v;
+                }
+            }
+        }
+        return std::sqrt(total);
+    }
+};
 
 template <typename model_datatype>
 class model_weights_variance_record : public service<model_datatype>
@@ -1091,7 +1198,7 @@ public:
 
         if (!this->nodes_to_record.contains(triggered_node_name)) return {service_status::skipped, "node does not record"};
 
-        if (trigger != service_trigger_type::model_received) return {service_status::skipped, "not service_trigger_type::model_received"};
+        if (trigger != service_trigger_type::model_added_to_average_buffer) return {service_status::skipped, "not service_trigger_type::model_received"};
 
         const auto node_iter = this->node_container->find(triggered_node_name);
         LOG_IF(FATAL, node_iter == this->node_container->end()) << triggered_node_name << " does not exist";

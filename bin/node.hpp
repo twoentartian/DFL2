@@ -80,6 +80,11 @@ public:
     Ml::caffe_parameter_net<model_datatype>* just_received_model_ptr;
     std::string just_received_model_source_node_name;
     std::mutex just_received_model_ptr_lock;
+
+    Ml::caffe_parameter_net<model_datatype>* average_output_ptr;
+
+    Ml::caffe_parameter_net<model_datatype>* model_before_training_ptr;
+    Ml::caffe_parameter_net<model_datatype>* model_after_training_ptr;
 };
 
 template<typename model_datatype>

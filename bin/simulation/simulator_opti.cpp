@@ -390,6 +390,7 @@ int main(int argc, char *argv[])
 		services.emplace("model_weights_difference_record", new model_weights_difference_record<model_datatype>());
         services.emplace("model_weights_variance_record", new model_weights_variance_record<model_datatype>());
 		services.emplace("force_broadcast_average", new force_broadcast_model<model_datatype>());
+        services.emplace("model_abs_change_during_averaging", new model_abs_change_during_averaging<model_datatype>());
 		services.emplace("time_based_hierarchy_service", new time_based_hierarchy_service<model_datatype>());
 		services.emplace("reputation_record", new reputation_record<model_datatype>());
 		services.emplace("model_record", new model_record<model_datatype>());
@@ -445,6 +446,14 @@ int main(int argc, char *argv[])
 				service_iter->second->apply_config(check_and_get_config("force_broadcast_average"));
 				service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
 			}
+
+            //model_abs_change_during_averaging
+            {
+                auto service_iter = services.find("model_abs_change_during_averaging");
+
+                service_iter->second->apply_config(check_and_get_config("model_abs_change_during_averaging"));
+                service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+            }
 			
 			//time_based_hierarchy_service
 			{
@@ -544,7 +553,7 @@ int main(int argc, char *argv[])
 	}
     //prepare "process_on_event" services
     const auto& received_model_record_service = services["received_model_record"];
-	
+    const auto& model_abs_change_during_averaging_service = services["model_abs_change_during_averaging"];
 	
 	////////////  BEGIN SIMULATION  ////////////
 	std::mutex accuracy_container_lock;
@@ -586,7 +595,7 @@ int main(int argc, char *argv[])
             trigger_service(tick, service_trigger_type::start_of_training);
 
 			////train the model
-			tmt::ParallelExecution_StepIncremental([&tick, &train_dataset, &received_model_record_service, &ml_train_batch_size, &ml_dataset_all_possible_labels, random_training_sequence](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
+			tmt::ParallelExecution_StepIncremental([&tick, &train_dataset, &received_model_record_service, &model_abs_change_during_averaging_service, &ml_train_batch_size, &ml_dataset_all_possible_labels, random_training_sequence](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
 				if (tick >= single_node->next_train_tick)
 				{
                     single_node->model_trained = true;
@@ -600,6 +609,11 @@ int main(int argc, char *argv[])
                     single_node->next_train_tick += single_node->training_interval_tick[distribution(rng)];
                     
                     auto parameter_before = single_node->solver->get_parameter();
+                    //model_abs_change_during_averaging service
+                    {
+                        single_node->simulation_service_data.model_before_training_ptr = &parameter_before;
+                        model_abs_change_during_averaging_service->process_on_event(tick, service_trigger_type::model_before_training, single_node->name);
+                    }
                     single_node->train_model(train_data, train_label, true);
                     auto output_opt = single_node->generate_model_sent();
                     if (!output_opt)
@@ -609,6 +623,11 @@ int main(int argc, char *argv[])
                     }
                     auto parameter_after = *output_opt;
                     auto parameter_output = parameter_after;
+                    //model_abs_change_during_averaging service
+                    {
+                        single_node->simulation_service_data.model_before_training_ptr = &parameter_after;
+                        model_abs_change_during_averaging_service->process_on_event(tick, service_trigger_type::model_after_training, single_node->name);
+                    }
 
                     if (single_node->model_generation_type == Ml::model_compress_type::compressed_by_diff)
                     {
@@ -628,7 +647,8 @@ int main(int argc, char *argv[])
                             std::lock_guard guard(updating_node->simulation_service_data.just_received_model_ptr_lock);
                             updating_node->simulation_service_data.just_received_model_ptr = &parameter_output;
                             updating_node->simulation_service_data.just_received_model_source_node_name = single_node->name;
-                            received_model_record_service->process_on_event(tick, service_trigger_type::model_received, updating_node_name);
+                            received_model_record_service->process_on_event(tick, service_trigger_type::model_added_to_average_buffer, updating_node_name);
+                            model_abs_change_during_averaging_service->process_on_event(tick, service_trigger_type::model_added_to_average_buffer, updating_node_name);
                         }
                     }
 				}
@@ -648,7 +668,7 @@ int main(int argc, char *argv[])
             trigger_service(tick, service_trigger_type::start_of_averaging);
 
 			////check fedavg buffer full
-			tmt::ParallelExecution_StepIncremental([&tick,&test_dataset,&ml_test_batch_size,&ml_dataset_all_possible_labels, &accuracy_container_lock, &accuracy_container](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
+			tmt::ParallelExecution_StepIncremental([&tick,&test_dataset,&model_abs_change_during_averaging_service, &ml_test_batch_size,&ml_dataset_all_possible_labels, &accuracy_container_lock, &accuracy_container](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
 				if (node_model_update[single_node->name]->get_model_count() >= single_node->buffer_size) {
 					single_node->model_averaged = true;
 
@@ -665,6 +685,12 @@ int main(int argc, char *argv[])
 
 					parameter = node_model_update[single_node->name]->get_output_model(parameter, test_data, test_label);
 					single_node->solver->set_parameter(parameter);
+
+                    //trigger service
+                    {
+                        single_node->simulation_service_data.average_output_ptr = &parameter;
+                        model_abs_change_during_averaging_service->process_on_event(tick, service_trigger_type::model_after_averaging, single_node->name);
+                    }
 
 					//clear buffer and start new loop
 					single_node->parameter_buffer.clear();
