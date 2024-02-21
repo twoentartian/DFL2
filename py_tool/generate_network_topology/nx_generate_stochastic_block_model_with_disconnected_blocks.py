@@ -8,7 +8,7 @@ import nx_lib
 
 if __name__ == "__main__":
     # parse args
-    parser = argparse.ArgumentParser(description="generate star networks", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(description="generate stochastic block model", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("size_a", help="size of block A", type=int)
     parser.add_argument("size_b", help="size of block B", type=int)
     parser.add_argument("paa", help="edge probability within A", type=float)
@@ -19,7 +19,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     config = vars(args)
     if len(sys.argv) < 6:
-        print("use: python ./nx_generate_stochastic_block_model.py {size_a} {size_b} {paa} {pbb} {pab}")
+        print("use: python ./nx_generate_stochastic_block_model.py {size_a} {size_b} {paa} {pbb} {pab} {tick_to_enable}")
         exit(1)
     size_a = int(config['size_a'])
     size_b = int(config['size_b'])
