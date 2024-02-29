@@ -34,7 +34,21 @@ namespace Ml
         caffe_parameter_layer() = default;
 	
 	    using DataType = DType;
-        
+
+        caffe_parameter_layer<DType> deep_clone() const {
+            caffe_parameter_layer<DType> output;
+            output._name = this->_name;
+            output._type = this->_type;
+            std::vector<boost::shared_ptr<tensor_blob_like<DType>>> blobs;
+            for (const auto& self_blob : _blob_p) {
+                boost::shared_ptr<tensor_blob_like<DType>> temp_p = boost::make_shared<tensor_blob_like<DType>>();
+                *temp_p = self_blob->deep_clone();
+                blobs.push_back(temp_p);
+            }
+            output._blob_p = blobs;
+            return output;
+        }
+
         void fromLayer(const caffe::Layer<DType>& layer)
         {
 
@@ -248,11 +262,13 @@ namespace Ml
             }
 		}
 	
-	    void fix_nan()
+	    size_t fix_nan()
 	    {
+            size_t ret = 0;
             for (int i = 0; i < this->_blob_p.size(); ++i) {
-                _blob_p[i]->fix_nan();
+                ret += _blob_p[i]->fix_nan();
             }
+            return ret;
 		}
         
     private:
@@ -270,6 +286,17 @@ namespace Ml
 	    using DataType = DType;
     	
         caffe_parameter_net() = default;
+
+        caffe_parameter_net<DType> deep_clone() const {
+            caffe_parameter_net<DType> output;
+            std::vector<caffe_parameter_layer<DType>> layers;
+            for (const auto& self_layer : _layers) {
+                layers.push_back(self_layer.deep_clone());
+            }
+            output._layers = layers;
+            output._name = _name;
+            return output;
+        }
 
         void fromNet(const caffe::Net<DType>& net)
         {
@@ -448,6 +475,24 @@ namespace Ml
 			    _layers[i].patch_weight(patch._layers[i], ignore);
 		    }
 	    }
+
+        std::vector<DType> get_debug_values(size_t size=5) const
+        {
+            std::vector<DType> output;
+            bool exit = false;
+            for (const auto& layer : this->_layers) {
+                for (const auto& blob : layer.getBlob_p()) {
+                    for (const auto& v : blob->getData()) {
+                        output.push_back(v);
+                        if (output.size() == size) exit = true;
+                        if (exit) break;
+                    }
+                    if (exit) break;
+                }
+                if (exit) break;
+            }
+            return output;
+        }
 		
 		void regulate_weights(DType min, DType max)
 		{
@@ -456,13 +501,16 @@ namespace Ml
 				this->_layers[i].regulate_weights(min, max);
 			}
 		}
-		
-		void fix_nan()
+
+        //return: nan found and fixed
+		size_t fix_nan()
 		{
+            size_t ret = 0;
 			for (int i = 0; i < this->_layers.size(); ++i)
 			{
-				this->_layers[i].fix_nan();
+                ret += this->_layers[i].fix_nan();
 			}
+            return ret;
 		}
 
         GENERATE_GET(_name, getName);
