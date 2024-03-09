@@ -174,12 +174,11 @@ int main(int argc, char *argv[])
 
         //model_generation_type
         const std::string model_generation_type_str = single_node["model_generation_type"];
-        if (model_generation_type_str == "compressed") {
-            LOG(WARNING)
-                    << "{model_generation_type == compressed} will be ignored in this simulator_opti because the simulator_opti only supports normal.";
-            iter->second->model_generation_type = Ml::model_compress_type::compressed_by_diff;
-        } else if (model_generation_type_str == "normal") {
+        if (model_generation_type_str == "normal") {
             iter->second->model_generation_type = Ml::model_compress_type::normal;
+        } else if (model_generation_type_str == "compressed_by_diff" || model_generation_type_str == "random_sampling") {
+            LOG(FATAL) << "{model_generation_type == compressed} will be ignored in this simulator_opti because the simulator_opti only supports normal.";
+            iter->second->model_generation_type = Ml::model_compress_type::compressed_by_diff;
         } else {
             LOG(FATAL) << "unknown model_generation_type:" << model_generation_type_str;
             return -1;
@@ -634,7 +633,7 @@ int main(int argc, char *argv[])
                         //drop models
                         size_t total_weight = 0, dropped_count = 0;
                         auto compressed_model = Ml::model_compress::compress_by_diff_get_model(parameter_before, parameter_after, single_node->filter_limit, &total_weight, &dropped_count);
-                        std::string compress_model_str = Ml::model_compress::compress_by_diff_lz_compress(compressed_model);
+                        std::string compress_model_str = Ml::model_compress::compress_by_lz(compressed_model);
                         parameter_output = compressed_model;
                     }
                     

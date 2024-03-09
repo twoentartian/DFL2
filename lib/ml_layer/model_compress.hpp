@@ -57,9 +57,53 @@ namespace Ml
 			
 			return net_output;
 		}
-		
+
+        template<typename DType>
+        static Ml::caffe_parameter_net<DType> compress_by_random_sampling_get_model(const Ml::caffe_parameter_net<DType>& net_before, const Ml::caffe_parameter_net<DType>& net_after, float filter_limit, size_t* total_weight_count = nullptr, size_t* dropped_weight_count = nullptr)
+        {
+            Ml::caffe_parameter_net<DType> net_output = net_after;
+
+            if (total_weight_count != nullptr) *total_weight_count = 0;
+            if (dropped_weight_count != nullptr) *dropped_weight_count = 0;
+
+            static std::random_device rd;
+            static std::mt19937_64 rng(rd());
+            std::uniform_real_distribution dis(0.0,1.0);
+
+            //drop models
+            auto& layers = net_output.getLayers();
+            for (int i = 0; i < layers.size(); ++i)
+            {
+                auto& blob = layers[i].getBlob_p();
+                for (int j = 0; j < blob.size(); ++j)
+                {
+                    auto& blob_data = blob[j]->getData();
+                    if (blob_data.empty())
+                    {
+                        continue;
+                    }
+
+                    int drop_count = 0;
+                    for (auto&& data: blob_data)
+                    {
+                        if(dis(rng) > filter_limit)
+                        {
+                            //drop
+                            drop_count++;
+                            data = NAN;
+                        }
+                    }
+
+                    if (total_weight_count != nullptr) *total_weight_count += blob_data.size();
+                    if (dropped_weight_count != nullptr) *dropped_weight_count += drop_count;
+                }
+            }
+
+            return net_output;
+        }
+
 		template<typename DType>
-		static std::string compress_by_diff_lz_compress(const Ml::caffe_parameter_net<DType>& diff_model)
+		static std::string compress_by_lz(const Ml::caffe_parameter_net<DType>& diff_model)
 		{
 			auto data_str = serialize_wrap<boost::archive::binary_oarchive>(diff_model).str();
 			int max_compressed_size = LZ4::Compress_CalculateDstSize(data_str.size());
@@ -75,9 +119,17 @@ namespace Ml
 		static std::string compress_by_diff(const Ml::caffe_parameter_net<DType>& net_before, const Ml::caffe_parameter_net<DType>& net_after, float filter_limit, size_t* total_weight_count = nullptr, size_t* dropped_weight_count = nullptr)
 		{
 			auto diff_model = compress_by_diff_get_model(net_before, net_after, filter_limit, total_weight_count, dropped_weight_count);
-			auto output = compress_by_diff_lz_compress(diff_model);
+			auto output = compress_by_lz(diff_model);
 			return output;
 		}
+
+        template<typename DType>
+        static std::string compress_by_random_sampling(const Ml::caffe_parameter_net<DType>& net_before, const Ml::caffe_parameter_net<DType>& net_after, float filter_limit, size_t* total_weight_count = nullptr, size_t* dropped_weight_count = nullptr)
+        {
+            auto diff_model = compress_by_diff_get_model(net_before, net_after, filter_limit, total_weight_count, dropped_weight_count);
+            auto output = compress_by_lz(diff_model);
+            return output;
+        }
 		
 		template<typename DType>
 		static Ml::caffe_parameter_net<DType> decompress_by_diff(const std::string& data)
@@ -115,7 +167,8 @@ namespace Ml
 	{
 		unknown = 0,
 		normal,
-		compressed_by_diff
+		compressed_by_diff,
+        random_sampling,
 		
 	};
 	
@@ -131,6 +184,13 @@ namespace Ml
 			append_identifier(output, compressed_by_diff);
 			return output;
 		}
+
+        static std::string generate_model_stream_by_random_sampling(const Ml::caffe_parameter_net<DType>& net_before, const Ml::caffe_parameter_net<DType>& net_after, float filter_limit, size_t* total_weight_count = nullptr, size_t* dropped_weight_count = nullptr)
+        {
+            std::string output = model_compress::compress_by_random_sampling_get_model(net_before, net_after, filter_limit, total_weight_count, dropped_weight_count);
+            append_identifier(output, random_sampling);
+            return output;
+        }
 		
 		static std::string generate_model_stream_normal(const Ml::caffe_parameter_net<DType>& net)
 		{
@@ -147,14 +207,15 @@ namespace Ml
 			parse_identifier(data, type);
 			std::stringstream ss;
 			ss.write(data.data(), data.size() - identifier_size);
-			if (type == normal)
-			{
+			if (type == normal) {
 				output_model = deserialize_wrap<boost::archive::binary_iarchive, Ml::caffe_parameter_net<DType>>(ss);
 			}
-			else if(type == compressed_by_diff)
-			{
+			else if(type == compressed_by_diff) {
 				output_model = model_compress::decompress_by_diff<DType>(ss.str());
 			}
+            else if(type == random_sampling) {
+                //output_model = model_compress::decompress_by_diffdsadadsa<DType>(ss.str());
+            }
 			else
 			{
 				LOG(WARNING) << "unknown model stream type";

@@ -198,10 +198,14 @@ int main(int argc, char *argv[])
 		
 		//model_generation_type
 		const std::string model_generation_type_str = single_node["model_generation_type"];
-		if (model_generation_type_str == "compressed")
+		if (model_generation_type_str == "compressed_by_diff")
 		{
 			iter->second->model_generation_type = Ml::model_compress_type::compressed_by_diff;
 		}
+        else if (model_generation_type_str == "random_sampling")
+        {
+            iter->second->model_generation_type = Ml::model_compress_type::random_sampling;
+        }
 		else if (model_generation_type_str == "normal")
 		{
 			iter->second->model_generation_type = Ml::model_compress_type::normal;
@@ -664,15 +668,24 @@ int main(int argc, char *argv[])
 					auto parameter_output = parameter_after;
 
 					Ml::model_compress_type type;
-					if (single_node->model_generation_type == Ml::model_compress_type::compressed_by_diff)
-					{
+					if (single_node->model_generation_type == Ml::model_compress_type::compressed_by_diff) {
 						//drop models
 						size_t total_weight = 0, dropped_count = 0;
 						auto compressed_model = Ml::model_compress::compress_by_diff_get_model(parameter_before, parameter_after, single_node->filter_limit, &total_weight, &dropped_count);
-						std::string compress_model_str = Ml::model_compress::compress_by_diff_lz_compress(compressed_model);
+                        LOG(INFO) << "tick:" << tick << ", node:" << single_node->name << ", drop count: " << dropped_count << "/" << total_weight;
+						//std::string compress_model_str = Ml::model_compress::compress_by_lz(compressed_model);
 						parameter_output = compressed_model;
 						type = Ml::model_compress_type::compressed_by_diff;
 					}
+                    else if (single_node->model_generation_type == Ml::model_compress_type::random_sampling) {
+                        //drop models
+                        size_t total_weight = 0, dropped_count = 0;
+                        auto compressed_model = Ml::model_compress::compress_by_random_sampling_get_model(parameter_before, parameter_after, single_node->filter_limit, &total_weight, &dropped_count);
+                        LOG(INFO) << "tick:" << tick << ", node:" << single_node->name << ", drop count: " << dropped_count << "/" << total_weight;
+                        //std::string compress_model_str = Ml::model_compress::compress_by_lz(compressed_model);
+                        parameter_output = compressed_model;
+                        type = Ml::model_compress_type::random_sampling;
+                    }
 					else
 					{
 						type = Ml::model_compress_type::normal;
@@ -719,35 +732,39 @@ int main(int argc, char *argv[])
 						received_models[i].generator_address = node_name;
 						received_models[i].accuracy = 0;
 					}
-					
-					float self_accuracy = 0;
-					std::thread self_accuracy_thread([&single_node, &test_dataset, &ml_test_batch_size, &self_accuracy, &ml_dataset_all_possible_labels]()
-					                                 {
-						                                 //auto [test_data, test_label] = test_dataset.get_random_data(ml_test_batch_size);
-						                                 auto[test_data, test_label] = get_dataset_by_node_type(test_dataset, *single_node, ml_test_batch_size, ml_dataset_all_possible_labels);
-						                                 self_accuracy = single_node->solver->evaluation(test_data, test_label);
-					                                 });
-					size_t worker = received_models.size() > std::thread::hardware_concurrency() ? std::thread::hardware_concurrency() : received_models.size();
-					auto_multi_thread::ParallelExecution_with_thread_index(worker, [parameter, &single_node, &solver_for_testing, &test_dataset, &ml_test_batch_size, &ml_dataset_all_possible_labels](uint32_t index, uint32_t thread_index, updated_model<model_datatype> &model)
-					{
-						auto output_model = parameter;
-						if (model.type == Ml::model_compress_type::compressed_by_diff)
+
+                    //measure self accuracy
+                    float self_accuracy = 0;
+                    {
+                        auto[test_data, test_label] = get_dataset_by_node_type(test_dataset, *single_node, ml_test_batch_size, ml_dataset_all_possible_labels);
+                        self_accuracy = single_node->solver->evaluation(test_data, test_label);
+                    }
+
+					for (auto& single_model : received_models) {
+						auto output_model = parameter.deep_clone();
+						if (single_model.type == Ml::model_compress_type::compressed_by_diff)
 						{
-							output_model.patch_weight(model.model_parameter);
+							output_model.patch_weight(single_model.model_parameter);
 						}
-						else if (model.type == Ml::model_compress_type::normal)
+                        else if (single_model.type == Ml::model_compress_type::random_sampling)
+                        {
+                            output_model.patch_weight(single_model.model_parameter);
+                        }
+						else if (single_model.type == Ml::model_compress_type::normal)
 						{
-							output_model = model.model_parameter;
+							output_model = single_model.model_parameter;
 						}
 						else
 						{
 							LOG(FATAL) << "unknown model type";
 						}
+
 						solver_for_testing[thread_index].set_parameter(output_model);
 						auto[test_data, test_label] = get_dataset_by_node_type(test_dataset, *single_node, ml_test_batch_size, ml_dataset_all_possible_labels);
-						model.accuracy = solver_for_testing[thread_index].evaluation(test_data, test_label);
-					}, received_models.size(), received_models.data());
-					self_accuracy_thread.join();
+                        single_model.accuracy = solver_for_testing[thread_index].evaluation(test_data, test_label);
+                        single_model.model_parameter = output_model;
+					}
+
 					single_node->last_measured_accuracy = self_accuracy;
 					single_node->last_measured_tick = tick;
 					std::string log_msg = (boost::format("tick: %1%, node: %2%, accuracy: %3%") % tick % single_node->name % self_accuracy).str();

@@ -179,6 +179,13 @@ namespace Ml {
 	
 	    using DataType = DType;
 
+        tensor_blob_like<DType> deep_clone() const {
+            tensor_blob_like<DType> output;
+            output._data = this->_data;
+            output._shape = this->_shape;
+            return output;
+        }
+
         void fromBlob(const caffe::Blob <DType> &blob) {
             //shape
             _shape = blob.shape();
@@ -415,12 +422,17 @@ namespace Ml {
 		    }
 		}
 		
-		void fix_nan()
+		size_t fix_nan()
 		{
+            size_t ret = 0;
 			for (auto& value: _data)
 			{
-				if (isnan(value)) value = 0;
+				if (isnan(value)) {
+                    value = 0;
+                    ret++;
+                }
 			}
+            return ret;
 		}
      
     private:
