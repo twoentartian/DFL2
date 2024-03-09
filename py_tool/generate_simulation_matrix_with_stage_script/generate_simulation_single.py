@@ -4,28 +4,34 @@ import json
 from subprocess import call
 import shutil
 import networkx as nx
-import random
-import numpy as np
 import nx_lib
 import script_lib
+import simulation_config_lib
+import sys
 
 repeat = 1
-
 simulation_name = "test_output"
+network_size = 200
 
+simulation_max_tick = 20000
 
 def generate_topology() -> nx.Graph:
-    return nx.random_regular_graph(8, 50)
+    return nx.random_regular_graph(8, network_size)
 
 
-def special_nodes():
-    pass
-
+def special_nodes() -> {}:
+    special_nodes = {}
+    special_nodes["0"] = {"node_type": "normal"}
+    for node_name in range(1, network_size):
+        special_nodes[str(node_name)] = {"node_type": "no_training"}
+    return special_nodes
 
 def generate_script():
     script_content = []
-
-
+    script_lib.set_node_status(script_content, 0, range(1, network_size), False)
+    script_lib.set_node_status(script_content, 2000, range(1, network_size), True)
+    script_lib.set_node_type(script_content, 2000, 0, "pontificator")
+    return script_content
 
 network_generator = "large_scale_simulation_generator_maksim"
 non_iid_generator = "dirichlet_distribution_config_generator"
@@ -97,6 +103,19 @@ if __name__ == "__main__":
 
         # copy simulator config to output folder
         shutil.copyfile(simulator_config_path, os.path.join(output_folder_dir, simulator_config_file_name))
+
+        # generate stage script
+        scripts = generate_script()
+        script_lib.save_script_to_file(scripts, os.path.join(output_folder_dir, "script.json"))
+
+        # modify simulator config
+        simulator_config_json = simulation_config_lib.load_simulator_config_file(os.path.join(output_folder_dir, simulator_config_file_name))
+        simulator_config_json["ml_max_tick"] = simulation_max_tick
+        simulator_config_json["services"]["stage_manager"]["enable"] = True
+        simulator_config_json["services"]["stage_manager"]["script_path"] = "./script.json"
+        with open(sys.argv[0], mode="r") as src_file:
+            simulator_config_json["comment_this_config_file_is_generated_by_py_script"] = src_file.read()
+        simulation_config_lib.save_simulator_config_file(simulator_config_json, os.path.join(output_folder_dir, simulator_config_file_name))
 
         # copy run script and simulator to output folder
         shutil.copyfile(os.path.join(simulation_folder_path, simulator_name), os.path.join(output_folder_dir, simulator_name))
