@@ -39,8 +39,14 @@ def set_node_type(script_target, tick: int, nodes, node_type: str):
         "node_type": node_type
     }
     changed_nodes = {}
-    for node in nodes:
-        changed_nodes[str(node)] = node_config
+    if isinstance(nodes, int):
+        changed_nodes[str(nodes)] = node_config
+    elif isinstance(nodes, [int]):
+        for node in nodes:
+            changed_nodes[str(node)] = node_config
+    else:
+        raise Exception("nodes has to be int or [int]")
+
     script_target.append({
         "tick": tick,
         "script": changed_nodes,
