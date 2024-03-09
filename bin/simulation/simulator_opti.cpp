@@ -38,7 +38,7 @@
 
 using model_datatype = float;
 
-std::unordered_map<std::string, node<model_datatype> *> node_container;
+std::map<std::string, node<model_datatype> *> node_container;
 std::unordered_map<std::string, std::shared_ptr<opti_model_update<model_datatype>>> node_model_update;
 ////set model updating algorithm
 //using model_updating_algorithm = train_50_average_50<model_datatype>;
@@ -683,8 +683,13 @@ int main(int argc, char *argv[])
 					printf("%s\n", log_msg.data());
 					LOG(INFO) << log_msg;
 
-					parameter = node_model_update[single_node->name]->get_output_model(parameter, test_data, test_label);
-					single_node->solver->set_parameter(parameter);
+                    if (single_node->enable_averaging) {
+                        parameter = node_model_update[single_node->name]->get_output_model(parameter, test_data, test_label);
+                        single_node->solver->set_parameter(parameter);
+                    }
+                    else {
+                        LOG(INFO) << "skip averaging for node " << single_node->name << " at tick " << tick;
+                    }
 
                     //trigger service
                     {

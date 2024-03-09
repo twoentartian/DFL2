@@ -95,6 +95,7 @@ public:
 	{
 		solver.reset(new Ml::MlCaffeModel<model_datatype, caffe::SGDSolver>());
         enable = true;
+        enable_averaging = true;
 	}
 	
 	virtual ~node() = default;
@@ -111,6 +112,7 @@ public:
 	size_t buffer_size;
 	size_t planned_buffer_size;
     bool enable;
+    bool enable_averaging;
 	
 	std::vector<std::tuple<std::string, Ml::model_compress_type, Ml::caffe_parameter_net<model_datatype>>> parameter_buffer;
 	std::mutex parameter_buffer_lock;
@@ -141,7 +143,8 @@ public:
 
 //        target->buffer_size = buffer_size;//set by constructor
         target->planned_buffer_size = planned_buffer_size;
-        target->enable = enable;
+        target->enable = enable && target->enable;  //if enable is false, then we set output enable to false
+        target->enable_averaging = enable_averaging && target->enable_averaging; //if enable_averaging is false, then we set output enable_averaging to false
 
         {
             std::lock_guard guard_src(parameter_buffer_lock);
@@ -354,6 +357,7 @@ public:
     pontificator_node(std::string _name, size_t buf_size) : node<model_datatype>(_name, buf_size)
     {
         this->type = pontificator;
+        this->enable_averaging = false;
     };
 
     static std::string type_name()

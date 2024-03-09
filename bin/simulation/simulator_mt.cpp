@@ -40,7 +40,7 @@
 
 using model_datatype = float;
 
-std::unordered_map<std::string, node<model_datatype> *> node_container;
+std::map<std::string, node<model_datatype> *> node_container;
 dll_loader<reputation_interface<model_datatype>> reputation_dll;
 
 void handler(int sig) {
@@ -754,8 +754,11 @@ int main(int argc, char *argv[])
 					printf("%s\n", log_msg.data());
 					LOG(INFO) << log_msg;
 					auto &reputation_map = single_node->reputation_map;
-					reputation_dll.get()->update_model(parameter, self_accuracy, received_models, reputation_map);
-					single_node->solver->set_parameter(parameter);
+
+                    if (single_node->enable_averaging) {
+                        reputation_dll.get()->update_model(parameter, self_accuracy, received_models, reputation_map);
+                        single_node->solver->set_parameter(parameter);
+                    }
 					
 					//clear buffer and start new loop
 					single_node->parameter_buffer.clear();

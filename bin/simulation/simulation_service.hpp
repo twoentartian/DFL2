@@ -60,7 +60,7 @@ public:
 		enable = false;
 	}
 	
-	virtual std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::unordered_map<std::string, node<model_datatype> *>&, std::vector<node<model_datatype>*>&) = 0;
+	virtual std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::map<std::string, node<model_datatype> *>&, std::vector<node<model_datatype>*>&) = 0;
 	
 	virtual std::tuple<service_status, std::string> process_per_tick(int tick, service_trigger_type trigger) = 0;
 
@@ -69,14 +69,14 @@ public:
 	virtual std::tuple<service_status, std::string> destruction_service() = 0;
 
 protected:
-	void set_node_container(std::unordered_map<std::string, node<model_datatype> *>& map, std::vector<node<model_datatype>*>& vector)
+	void set_node_container(std::map<std::string, node<model_datatype> *>& map, std::vector<node<model_datatype>*>& vector)
 	{
 		node_vector_container = &vector;
 		node_container = &map;
 	}
 	
 	std::vector<node<model_datatype>*>* node_vector_container;
-	std::unordered_map<std::string, node<model_datatype> *>* node_container;
+	std::map<std::string, node<model_datatype> *>* node_container;
 };
 
 /// Notice that the accuracy_record service keeps its own caffe solver for testing the accuracy,
@@ -112,7 +112,7 @@ public:
 		return {service_status::success, ""};
 	}
 	
-	std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::unordered_map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
+	std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
 	{
 		this->set_node_container(_node_container, _node_vector_container);
 		
@@ -245,7 +245,7 @@ public:
 		return {service_status::success, ""};
 	}
 	
-	std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::unordered_map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
+	std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
 	{
 		//LOG_IF(FATAL, node_vector_container == nullptr) << "node_vector_container is not set";
 		this->set_node_container(_node_container, _node_vector_container);
@@ -343,7 +343,7 @@ public:
         return {service_status::success, ""};
     }
 
-    std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::unordered_map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
+    std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
     {
         //LOG_IF(FATAL, node_vector_container == nullptr) << "node_vector_container is not set";
         this->set_node_container(_node_container, _node_vector_container);
@@ -453,7 +453,7 @@ public:
         return {service_status::success, ""};
     }
     
-    std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::unordered_map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
+    std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
     {
         this->set_node_container(_node_container, _node_vector_container);
 
@@ -689,7 +689,7 @@ public:
 		return {service_status::success, ""};
 	}
 	
-	std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::unordered_map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
+	std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
 	{
 		this->set_node_container(_node_container, _node_vector_container);
 		
@@ -824,7 +824,7 @@ public:
 		return {service_status::success, ""};
 	}
 	
-	std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::unordered_map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
+	std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
 	{
 		this->set_node_container(_node_container, _node_vector_container);
 		
@@ -984,7 +984,7 @@ public:
         return {service_status::success, ""};
     }
     
-    std::tuple<service_status, std::string> init_service(const std::filesystem::path &output_path, std::unordered_map<std::string, node<model_datatype> *> &_node_container, std::vector<node<model_datatype> *> &_node_vector_container) override
+    std::tuple<service_status, std::string> init_service(const std::filesystem::path &output_path, std::map<std::string, node<model_datatype> *> &_node_container, std::vector<node<model_datatype> *> &_node_vector_container) override
     {
         this->set_node_container(_node_container, _node_vector_container);
         
@@ -1095,7 +1095,7 @@ public:
         return {service_status::success, ""};
     }
     
-    std::tuple<service_status, std::string> init_service(const std::filesystem::path &output_path, std::unordered_map<std::string, node<model_datatype> *> &_node_container, std::vector<node<model_datatype> *> &_node_vector_container) override
+    std::tuple<service_status, std::string> init_service(const std::filesystem::path &output_path, std::map<std::string, node<model_datatype> *> &_node_container, std::vector<node<model_datatype> *> &_node_vector_container) override
     {
         if (this->enable == false) return {service_status::skipped, "not enabled"};
 
@@ -1176,7 +1176,7 @@ public:
         return {service_status::success, ""};
     }
 
-    std::tuple<service_status, std::string> init_service(const std::filesystem::path &output_path, std::unordered_map<std::string, node<model_datatype> *> &_node_container, std::vector<node<model_datatype> *> &_node_vector_container) override
+    std::tuple<service_status, std::string> init_service(const std::filesystem::path &output_path, std::map<std::string, node<model_datatype> *> &_node_container, std::vector<node<model_datatype> *> &_node_vector_container) override
     {
         if (this->enable == false) return {service_status::skipped, "not enabled"};
 
@@ -1250,7 +1250,7 @@ public:
         return {service_status::success, ""};
     }
 
-    std::tuple<service_status, std::string> init_service(const std::filesystem::path &output_path, std::unordered_map<std::string, node<model_datatype> *> &_node_container, std::vector<node<model_datatype> *> &_node_vector_container) override
+    std::tuple<service_status, std::string> init_service(const std::filesystem::path &output_path, std::map<std::string, node<model_datatype> *> &_node_container, std::vector<node<model_datatype> *> &_node_vector_container) override
     {
         if (this->enable == false) return {service_status::skipped, "not enabled"};
 
@@ -1383,7 +1383,7 @@ public:
         return {service_status::success, ""};
     }
 
-    std::tuple<service_status, std::string> init_service(const std::filesystem::path &output_path, std::unordered_map<std::string, node<model_datatype> *> &_node_container, std::vector<node<model_datatype> *> &_node_vector_container) override
+    std::tuple<service_status, std::string> init_service(const std::filesystem::path &output_path, std::map<std::string, node<model_datatype> *> &_node_container, std::vector<node<model_datatype> *> &_node_vector_container) override
     {
         if (this->enable == false) return {service_status::skipped, "not enabled"};
 
@@ -1724,7 +1724,7 @@ public:
         return {service_status::success, ""};
     }
 
-    std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::unordered_map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
+    std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
     {
         this->set_node_container(_node_container, _node_vector_container);
 
@@ -1963,7 +1963,7 @@ public:
         return {service_status::success, ""};
     }
 
-    std::tuple<service_status, std::string> init_service(const std::filesystem::path &output_path, std::unordered_map<std::string, node<model_datatype> *> &_node_container, std::vector<node<model_datatype> *> &_node_vector_container) override
+    std::tuple<service_status, std::string> init_service(const std::filesystem::path &output_path, std::map<std::string, node<model_datatype> *> &_node_container, std::vector<node<model_datatype> *> &_node_vector_container) override
     {
         if (this->enable == false) return {service_status::skipped, "not enabled"};
 
@@ -2185,7 +2185,7 @@ public:
         return {service_status::success, ""};
     }
 
-    std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::unordered_map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
+    std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
     {
         this->set_node_container(_node_container, _node_vector_container);
 
@@ -2302,7 +2302,7 @@ public:
     }
 
 private:
-    void apply_config_to_node(const configuration_file::json& script, node<model_datatype>* target_node, std::unordered_map<std::string, node<model_datatype>*>* node_container, std::vector<node<model_datatype>*>* node_vector_container) {
+    void apply_config_to_node(const configuration_file::json& script, node<model_datatype>* target_node, std::map<std::string, node<model_datatype>*>* node_container, std::vector<node<model_datatype>*>* node_vector_container) {
         if (script.contains("enable")) {
             target_node->enable = script["enable"].get<bool>();
         }
@@ -2341,8 +2341,7 @@ private:
 
             //update node_container
             delete iter->second;
-            node_container->erase(iter);
-            node_container->emplace(temp_node->name, temp_node);
+            iter->second = temp_node;
 
             //update peers and planned_peers container
             for (auto node_container_iter = node_container->begin(); node_container_iter != node_container->end(); ++node_container_iter) {
@@ -2396,7 +2395,7 @@ public:
         return {service_status::success, ""};   //compiled services cannot have config
     }
 
-    std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::unordered_map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
+    std::tuple<service_status, std::string> init_service(const std::filesystem::path& output_path, std::map<std::string, node<model_datatype> *>& _node_container, std::vector<node<model_datatype>*>& _node_vector_container) override
     {
         this->set_node_container(_node_container, _node_vector_container);
 
