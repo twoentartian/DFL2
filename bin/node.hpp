@@ -130,6 +130,42 @@ public:
     //This variable is only for simulation service purpose
     simulation_service_data_type<model_datatype> simulation_service_data;
 
+    void copy_properties_to_new_node(node* target) {
+//        target->name = name;//set by constructor
+        target->dataset_mode = dataset_mode;
+//        target->type = type;//set by constructor
+        target->nets_accuracy_only_record = nets_accuracy_only_record;
+        target->next_train_tick = next_train_tick;
+        target->special_non_iid_distribution = special_non_iid_distribution;
+        target->training_interval_tick = training_interval_tick;
+
+//        target->buffer_size = buffer_size;//set by constructor
+        target->planned_buffer_size = planned_buffer_size;
+        target->enable = enable;
+
+        {
+            std::lock_guard guard_src(parameter_buffer_lock);
+            std::lock_guard guard_dst(target->parameter_buffer_lock);
+            target->parameter_buffer = parameter_buffer;
+            //target->parameter_buffer_lock = parameter_buffer_lock;//cannot copy mutex
+        }
+
+        target->solver = solver;
+        target->reputation_map = reputation_map;
+        target->model_generation_type = model_generation_type;
+        target->filter_limit = filter_limit;
+
+        target->peers = peers;
+        target->planned_peers = planned_peers;
+
+        target->name = name;
+
+        target->last_measured_accuracy = last_measured_accuracy;
+        target->last_measured_tick = last_measured_tick;
+        target->model_trained = model_trained;
+        target->model_averaged = model_averaged;
+    }
+
 	virtual void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) = 0;
     
     virtual float evaluate_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label)

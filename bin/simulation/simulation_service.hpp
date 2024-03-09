@@ -2280,7 +2280,7 @@ public:
                 auto node_iter = this->node_container->find(node_name);
                 LOG_ASSERT(node_iter != this->node_container->end()) << "info: " << node_name << " does not exist";
                 auto& target_node = node_iter->second;
-                apply_config_to_node(script_item_json, target_node);
+                apply_config_to_node(script_item_json, target_node, this->node_container, this->node_vector_container);
             }
         }
 
@@ -2300,15 +2300,57 @@ public:
     }
 
 private:
-    void apply_config_to_node(const configuration_file::json& script, node<model_datatype>* node) {
+    void apply_config_to_node(const configuration_file::json& script, node<model_datatype>* target_node, std::unordered_map<std::string, node<model_datatype>*>* node_container, std::vector<node<model_datatype>*>* node_vector_container) {
         if (script.contains("enable")) {
-            node->enable = script["enable"].get<bool>();
+            target_node->enable = script["enable"].get<bool>();
         }
         if (script.contains("buffer_size")) {
-            node->enable = script["buffer_size"].get<int>();
+            target_node->buffer_size = script["buffer_size"].get<int>();
         }
         if (script.contains("training_interval_tick")) {
-            node->training_interval_tick = script["training_interval_tick"].get<std::vector<int>>();
+            target_node->training_interval_tick = script["training_interval_tick"].get<std::vector<int>>();
+        }
+        if (script.contains("node_type")) {
+            const std::string new_target_node_type = script["node_type"].get<std::string>();
+            const std::string target_node_name = target_node->name;
+            auto iter = node_container->find(target_node_name);
+            LOG_ASSERT(iter != node_container->end());
+
+            //find the node in the registered node map
+            node<model_datatype> *temp_node = nullptr;
+            {
+                auto result = node<model_datatype>::get_node_by_type(new_target_node_type);
+                if (result == nullptr) {
+                    LOG(FATAL) << "unknown node type:" << new_target_node_type;
+                } else {
+                    temp_node = result->new_node(iter->second->name, iter->second->buffer_size);
+                }
+            }
+            //move properties of old node to new node
+            iter->second->copy_properties_to_new_node(temp_node);
+
+            //update node_vector_container
+            for (int i = 0; i < this->node_vector_container->size(); ++i) {
+                auto& node_i = this->node_vector_container->at(i);
+                if (node_i->name == temp_node->name) {
+                    node_i = temp_node;
+                }
+            }
+
+            //update node_container
+            delete iter->second;
+            node_container->erase(iter);
+            node_container->emplace(temp_node->name, temp_node);
+
+            //update peers and planned_peers container
+            for (auto node_container_iter = node_container->begin(); node_container_iter != node_container->end(); ++node_container_iter) {
+                if (node_container_iter->second->peers.contains(temp_node->name)) {
+                    node_container_iter->second->peers[temp_node->name] = temp_node;
+                }
+                if (node_container_iter->second->planned_peers.contains(temp_node->name)) {
+                    node_container_iter->second->planned_peers[temp_node->name] = temp_node;
+                }
+            }
         }
     }
 
