@@ -2312,6 +2312,13 @@ private:
         if (script.contains("training_interval_tick")) {
             target_node->training_interval_tick = script["training_interval_tick"].get<std::vector<int>>();
         }
+        if (script.contains("override_model_from")) {
+            const std::string src_node_name = script["override_model_from"].get<std::string>();
+            auto iter = node_container->find(src_node_name);
+            LOG_ASSERT(iter != node_container->end());
+            const auto& src_model = iter->second->solver->get_parameter();
+            target_node->solver->set_parameter(src_model);
+        }
         if (script.contains("node_type")) {
             const std::string new_target_node_type = script["node_type"].get<std::string>();
             const std::string target_node_name = target_node->name;
