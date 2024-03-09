@@ -2169,7 +2169,7 @@ public:
 
 private:
     std::filesystem::path stage_script;
-    std::map<int, std::map<std::string, configuration_file::json>> all_scripts;
+    std::map<int, std::vector<std::map<std::string, configuration_file::json>>> all_scripts;
 
 public:
     stage_manager_service()
@@ -2214,7 +2214,7 @@ public:
             for (const auto& [name, actions] : single_script["script"].items()) {
                 scripts_at_this_tick[name] = actions;
             }
-            all_scripts[tick] = scripts_at_this_tick;
+            all_scripts[tick].push_back(scripts_at_this_tick);
         }
         return {service_status::success, ""};
     }
@@ -2229,58 +2229,60 @@ public:
         if (tick_find_iter == all_scripts.end()) {
             return {service_status::skipped, "not time yet"};
         }
-        const auto& node_and_script = tick_find_iter->second;
-        for (const auto& [node_name, script_item_json] : node_and_script) {
-            if (node_name == "remove_edge") {   //special operations
-                for (const auto& edge : script_item_json) {
-                    const std::string edge_str = edge;
-                    {
-                        const size_t index = edge_str.find("--");
-                        if (index != std::string::npos) {
-                            std::string node_0_name = edge_str.substr(0, index);
-                            std::string node_1_name = edge_str.substr(index+2);
-                            remove_peer_of_node(node_0_name, node_1_name);
-                            remove_peer_of_node(node_1_name, node_0_name);
+        const auto& node_and_script_vec = tick_find_iter->second;
+        for (const auto& node_and_script : node_and_script_vec) {
+            for (const auto& [node_name, script_item_json] : node_and_script) {
+                if (node_name == "remove_edge") {   //special operations
+                    for (const auto& edge : script_item_json) {
+                        const std::string edge_str = edge;
+                        {
+                            const size_t index = edge_str.find("--");
+                            if (index != std::string::npos) {
+                                std::string node_0_name = edge_str.substr(0, index);
+                                std::string node_1_name = edge_str.substr(index+2);
+                                remove_peer_of_node(node_0_name, node_1_name);
+                                remove_peer_of_node(node_1_name, node_0_name);
+                            }
                         }
-                    }
-                    {
-                        const size_t index = edge_str.find("->");
-                        if (index != std::string::npos) {
-                            std::string node_0_name = edge_str.substr(0, index);
-                            std::string node_1_name = edge_str.substr(index+2);
-                            remove_peer_of_node(node_0_name, node_1_name);
-                        }
-                    }
-                }
-            }
-            else if (node_name == "add_edge") { //special operations
-                for (const auto& edge : script_item_json) {
-                    const std::string edge_str = edge;
-                    {
-                        const size_t index = edge_str.find("--");
-                        if (index != std::string::npos) {
-                            std::string node_0_name = edge_str.substr(0, index);
-                            std::string node_1_name = edge_str.substr(index+2);
-                            add_peer_of_node(node_0_name, node_1_name);
-                            add_peer_of_node(node_1_name, node_0_name);
-                        }
-                    }
-                    {
-                        const size_t index = edge_str.find("->");
-                        if (index != std::string::npos) {
-                            std::string node_0_name = edge_str.substr(0, index);
-                            std::string node_1_name = edge_str.substr(index+2);
-                            add_peer_of_node(node_0_name, node_1_name);
+                        {
+                            const size_t index = edge_str.find("->");
+                            if (index != std::string::npos) {
+                                std::string node_0_name = edge_str.substr(0, index);
+                                std::string node_1_name = edge_str.substr(index+2);
+                                remove_peer_of_node(node_0_name, node_1_name);
+                            }
                         }
                     }
                 }
-            }
-            else {
-                //simple node names
-                auto node_iter = this->node_container->find(node_name);
-                LOG_ASSERT(node_iter != this->node_container->end()) << "info: " << node_name << " does not exist";
-                auto& target_node = node_iter->second;
-                apply_config_to_node(script_item_json, target_node, this->node_container, this->node_vector_container);
+                else if (node_name == "add_edge") { //special operations
+                    for (const auto& edge : script_item_json) {
+                        const std::string edge_str = edge;
+                        {
+                            const size_t index = edge_str.find("--");
+                            if (index != std::string::npos) {
+                                std::string node_0_name = edge_str.substr(0, index);
+                                std::string node_1_name = edge_str.substr(index+2);
+                                add_peer_of_node(node_0_name, node_1_name);
+                                add_peer_of_node(node_1_name, node_0_name);
+                            }
+                        }
+                        {
+                            const size_t index = edge_str.find("->");
+                            if (index != std::string::npos) {
+                                std::string node_0_name = edge_str.substr(0, index);
+                                std::string node_1_name = edge_str.substr(index+2);
+                                add_peer_of_node(node_0_name, node_1_name);
+                            }
+                        }
+                    }
+                }
+                else {
+                    //simple node names
+                    auto node_iter = this->node_container->find(node_name);
+                    LOG_ASSERT(node_iter != this->node_container->end()) << "info: " << node_name << " does not exist";
+                    auto& target_node = node_iter->second;
+                    apply_config_to_node(script_item_json, target_node, this->node_container, this->node_vector_container);
+                }
             }
         }
 
