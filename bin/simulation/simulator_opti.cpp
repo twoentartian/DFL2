@@ -682,8 +682,8 @@ int main(int argc, char *argv[])
 					printf("%s\n", log_msg.data());
 					LOG(INFO) << log_msg;
 
+                    parameter = node_model_update[single_node->name]->get_output_model(parameter, test_data, test_label);   //reset the model buffer and get the output
                     if (single_node->enable_averaging) {
-                        parameter = node_model_update[single_node->name]->get_output_model(parameter, test_data, test_label);
                         single_node->solver->set_parameter(parameter);
                     }
                     else {
