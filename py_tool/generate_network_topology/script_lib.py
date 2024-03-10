@@ -8,7 +8,17 @@ def save_script_to_file(script_target, file_path: str):
     f.close()
 
 
+def __convert_arg_to_list__(args):
+    if isinstance(args, int):
+        return [args]
+    elif isinstance(args, list):
+        return args
+    else:
+        raise Exception("arg has to be int or [int]")
+
+
 def set_node_status(script_target, tick: int, nodes, enabled: bool):
+    nodes = __convert_arg_to_list__(nodes)
     node_config = {
         "enable": enabled
     }
@@ -35,18 +45,13 @@ def set_node_status(script_target, tick: int, nodes, enabled: bool):
 # normal_label_0_4,   //normal nodes but only receive training dataset whose labels are from 0 to 4
 # normal_label_5_9,   //normal nodes but only receive training dataset whose labels are from 5 to 9
 def set_node_type(script_target, tick: int, nodes, node_type: str):
+    nodes = __convert_arg_to_list__(nodes)
     node_config = {
         "node_type": node_type
     }
     changed_nodes = {}
-    if isinstance(nodes, int):
-        changed_nodes[str(nodes)] = node_config
-    elif isinstance(nodes, [int]):
-        for node in nodes:
-            changed_nodes[str(node)] = node_config
-    else:
-        raise Exception("nodes has to be int or [int]")
-
+    for node in nodes:
+        changed_nodes[str(node)] = node_config
     script_target.append({
         "tick": tick,
         "script": changed_nodes,
@@ -54,22 +59,20 @@ def set_node_type(script_target, tick: int, nodes, node_type: str):
 
 
 def set_node_buffer_size(script_target, tick: int, nodes, buffer_size):
+    nodes = __convert_arg_to_list__(nodes)
+    buffer_size = __convert_arg_to_list__(buffer_size)
     changed_nodes = {}
-    if isinstance(buffer_size, int):
-        node_config = {
-            "buffer_size": buffer_size
-        }
-        for node in nodes:
-            changed_nodes[str(node)] = node_config
-    elif isinstance(buffer_size, [int]):
-        assert(len(buffer_size) == len(nodes))
-        for index, node in enumerate(nodes):
+    assert(len(buffer_size) == len(nodes))
+    for index, node in enumerate(nodes):
+        if len(buffer_size) == 1:
+            node_config = {
+                "buffer_size": buffer_size[0]
+            }
+        else:
             node_config = {
                 "buffer_size": buffer_size[index]
             }
-            changed_nodes[str(node)] = node_config
-    else:
-        raise Exception("buffer_size has to be int or [int]")
+        changed_nodes[str(node)] = node_config
     script_target.append({
         "tick": tick,
         "script": changed_nodes,
@@ -77,11 +80,33 @@ def set_node_buffer_size(script_target, tick: int, nodes, buffer_size):
 
 
 def set_node_training_interval_tick(script_target, tick: int, nodes, training_interval_tick):
+    nodes = __convert_arg_to_list__(nodes)
     changed_nodes = {}
     node_config = {
         "training_interval_tick": training_interval_tick
     }
     for node in nodes:
+        changed_nodes[str(node)] = node_config
+    script_target.append({
+        "tick": tick,
+        "script": changed_nodes,
+    })
+
+
+def set_node_model_override_model_from(script_target, tick: int, nodes, src_nodes):
+    nodes = __convert_arg_to_list__(nodes)
+    src_nodes = __convert_arg_to_list__(src_nodes)
+    changed_nodes = {}
+    assert(len(src_nodes) == len(nodes) or len(src_nodes) == 1)
+    for index, node in enumerate(nodes):
+        if len(src_nodes) == 1:
+            node_config = {
+                "override_model_from": str(src_nodes[0])
+            }
+        else:
+            node_config = {
+                "override_model_from": str(src_nodes[index])
+            }
         changed_nodes[str(node)] = node_config
     script_target.append({
         "tick": tick,
