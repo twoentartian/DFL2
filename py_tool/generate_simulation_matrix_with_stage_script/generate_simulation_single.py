@@ -8,6 +8,7 @@ import nx_lib
 import script_lib
 import simulation_config_lib
 import sys
+import random
 
 repeat = 1
 simulation_name = "test_output"
