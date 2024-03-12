@@ -4,7 +4,7 @@ import pandas as pd
 
 if __name__ == "__main__":
     # Load the uploaded CSV file to check its contents
-    file_path = '/mnt/data/accuracy_of_compressed_models.csv'
+    file_path = '../accuracy_of_compressed_models.csv'
     data = pd.read_csv(file_path)
 
     # Display the first few rows of the dataframe to understand its structure
