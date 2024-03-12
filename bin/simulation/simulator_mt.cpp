@@ -680,7 +680,7 @@ int main(int argc, char *argv[])
                     else if (single_node->model_generation_type == Ml::model_compress_type::random_sampling) {
                         //drop models
                         size_t total_weight = 0, dropped_count = 0;
-                        auto compressed_model = Ml::model_compress::compress_by_random_sampling_get_model(parameter_before, parameter_after, single_node->filter_limit, &total_weight, &dropped_count);
+                        auto compressed_model = Ml::model_compress::compress_by_random_sampling_get_model(parameter_before, parameter_after, single_node->filter_limit, NAN, &total_weight, &dropped_count);
                         LOG(INFO) << "tick:" << tick << ", node:" << single_node->name << ", drop count: " << dropped_count << "/" << total_weight;
                         //std::string compress_model_str = Ml::model_compress::compress_by_lz(compressed_model);
                         parameter_output = compressed_model;

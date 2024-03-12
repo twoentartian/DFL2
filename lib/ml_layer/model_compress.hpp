@@ -59,7 +59,7 @@ namespace Ml
 		}
 
         template<typename DType>
-        static Ml::caffe_parameter_net<DType> compress_by_random_sampling_get_model(const Ml::caffe_parameter_net<DType>& net_before, const Ml::caffe_parameter_net<DType>& net_after, float filter_limit, size_t* total_weight_count = nullptr, size_t* dropped_weight_count = nullptr)
+        static Ml::caffe_parameter_net<DType> compress_by_random_sampling_get_model(const Ml::caffe_parameter_net<DType>& net_before, const Ml::caffe_parameter_net<DType>& net_after, float filter_limit, DType replace_with = NAN, size_t* total_weight_count = nullptr, size_t* dropped_weight_count = nullptr)
         {
             Ml::caffe_parameter_net<DType> net_output = net_after;
 
@@ -90,7 +90,7 @@ namespace Ml
                         {
                             //drop
                             drop_count++;
-                            data = NAN;
+                            data = replace_with;
                         }
                     }
 
