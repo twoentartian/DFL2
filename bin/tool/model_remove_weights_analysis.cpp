@@ -43,31 +43,62 @@ int main() {
         }
     }
     
-    std::map<std::pair<int,int>, float> accuracy_results;
-    std::mutex accuracy_results_lock;
-    tmt::ParallelExecution([&dataset, model, &nodes_for_evaluation, &accuracy_results_lock, &accuracy_results](uint32_t index, uint32_t thread_index, const std::pair<int,int>& simulation_arg){
-        auto model_copy = model.deep_clone();
-        auto [repeat, compress_ratio] = simulation_arg;
-        auto compress_ratio_f = float(compress_ratio) / 100.0f;
-        auto compressed_model = Ml::model_compress::compress_by_random_sampling_get_model(model_copy, model_copy, compress_ratio_f, 0.0f);
-        auto [test_x, test_y] = dataset.get_random_data(100);
-        nodes_for_evaluation[thread_index]->set_parameter(compressed_model);
-        auto accuracy = nodes_for_evaluation[thread_index]->evaluation(test_x, test_y);
-        {
-            std::lock_guard guard(accuracy_results_lock);
-            accuracy_results[simulation_arg] = accuracy;
-        }
-    }, simulation_args.size(), simulation_args.data());
+    {
+        std::map<std::pair<int,int>, float> accuracy_results;
+        std::mutex accuracy_results_lock;
+        tmt::ParallelExecution([&dataset, model, &nodes_for_evaluation, &accuracy_results_lock, &accuracy_results](uint32_t index, uint32_t thread_index, const std::pair<int,int>& simulation_arg){
+            auto model_copy = model.deep_clone();
+            auto [repeat, compress_ratio] = simulation_arg;
+            auto compress_ratio_f = float(compress_ratio) / 100.0f;
+            auto compressed_model = Ml::model_compress::compress_by_random_sampling_get_model(model_copy, model_copy, compress_ratio_f, 0.0f);
+            auto [test_x, test_y] = dataset.get_random_data(100);
+            nodes_for_evaluation[thread_index]->set_parameter(compressed_model);
+            auto accuracy = nodes_for_evaluation[thread_index]->evaluation(test_x, test_y);
+            {
+                std::lock_guard guard(accuracy_results_lock);
+                accuracy_results[simulation_arg] = accuracy;
+            }
+        }, simulation_args.size(), simulation_args.data());
     
-    //export map to csv
-    std::ofstream csv_output("accuracy_of_compressed_models.csv", std::ios::binary);
-    csv_output << "compress ratio" << "," << "repeat" << "," << "accuracy" << std::endl;
-    for (const auto& [k,v] : accuracy_results) {
-        const auto [repeat, compress] = k;
-        csv_output << compress << "," << repeat << "," << v << std::endl;
+        //export map to csv
+        std::ofstream csv_output("accuracy_of_compressed_models.csv", std::ios::binary);
+        csv_output << "compress ratio" << "," << "repeat" << "," << "accuracy" << std::endl;
+        for (const auto& [k,v] : accuracy_results) {
+            const auto [repeat, compress] = k;
+            csv_output << compress << "," << repeat << "," << v << std::endl;
+        }
+        csv_output.flush();
+        csv_output.close();
     }
-    csv_output.flush();
-    csv_output.close();
+    
+    {
+        std::map<std::pair<int,int>, float> accuracy_results;
+        std::mutex accuracy_results_lock;
+        tmt::ParallelExecution([&dataset, model, &nodes_for_evaluation, &accuracy_results_lock, &accuracy_results](uint32_t index, uint32_t thread_index, const std::pair<int,int>& simulation_arg){
+            auto model_copy = model.deep_clone();
+            auto [repeat, compress_ratio] = simulation_arg;
+            auto compress_ratio_f = float(compress_ratio) / 100.0f;
+            auto compressed_model = Ml::model_compress::compress_by_scale_down_get_model(model_copy, model_copy, compress_ratio_f);
+            auto [test_x, test_y] = dataset.get_random_data(100);
+            nodes_for_evaluation[thread_index]->set_parameter(compressed_model);
+            auto accuracy = nodes_for_evaluation[thread_index]->evaluation(test_x, test_y);
+            {
+                std::lock_guard guard(accuracy_results_lock);
+                accuracy_results[simulation_arg] = accuracy;
+            }
+        }, simulation_args.size(), simulation_args.data());
+    
+        //export map to csv
+        std::ofstream csv_output("accuracy_of_linearly_scaled_models.csv", std::ios::binary);
+        csv_output << "compress ratio" << "," << "repeat" << "," << "accuracy" << std::endl;
+        for (const auto& [k,v] : accuracy_results) {
+            const auto [repeat, compress] = k;
+            csv_output << compress << "," << repeat << "," << v << std::endl;
+        }
+        csv_output.flush();
+        csv_output.close();
+    }
+
     
     return 0;
 }

@@ -101,6 +101,43 @@ namespace Ml
 
             return net_output;
         }
+        
+        template<typename DType>
+        static Ml::caffe_parameter_net<DType> compress_by_scale_down_get_model(const Ml::caffe_parameter_net<DType>& net_before, const Ml::caffe_parameter_net<DType>& net_after, DType scale_down_factor, size_t* total_weight_count = nullptr, size_t* dropped_weight_count = nullptr)
+        {
+            Ml::caffe_parameter_net<DType> net_output = net_after;
+            
+            if (total_weight_count != nullptr) *total_weight_count = 0;
+            if (dropped_weight_count != nullptr) *dropped_weight_count = 0;
+            
+            //drop models
+            auto& layers = net_output.getLayers();
+            for (int i = 0; i < layers.size(); ++i)
+            {
+                auto& blob = layers[i].getBlob_p();
+                for (int j = 0; j < blob.size(); ++j)
+                {
+                    auto& blob_data = blob[j]->getData();
+                    if (blob_data.empty())
+                    {
+                        continue;
+                    }
+                    
+                    int drop_count = 0;
+                    for (auto&& data: blob_data)
+                    {
+                        //drop(scale down)
+                        drop_count++;
+                        data = data * scale_down_factor;
+                    }
+                    
+                    if (total_weight_count != nullptr) *total_weight_count += blob_data.size();
+                    if (dropped_weight_count != nullptr) *dropped_weight_count += drop_count;
+                }
+            }
+            
+            return net_output;
+        }
 
 		template<typename DType>
 		static std::string compress_by_lz(const Ml::caffe_parameter_net<DType>& diff_model)
