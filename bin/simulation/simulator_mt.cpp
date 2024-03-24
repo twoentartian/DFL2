@@ -218,6 +218,11 @@ int main(int argc, char *argv[])
 		
 		//filter_limit
 		iter->second->filter_limit = single_node["filter_limit"];
+
+        //first_train_tick
+        if (single_node.contains("first_train_tick")) {
+            iter->second->next_train_tick = single_node["first_train_tick"];
+        }
 		
 		//label_distribution
 		std::string dataset_mode = single_node["dataset_mode"];

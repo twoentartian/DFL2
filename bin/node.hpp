@@ -70,6 +70,8 @@ enum node_type
     normal_label_0_4,   //normal nodes but only receive training dataset whose labels are from 0 to 4
     normal_label_5_9,   //normal nodes but only receive training dataset whose labels are from 5 to 9
 
+    federated_learning_server,  //server do not training, only perform averaging and send averaged model to other nodes
+
 	node_type_last_index
 };
 
@@ -812,6 +814,44 @@ public:
     }
 };
 
+template<typename model_datatype>
+class federated_learning_server_node : public node<model_datatype>
+{
+public:
+    federated_learning_server_node(std::string _name, size_t buf_size) : node<model_datatype>(_name, buf_size)
+    {
+        this->type = federated_learning_server;
+    };
+
+    static std::string type_name()
+    {
+        return "federated_learning_server";
+    }
+
+    static void registerNodeType()
+    {
+        node<model_datatype>::_registerNodeType(type_name(), new federated_learning_server_node("template", 0));
+    }
+
+    node<model_datatype> *new_node(std::string _name, size_t buf_size) override
+    {
+        return new federated_learning_server_node(_name, buf_size);
+    }
+
+    void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
+    {
+        if (!this->enable) return;
+
+
+    }
+
+    std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() override
+    {
+        if (!this->enable) return {};
+        return {this->solver->get_parameter()};
+    }
+};
+
 
 template<typename model_datatype>
 static void register_node_types()
@@ -831,6 +871,8 @@ static void register_node_types()
 
     normal_node_label_0_4<model_datatype>::registerNodeType();
     normal_node_label_5_9<model_datatype>::registerNodeType();
+
+    federated_learning_server_node<model_datatype>::registerNodeType();
 }
 
 #endif //DFL_NODE_HPP

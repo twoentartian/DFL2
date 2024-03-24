@@ -56,6 +56,7 @@ configuration_file::json get_default_simulation_configuration()
 	node["buffer_size"] = 2;
 	node["model_generation_type"] = "compressed"; //normal, compressed
 	node["filter_limit"] = 0.5;
+    node["first_train_tick"] = 0;
 	node["node_type"] = "normal";
 	node["non_iid_distribution"] = node_non_iid;
 	
