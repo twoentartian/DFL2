@@ -23,8 +23,7 @@ def generate_topology() -> nx.Graph:
 
 def special_nodes() -> {}:
     special_nodes = {}
-    special_nodes["0"] = {"node_type": "federated_learning_server"}
-    special_nodes["0"] = {"first_train_tick": 5}
+    special_nodes["0"] = {"node_type": "federated_learning_server", "first_train_tick": 5}
 
     return special_nodes
 
