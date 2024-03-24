@@ -11,7 +11,7 @@ configuration_file::json get_default_simulation_configuration()
 
     //simulator_opti_specific
     output["simulator_opti_averaging_algorithm"] = "train_50_average_50_fix_variance_auto";
-    output["simulator_opti_averaging_algorithm_all_possible"] = {"train_50_average_50", "train_50_average_50_fix_variance_auto", "train_100_average_0"};
+    output["simulator_opti_averaging_algorithm_all_possible"] = {"train_50_average_50", "train_50_average_50_fix_variance_auto", "train_100_average_0", "train_0_average_100"};
 	
 	output["report_time_remaining_per_tick_elapsed"] = 100;
 

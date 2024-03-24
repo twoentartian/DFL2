@@ -270,9 +270,66 @@ private:
 	size_t _model_count;
 };
 
+
+
+template <typename model_datatype>
+class train_0_average_100 : public opti_model_update<model_datatype> {
+public:
+    train_0_average_100() {
+        _model_count = 0;
+        _is_first_model = true;
+    }
+
+    std::shared_ptr<opti_model_update<model_datatype>> create_shared() override {
+        return std::make_shared<train_0_average_100>();
+    }
+
+    std::string get_name() override {
+        return "train_0_average_100";
+    }
+
+    void add_model(const Ml::caffe_parameter_net<model_datatype>& model) override {
+        std::lock_guard guard(_lock);
+        _model_count++;
+        if (_is_first_model) {
+            _is_first_model = false;
+            _buffered_model = model;
+            return;
+        }
+        else {
+            _buffered_model = _buffered_model + model;
+            return;
+        }
+    }
+
+    Ml::caffe_parameter_net<model_datatype> get_output_model(const Ml::caffe_parameter_net<model_datatype>& self_model, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_data, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_label) override {
+        std::lock_guard guard(_lock);
+        auto output = _buffered_model/_model_count;
+        _model_count = 0;
+        _is_first_model = true;
+        return output;
+    }
+
+    size_t get_model_count() override {
+        return _model_count;
+    }
+
+    static void register_algorithm() {
+        opti_model_update<model_datatype>::_registerAlgorithm(std::make_shared<train_0_average_100>());
+    }
+
+private:
+    std::mutex _lock;
+    bool _is_first_model;
+    Ml::caffe_parameter_net<model_datatype> _buffered_model;
+    size_t _model_count;
+};
+
 template <typename model_datatype>
 void register_model_updating_algorithms() {
     train_50_average_50<model_datatype>::register_algorithm();
     train_100_average_0<model_datatype>::register_algorithm();
+    train_0_average_100<model_datatype>::register_algorithm();
     train_50_average_50_fix_variance_auto<model_datatype>::register_algorithm();
 }
+
