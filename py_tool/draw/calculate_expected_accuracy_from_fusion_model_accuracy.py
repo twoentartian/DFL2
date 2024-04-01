@@ -61,6 +61,7 @@ def calculate_fusion_accuracy(transformation_matrix, fusion_accuracy_mapping, ti
         P = (single_tick - tick_start) / tick_step
         P = int(round(P))
         transformation_matrix_now = np.linalg.matrix_power(transformation_matrix_tick_step, P)
+        # transformation_matrix_now = np.linalg.matrix_power(transformation_matrix, (single_tick - tick_start)//training_per_tick)
         for index, each_row in enumerate(transformation_matrix_now):
             fusion_value = {v: round_to_nearest(each_row[int(v)], fusion_accuracy_precision) for v in propagating_src}
             mask = True
