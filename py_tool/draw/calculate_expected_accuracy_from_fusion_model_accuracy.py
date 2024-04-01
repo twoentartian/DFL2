@@ -20,21 +20,6 @@ def round_to_nearest(num, divisor):
     return round(num / divisor) * divisor
 
 
-def draw_fusion_accuracy_loss_graph(fusion_df, save_name):
-    propagating_src = get_propagating_src(fusion_df)
-    if len(propagating_src) == 3:
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        sc = ax.scatter(fusion_df[propagating_src[0]], fusion_df[propagating_src[1]], fusion_df[propagating_src[2]], c=fusion_df["accuracy"], cmap='hot')
-        plt.colorbar(sc)
-        ax.set_xlabel('Dimension 1')
-        ax.set_ylabel('Dimension 2')
-        ax.set_zlabel('Dimension 3')
-        ax.title(f'3D Scatter Plot with accuracy as Temperature')
-        fig.show()
-
-
-
 def calculate_transformation_matrix(G: nx.Graph, conservativeness_level: float, propagating_src):
     network_size = len(G.nodes)
     adjacent_matrix = nx.adjacency_matrix(G)
