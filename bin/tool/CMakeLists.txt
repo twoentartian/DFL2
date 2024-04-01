@@ -34,6 +34,9 @@ target_link_libraries(model_util ${DFL_LINKER_LIBS})
 add_executable(model_remove_weights_analysis model_remove_weights_analysis.cpp)
 target_link_libraries(model_remove_weights_analysis ${DFL_LINKER_LIBS})
 
+add_executable(calculate_model_fusion_accuracy calculate_model_fusion_accuracy.cpp)
+target_link_libraries(calculate_model_fusion_accuracy ${DFL_LINKER_LIBS})
+
 # find CUDA
 if (NOT CPU_ONLY)
 include(CheckLanguage)
