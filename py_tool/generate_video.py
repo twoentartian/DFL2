@@ -6,6 +6,9 @@ import os
 import re
 import cv2
 import multiprocessing
+
+import pandas
+
 import data_process_lib
 import argparse
 
@@ -13,7 +16,7 @@ config_file_path = 'simulator_config.json'
 accuracy_file_path = 'accuracy.csv'
 peer_change_file_path = 'peer_change_record.txt'
 draw_interval = 1
-fps = 4
+fps = 2
 dpi = 200
 override_existing_cache = True
 HSV_H_start = 40
@@ -22,27 +25,56 @@ HSV_H_end = 256
 video_cache_path = "./video_cache"
 
 
-def save_fig(G: nx.Graph, tick, save_name, node_accuracies, layout, node_labels, node_size, with_labels, override_existing=False):
+def save_fig(G: nx.Graph, tick, save_name, node_accuracies, layout, node_labels, node_size, with_labels, override_existing=False, secondary_accuracies=None, secondary_node_labels=None):
     if not override_existing and os.path.exists(save_name):
         return
 
-    fig = plt.figure(frameon=False)
-    fig.set_size_inches(12, 12)
-    ax = plt.Axes(fig, [0., 0., 1., 1.])
-    ax.set_axis_off()
-    fig.add_axes(ax)
-    ax.text(0, 0, "tick = " + str(tick))
-    cmap = matplotlib.colormaps.get_cmap('viridis')
-    normalize = matplotlib.colors.Normalize(vmin=0, vmax=1)
-    node_colors = [cmap(normalize(node_accuracy)) for node_accuracy in node_accuracies]
+    if secondary_accuracies is None:
+        # only one plot
+        fig = plt.figure(frameon=False)
+        fig.set_size_inches(12, 12)
+        ax = plt.Axes(fig, [0., 0., 1., 1.])
+        ax.set_axis_off()
+        fig.add_axes(ax)
+        ax.text(0, 0, "tick = " + str(tick))
+        cmap = matplotlib.colormaps.get_cmap('viridis')
+        normalize = matplotlib.colors.Normalize(vmin=0, vmax=1)
+        node_colors = [cmap(normalize(node_accuracy)) for node_accuracy in node_accuracies]
 
-    nx.draw(G, node_color=node_colors, with_labels=with_labels, pos=layout, font_color='k', labels=node_labels, alpha=0.7, linewidths=0.1, width=0.1, font_size=8, node_size=node_size)
+        nx.draw(G, node_color=node_colors, with_labels=with_labels, pos=layout, font_color='k', labels=node_labels, alpha=0.7, linewidths=0.1, width=0.1, font_size=8, node_size=node_size)
 
-    sm = plt.cm.ScalarMappable(cmap=cmap, norm=normalize)
-    sm.set_array([0, 1])
-    fig.colorbar(sm, ax=ax, orientation='vertical', label='Values', shrink=0.4)
-    fig.savefig(save_name, dpi=dpi, pad_inches=0)
-    plt.close(fig)
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=normalize)
+        sm.set_array([0, 1])
+        fig.colorbar(sm, ax=ax, orientation='vertical', label='Values', shrink=0.4)
+        fig.savefig(save_name, dpi=dpi, pad_inches=0)
+        plt.close(fig)
+    else:
+        # two plots
+        fig = plt.figure(frameon=False)
+        fig.set_size_inches(18, 9)
+        ax = plt.Axes(fig, [0., 0., 0.5, 1.])
+        ax2 = plt.Axes(fig, [0.5, 0., 0.5, 1.])
+        ax.set_axis_off()
+        ax2.set_axis_off()
+        fig.add_axes(ax)
+        fig.add_axes(ax2)
+        ax.text(0, 0, "tick = " + str(tick))
+
+        cmap = matplotlib.colormaps.get_cmap('viridis')
+        normalize = matplotlib.colors.Normalize(vmin=0, vmax=1)
+        node_colors = [cmap(normalize(node_accuracy)) for node_accuracy in node_accuracies]
+        nx.draw(G, ax=ax, node_color=node_colors, with_labels=with_labels, pos=layout, font_color='k', labels=node_labels, alpha=0.7, linewidths=0.1, width=0.1, font_size=8, node_size=node_size)
+
+        cmap2 = matplotlib.colormaps.get_cmap('viridis')
+        normalize2 = matplotlib.colors.Normalize(vmin=0, vmax=1)
+        node_colors2 = [cmap2(normalize2(node_accuracy)) for node_accuracy in secondary_accuracies]
+        nx.draw(G, ax=ax2, node_color=node_colors2, with_labels=with_labels, pos=layout, font_color='k', labels=secondary_node_labels, alpha=0.7, linewidths=0.1, width=0.1, font_size=8, node_size=node_size)
+
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=normalize)
+        sm.set_array([0, 1])
+        fig.colorbar(sm, ax=ax, orientation='vertical', label='Values', shrink=0.4)
+        fig.savefig(save_name, dpi=dpi, pad_inches=0)
+        plt.close(fig)
 
 
 def save_raw_fig(G: nx.Graph, save_name, node_color, layout, node_labels, node_size, with_labels, override_existing=False):
@@ -73,7 +105,11 @@ if __name__ == "__main__":
 
     G = data_process_lib.load_graph_from_simulation_config(config_file_path)
 
-    accuracy_df = data_process_lib.load_csv_with_parquet_acceleration(accuracy_file_path, False)
+    accuracy_df = pandas.read_csv(accuracy_file_path, index_col=0, header=0)
+
+    second_accuracy_df = None
+    if os.path.exists("fusion_accuracy.csv"):
+        second_accuracy_df = pandas.read_csv("fusion_accuracy.csv", index_col=0, header=0)
 
     peer_change_file_exists = os.path.exists(peer_change_file_path)
     peer_change_list = []
@@ -151,13 +187,33 @@ if __name__ == "__main__":
 
         # node color
         node_accuracies = []
+
         for node in G.nodes:
             accuracy = accuracy_df.loc[tick, node]
             node_accuracies.append(accuracy)
             node_labels[node] = str(accuracy)
 
+        node_labels2 = None
+        second_node_accuracies = None
+        if second_accuracy_df is not None:
+            node_labels2 = {}
+            second_node_accuracies = []
+            for node in G.nodes:
+                v = 0
+                try:
+                    # Attempt to retrieve the value using iloc for integer-based indexing
+                    # Use loc for label-based indexing, e.g., df.loc[row_idx, col_idx]
+                    v = second_accuracy_df.loc[tick, node]
+                except IndexError:
+                    v = 0
+                except KeyError:
+                    v = 0
+                second_node_accuracies.append(v)
+                node_labels2[node] = str(v)
+
         # save to files
-        pool.apply_async(save_fig, (G.copy(), tick, os.path.join(video_cache_path, str(tick) + ".png"), node_accuracies, layout, node_labels, node_size, with_labels, override_cache))
+        pool.apply_async(save_fig, (G.copy(), tick, os.path.join(video_cache_path, str(tick) + ".png"), node_accuracies, layout, node_labels, node_size, with_labels, override_cache, second_node_accuracies, node_labels2))
+        # save_fig(G.copy(), tick, os.path.join(video_cache_path, str(tick) + ".png"), node_accuracies, layout, node_labels, node_size, with_labels, override_cache, second_node_accuracies, node_labels2)
 
         # save the map
         if tick == tick_to_draw[0]:
