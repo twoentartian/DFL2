@@ -156,9 +156,9 @@ int main(int argc, char** argv) {
     LOG_ASSERT(!all_models.empty());
     LOG_ASSERT(all_model_names.size() == all_models.size());
     size_t model_size = all_models.size();
-    std::map<std::vector<float>, float> accuracy_result;
+    std::map<std::vector<float>, float> accuracy_result, loss_result;
     std::mutex accuracy_result_lock;
-    tmt::ParallelExecution_StepIncremental([total_tasks, &current_percentage, &solver_for_testing, &finished_task, &cout_mutex, &test_dataset, &all_models, &test_size, &model_size, &fixed_test_dataset, &accuracy_result_lock, &accuracy_result](uint32_t index, uint32_t thread_index, const std::vector<float>& current_fusion_ratio) {
+    tmt::ParallelExecution_StepIncremental([total_tasks, &current_percentage, &solver_for_testing, &finished_task, &cout_mutex, &test_dataset, &all_models, &test_size, &model_size, &fixed_test_dataset, &accuracy_result_lock, &accuracy_result, &loss_result](uint32_t index, uint32_t thread_index, const std::vector<float>& current_fusion_ratio) {
         Ml::caffe_parameter_net<model_datatype> fusion_model = all_models[0] * current_fusion_ratio[0];
         for (size_t i = 1; i < model_size; ++i) {
             auto temp = all_models[i] * current_fusion_ratio[i];
@@ -174,11 +174,13 @@ int main(int argc, char** argv) {
             std::tie(test_data, test_label) = test_dataset.get_random_data(test_size);
         }
         solver_for_testing[thread_index].set_parameter(fusion_model);
-        auto accuracy = solver_for_testing[thread_index].evaluation(test_data, test_label);
+        float loss = 0;
+        auto accuracy = solver_for_testing[thread_index].evaluation(test_data, test_label, &loss);
 
         {
             std::lock_guard guard(accuracy_result_lock);
             accuracy_result.emplace(current_fusion_ratio, accuracy);
+            loss_result.emplace(current_fusion_ratio, loss);
         }
 
         finished_task++;
@@ -202,14 +204,14 @@ int main(int argc, char** argv) {
     for (int i = 0; i < model_size; ++i) {
         csv_file << all_model_names[i] << ",";
     }
-    csv_file << "accuracy" << std::endl;
+    csv_file << "accuracy, loss" << std::endl;
 
     // data
     for (const auto& single_ratio : fusion_ratio) {
         for (int i = 0; i < model_size; ++i) {
             csv_file << single_ratio[i] << ",";
         }
-        csv_file << accuracy_result[single_ratio] << std::endl;
+        csv_file << accuracy_result[single_ratio] << "," << loss_result[single_ratio] << std::endl;
     }
 
     csv_file.flush();

@@ -111,16 +111,18 @@ namespace Ml
 			_caffe_solver->TrainDataset(data, label, display);
 		}
 		
-		DType evaluation(const std::vector<const tensor_blob_like<DType>*>& data, const std::vector<const tensor_blob_like<DType>*>& label) override
+		DType evaluation(const std::vector<const tensor_blob_like<DType>*>& data, const std::vector<const tensor_blob_like<DType>*>& label, DType* loss = nullptr) override
 		{
 			std::lock_guard guard(_model_lock);
 			std::vector<std::tuple<DType,DType>> results = _caffe_solver->TestDataset(data, label);
 			DType output_accuracy = 0;
+            if (loss != nullptr) *loss = 0;
 			for (int i = 0; i < results.size(); ++i)
 			{
-				DType accuracy, loss;
-				std::tie(accuracy, loss) = results[i];
+				DType accuracy, loss_iter;
+				std::tie(accuracy, loss_iter) = results[i];
 				output_accuracy += accuracy;
+                if (loss != nullptr) *loss += loss_iter;
 			}
 			return output_accuracy / results.size();
 		}
