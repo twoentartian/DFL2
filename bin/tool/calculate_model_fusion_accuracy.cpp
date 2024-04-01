@@ -204,7 +204,7 @@ int main(int argc, char** argv) {
     for (int i = 0; i < model_size; ++i) {
         csv_file << all_model_names[i] << ",";
     }
-    csv_file << "accuracy, loss" << std::endl;
+    csv_file << "accuracy,loss" << std::endl;
 
     // data
     for (const auto& single_ratio : fusion_ratio) {
