@@ -137,10 +137,15 @@ int main(int argc, char** argv) {
         for (const auto& line : fusion_ratio_raw) {
             std::vector<float> proportion_line;
             proportion_line.reserve(line.size());
+            float sum = 0.0f;
             for (const auto& v : line) {
-                proportion_line.push_back(float(v)/float(resolution));
+                float vf = float(v)/float(resolution);
+                proportion_line.push_back(vf);
+                sum += vf;
             }
-            fusion_ratio.push_back(proportion_line);
+            if (sum <= 1.0f) {
+                fusion_ratio.push_back(proportion_line);
+            }
         }
     }
 
