@@ -69,6 +69,7 @@ def data_process_lib__load_graph_from_simulation_config(config_file_path: str, v
         print(f"finish loading simulation config, elapsed {time.time()-t}")
     return G
 
+
 def save_fig(G: nx.Graph, tick, save_name, node_accuracies, layout, node_labels, node_size, with_labels, override_existing=False, secondary_accuracies=None, secondary_node_labels=None):
     if not override_existing and os.path.exists(save_name):
         return
@@ -102,7 +103,8 @@ def save_fig(G: nx.Graph, tick, save_name, node_accuracies, layout, node_labels,
         ax2.set_axis_off()
         fig.add_axes(ax)
         fig.add_axes(ax2)
-        ax.text(0, 0, "tick = " + str(tick))
+        ax.text(0, 0, f"tick = {tick}, main accuracy")
+        ax.text(0, 0, f"tick = {tick}, 2nd accuracy")
 
         cmap = matplotlib.colormaps.get_cmap('viridis')
         normalize = matplotlib.colors.Normalize(vmin=0, vmax=1)
