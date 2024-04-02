@@ -6,6 +6,7 @@ import os
 import re
 import cv2
 import multiprocessing
+import data_process_lib
 
 import pandas
 
@@ -146,7 +147,7 @@ if __name__ == "__main__":
     if config["override_cache"]:
         override_cache = True
 
-    G = data_process_lib__load_graph_from_simulation_config(config_file_path)
+    G = data_process_lib.load_graph_from_simulation_config(config_file_path)
 
     accuracy_df = pandas.read_csv(accuracy_file_path, index_col=0, header=0)
 
