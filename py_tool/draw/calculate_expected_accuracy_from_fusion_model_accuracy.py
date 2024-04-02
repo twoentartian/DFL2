@@ -1,6 +1,4 @@
 import networkx as nx
-import matplotlib.pyplot as plt
-import data_process_lib
 import argparse
 import numpy as np
 import pandas as pd
@@ -14,6 +12,51 @@ fusion_accuracy_mapping_file_path = "fusion_model_accuracy.csv"
 training_per_tick = 10
 
 video_cache_path = "./video_cache"
+
+
+def data_process_lib__load_graph_from_simulation_config(config_file_path: str, verbose=False):
+    import time
+    import networkx
+    import json
+    t = 0
+    if verbose:
+        t = time.time()
+        print(f"loading simulation config")
+    config_file = open(config_file_path)
+    config_file_content = config_file.read()
+    config_file_json = json.loads(config_file_content)
+    topology = config_file_json['node_topology']
+    peer_control_enabled = config_file_json['services']['time_based_hierarchy_service']['enable']
+    nodes = config_file_json['nodes']
+
+    # DiGraph or Graph?
+    G = networkx.Graph()
+    for singleItem in topology:
+        dirLink = singleItem.split('->')
+        if len(dirLink) != 1:
+            G = networkx.DiGraph()
+            break
+
+    nodes_to_add = []
+    for single_node in nodes:
+        nodes_to_add.append(single_node['name'])
+    G.add_nodes_from(nodes_to_add)
+
+    if not peer_control_enabled:
+        edges_to_add = []
+        for singleItem in topology:
+            unDirLink = singleItem.split('--')
+            if len(unDirLink) != 1:
+                edges_to_add.append((unDirLink[0], unDirLink[1]))
+                edges_to_add.append((unDirLink[1], unDirLink[0]))
+
+            dirLink = singleItem.split('->')
+            if len(dirLink) != 1:
+                edges_to_add.append((unDirLink[0], unDirLink[1]))
+        G.add_edges_from(edges_to_add)
+    if verbose:
+        print(f"finish loading simulation config, elapsed {time.time()-t}")
+    return G
 
 
 def round_to_nearest(num, divisor):
@@ -84,7 +127,7 @@ if __name__ == "__main__":
     if config["override_cache"]:
         override_cache = True
 
-    G = data_process_lib.load_graph_from_simulation_config(config_file_path)
+    G = data_process_lib__load_graph_from_simulation_config(config_file_path)
 
     accuracy_df = pd.read_csv(accuracy_file_path, index_col="tick")
 
