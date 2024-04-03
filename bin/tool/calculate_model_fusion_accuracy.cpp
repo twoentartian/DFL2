@@ -3,6 +3,9 @@
 #include <iostream>
 #include <filesystem>
 #include <mutex>
+#include <chrono>
+#include <ctime>
+#include <iostream>
 
 #include <boost/program_options.hpp>
 #include <boost/asio.hpp>
@@ -152,13 +155,16 @@ int main(int argc, char** argv) {
     // calculate accuracy
     std::atomic_uint64_t finished_task = 0;
     std::atomic_uint32_t current_percentage = 0;
+    std::atomic_bool show_1000_milestone = false;
     size_t total_tasks = fusion_ratio.size();
     LOG_ASSERT(!all_models.empty());
     LOG_ASSERT(all_model_names.size() == all_models.size());
     size_t model_size = all_models.size();
     std::map<std::vector<float>, float> accuracy_result, loss_result;
     std::mutex accuracy_result_lock;
-    tmt::ParallelExecution_StepIncremental([total_tasks, &current_percentage, &solver_for_testing, &finished_task, &cout_mutex, &test_dataset, &all_models, &test_size, &model_size, &fixed_test_dataset, &accuracy_result_lock, &accuracy_result, &loss_result](uint32_t index, uint32_t thread_index, const std::vector<float>& current_fusion_ratio) {
+
+    auto time_start = std::chrono::system_clock::now();
+    tmt::ParallelExecution_StepIncremental([total_tasks, &current_percentage, &time_start, &show_1000_milestone, &solver_for_testing, &finished_task, &cout_mutex, &test_dataset, &all_models, &test_size, &model_size, &fixed_test_dataset, &accuracy_result_lock, &accuracy_result, &loss_result](uint32_t index, uint32_t thread_index, const std::vector<float>& current_fusion_ratio) {
         Ml::caffe_parameter_net<model_datatype> fusion_model = all_models[0] * current_fusion_ratio[0];
         for (size_t i = 1; i < model_size; ++i) {
             auto temp = all_models[i] * current_fusion_ratio[i];
@@ -184,13 +190,27 @@ int main(int argc, char** argv) {
         }
 
         finished_task++;
-        auto temp_current_percentage = uint32_t((float) finished_task / (float) total_tasks * 100);
+        if (finished_task >= 1000 && show_1000_milestone) {
+            show_1000_milestone = true;
+            auto time_now = std::chrono::system_clock::now();
+            auto time_elapsed = time_now - time_start;
+            auto total_time = time_elapsed * int(float(total_tasks) / float(finished_task));
+            auto end_time = time_start + total_time;
+            std::time_t end_time_c = std::chrono::system_clock::to_time_t(end_time);
+            std::tm* end_time_tm = std::gmtime(&end_time_c);
+            {
+                std::lock_guard guard(cout_mutex);
+                std::cout << "expected to finish: " << std::put_time(end_time_tm, "%Y-%m-%d %H:%M:%S") << std::endl;
+            }
+        }
+
+        auto temp_current_percentage = uint32_t((float) finished_task / (float) total_tasks * 1000);
         if (temp_current_percentage > current_percentage)
         {
             current_percentage = temp_current_percentage;
             {
                 std::lock_guard guard(cout_mutex);
-                std::cout << "finishing " << current_percentage << "%" << std::endl;
+                std::cout << "finishing " << current_percentage << "%%" << std::endl;
             }
         }
     }, total_tasks, fusion_ratio.data());
