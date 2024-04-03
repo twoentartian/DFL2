@@ -104,7 +104,7 @@ def save_fig(G: nx.Graph, tick, save_name, node_accuracies, layout, node_labels,
         fig.add_axes(ax)
         fig.add_axes(ax2)
         ax.text(0, 0, f"tick = {tick}, main accuracy")
-        ax.text(0, 0, f"tick = {tick}, 2nd accuracy")
+        ax2.text(0, 0, f"tick = {tick}, 2nd accuracy")
 
         cmap = matplotlib.colormaps.get_cmap('viridis')
         normalize = matplotlib.colors.Normalize(vmin=0, vmax=1)
@@ -119,6 +119,7 @@ def save_fig(G: nx.Graph, tick, save_name, node_accuracies, layout, node_labels,
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=normalize)
         sm.set_array([0, 1])
         fig.colorbar(sm, ax=ax, orientation='vertical', label='Values', shrink=0.4)
+        fig.colorbar(sm, ax=ax2, orientation='vertical', label='Values', shrink=0.4)
         fig.savefig(save_name, dpi=dpi, pad_inches=0)
         plt.close(fig)
 
