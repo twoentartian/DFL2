@@ -26,8 +26,14 @@ void generateCombinations(std::vector<std::vector<size_t>>& allCombinations, std
     for (size_t i = 0; i <= max; i++) {
         // Add current number to the combination
         currentCombination.push_back(i);
-        // Recurse with n-1 to add the next element
-        generateCombinations(allCombinations, currentCombination, max, n - 1);
+        size_t sum = 0;
+        for (const auto& v : currentCombination) {
+            sum += v;
+        }
+        if (sum <= max) {
+            // Recurse with n-1 to add the next element
+            generateCombinations(allCombinations, currentCombination, max, n - 1);
+        }
         // Remove the last element to backtrack
         currentCombination.pop_back();
     }
@@ -129,6 +135,7 @@ int main(int argc, char** argv) {
     }
 
     // generate fusion data
+    std::cout << "generate fusion data" << std::endl;
     size_t number_of_model = all_models.size();
     std::vector<std::vector<float>> fusion_ratio;
     {
@@ -151,6 +158,7 @@ int main(int argc, char** argv) {
             }
         }
     }
+    std::cout << "generate fusion data done" << std::endl;
 
     // calculate accuracy
     std::atomic_uint64_t finished_task = 0;
@@ -164,7 +172,8 @@ int main(int argc, char** argv) {
     std::mutex accuracy_result_lock;
 
     auto time_start = std::chrono::system_clock::now();
-    tmt::ParallelExecution_StepIncremental([total_tasks, &current_percentage, &time_start, &show_1000_milestone, &solver_for_testing, &finished_task, &cout_mutex, &test_dataset, &all_models, &test_size, &model_size, &fixed_test_dataset, &accuracy_result_lock, &accuracy_result, &loss_result](uint32_t index, uint32_t thread_index, const std::vector<float>& current_fusion_ratio) {
+//    tmt::ParallelExecution_StepIncremental
+    tmt::ParallelExecution([total_tasks, &current_percentage, &time_start, &show_1000_milestone, &solver_for_testing, &finished_task, &cout_mutex, &test_dataset, &all_models, &test_size, &model_size, &fixed_test_dataset, &accuracy_result_lock, &accuracy_result, &loss_result](uint32_t index, uint32_t thread_index, const std::vector<float>& current_fusion_ratio) {
         Ml::caffe_parameter_net<model_datatype> fusion_model = all_models[0] * current_fusion_ratio[0];
         for (size_t i = 1; i < model_size; ++i) {
             auto temp = all_models[i] * current_fusion_ratio[i];
