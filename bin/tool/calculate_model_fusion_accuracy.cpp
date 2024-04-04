@@ -6,6 +6,7 @@
 #include <chrono>
 #include <ctime>
 #include <iostream>
+#include <cstdlib>
 
 #include <boost/program_options.hpp>
 #include <boost/asio.hpp>
@@ -16,30 +17,49 @@
 using model_datatype = float;
 namespace po = boost::program_options;
 
-void generateCombinations(std::vector<std::vector<size_t>>& allCombinations, std::vector<size_t>& currentCombination, size_t max, size_t n) {
-    if (n == 0) {
-        // Base case: if n is 0, a combination of required length is formed
-        allCombinations.push_back(currentCombination);
-        return;
+void generateCombinations(std::vector<std::vector<size_t>>& output, std::vector<size_t>& current, size_t sum, size_t max, int N) {
+    if (current.size() == N) {
+        if (sum <= max) {
+            output.push_back(current); // Save the current combination
+        }
+        return; // Stop if we reach or exceed the sum limit
     }
 
-    for (size_t i = 0; i <= max; i++) {
-        // Add current number to the combination
-        currentCombination.push_back(i);
-        size_t sum = 0;
-        for (const auto& v : currentCombination) {
-            sum += v;
-        }
-        if (sum <= max) {
-            // Recurse with n-1 to add the next element
-            generateCombinations(allCombinations, currentCombination, max, n - 1);
-        }
-        // Remove the last element to backtrack
-        currentCombination.pop_back();
+    for (size_t i = 0; i <= max - sum; i ++) {
+        current.push_back(i); // Add the current value to the combination
+        generateCombinations(output, current, sum + i, max, N); // Recurse with the new sum
+        current.pop_back(); // Backtrack to explore other possibilities
     }
 }
 
+//void generateCombinations(std::vector<std::vector<size_t>>& allCombinations, std::vector<size_t>& currentCombination, size_t max, size_t n) {
+//    if (n == 0) {
+//        // Base case: if n is 0, a combination of required length is formed
+//        allCombinations.push_back(currentCombination);
+//        return;
+//    }
+//
+//    for (size_t i = 0; i <= max; i++) {
+//        // Add current number to the combination
+//        currentCombination.push_back(i);
+//        size_t sum = 0;
+//        for (const auto& v : currentCombination) {
+//            sum += v;
+//        }
+//        if (sum <= max) {
+//            // Recurse with n-1 to add the next element
+//            generateCombinations(allCombinations, currentCombination, max, n - 1);
+//        }
+//        // Remove the last element to backtrack
+//        currentCombination.pop_back();
+//    }
+//}
+
 int main(int argc, char** argv) {
+    setenv("OPENBLAS_NUM_THREADS", "1", 1);
+    setenv("GOTO_NUM_THREADS", "1", 1);
+    setenv("OMP_NUM_THREADS", "1", 1);
+
     std::mutex cout_mutex;
 
     std::vector<std::string> model_paths;
@@ -141,7 +161,7 @@ int main(int argc, char** argv) {
     {
         std::vector<std::vector<size_t>> fusion_ratio_raw;
         std::vector<size_t> currentCombination;
-        generateCombinations(fusion_ratio_raw, currentCombination, resolution, number_of_model);
+        generateCombinations(fusion_ratio_raw, currentCombination, 0, resolution, number_of_model);
 
         fusion_ratio.reserve(fusion_ratio_raw.size());
         for (const auto& line : fusion_ratio_raw) {
@@ -163,7 +183,6 @@ int main(int argc, char** argv) {
     // calculate accuracy
     std::atomic_uint64_t finished_task = 0;
     std::atomic_uint32_t current_percentage = 0;
-    std::atomic_bool show_1000_milestone = false;
     size_t total_tasks = fusion_ratio.size();
     LOG_ASSERT(!all_models.empty());
     LOG_ASSERT(all_model_names.size() == all_models.size());
@@ -173,7 +192,7 @@ int main(int argc, char** argv) {
 
     auto time_start = std::chrono::system_clock::now();
 //    tmt::ParallelExecution_StepIncremental
-    tmt::ParallelExecution([total_tasks, &current_percentage, &time_start, &show_1000_milestone, &solver_for_testing, &finished_task, &cout_mutex, &test_dataset, &all_models, &test_size, &model_size, &fixed_test_dataset, &accuracy_result_lock, &accuracy_result, &loss_result](uint32_t index, uint32_t thread_index, const std::vector<float>& current_fusion_ratio) {
+    tmt::ParallelExecution_StepIncremental([total_tasks, &current_percentage, &time_start, &solver_for_testing, &finished_task, &cout_mutex, &test_dataset, &all_models, &test_size, &model_size, &fixed_test_dataset, &accuracy_result_lock, &accuracy_result, &loss_result](uint32_t index, uint32_t thread_index, const std::vector<float>& current_fusion_ratio) {
         Ml::caffe_parameter_net<model_datatype> fusion_model = all_models[0] * current_fusion_ratio[0];
         for (size_t i = 1; i < model_size; ++i) {
             auto temp = all_models[i] * current_fusion_ratio[i];
@@ -199,27 +218,22 @@ int main(int argc, char** argv) {
         }
 
         finished_task++;
-        if (finished_task >= 1000 && show_1000_milestone) {
-            show_1000_milestone = true;
+
+        const size_t total_ticks = 1000;
+        auto temp_current_percentage = uint32_t((float) finished_task / (float) total_tasks * total_ticks);
+        if (temp_current_percentage > current_percentage)
+        {
+            current_percentage = temp_current_percentage;
             auto time_now = std::chrono::system_clock::now();
             auto time_elapsed = time_now - time_start;
-            auto total_time = time_elapsed * int(float(total_tasks) / float(finished_task));
-            auto end_time = time_start + total_time;
+            time_start = time_now;
+            auto remaining_time = (total_ticks - current_percentage) * time_elapsed;
+            auto end_time = time_start + remaining_time;
             std::time_t end_time_c = std::chrono::system_clock::to_time_t(end_time);
             std::tm* end_time_tm = std::gmtime(&end_time_c);
             {
                 std::lock_guard guard(cout_mutex);
-                std::cout << "expected to finish: " << std::put_time(end_time_tm, "%Y-%m-%d %H:%M:%S") << std::endl;
-            }
-        }
-
-        auto temp_current_percentage = uint32_t((float) finished_task / (float) total_tasks * 1000);
-        if (temp_current_percentage > current_percentage)
-        {
-            current_percentage = temp_current_percentage;
-            {
-                std::lock_guard guard(cout_mutex);
-                std::cout << "finishing " << current_percentage << "%%" << std::endl;
+                std::cout << "finishing " << current_percentage << "%%," << " expected to finish: " << std::put_time(end_time_tm, "%Y-%m-%d %H:%M:%S")<< std::endl;
             }
         }
     }, total_tasks, fusion_ratio.data());

@@ -36,6 +36,7 @@ target_link_libraries(model_remove_weights_analysis ${DFL_LINKER_LIBS})
 
 add_executable(calculate_model_fusion_accuracy calculate_model_fusion_accuracy.cpp)
 target_link_libraries(calculate_model_fusion_accuracy ${DFL_LINKER_LIBS})
+add_custom_command(TARGET calculate_model_fusion_accuracy POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/calculate_model_fusion_accuracy_set_env.sh ${CMAKE_CURRENT_BINARY_DIR}/calculate_model_fusion_accuracy_set_env.sh COMMENT "copy env script to build dir")
 
 # find CUDA
 if (NOT CPU_ONLY)
