@@ -17,7 +17,7 @@
 using model_datatype = float;
 namespace po = boost::program_options;
 
-void generateCombinations(std::vector<std::vector<size_t>>& output, std::vector<size_t>& current, size_t sum, size_t max, int N) {
+void generateCombinations(std::vector<std::vector<size_t>>& output, std::vector<size_t>& current, size_t sum, size_t max, size_t N) {
     if (current.size() == N) {
         if (sum <= max) {
             output.push_back(current); // Save the current combination
@@ -67,16 +67,18 @@ int main(int argc, char** argv) {
     std::string solver_path_str;
     size_t resolution;
     size_t test_size;
+    float max_fusion_ratio;
     bool use_fixed_test_dataset;
     po::options_description desc("allowed options");
     desc.add_options()
             ("help,h", "produce help message")
-            ("model_paths,m", po::value<std::vector<std::string>>(&model_paths)->multitoken()->required(), "model files")
+            ("model_paths", po::value<std::vector<std::string>>(&model_paths)->multitoken()->required(), "model files")
             ("accuracy_test_size,s", po::value<size_t>(&test_size)->default_value(100), "specify the test batch size")
             ("resolution,r", po::value<size_t>(&resolution)->default_value(100), "specify the resolution as an integer: 100->0.01")
             ("dataset_path", po::value<std::string>(&dataset_path_str)->default_value("../../../dataset/MNIST/"), "specify dataset path")
             ("use_fixed_test_dataset,f", po::value<bool>(&use_fixed_test_dataset)->default_value(true), "use fixed testing dataset")
             ("caffe_solver_path", po::value<std::string>(&solver_path_str)->default_value("../../../dataset/MNIST/lenet_solver_memory.prototxt"), "specify the ML solver path")
+            ("max_fusion_ratio, m", po::value<float>(&max_fusion_ratio)->default_value(1.0f), "the maximum fusion ratio. 2--the sum of all models=2xone model")
             ;
     po::positional_options_description p;
     p.add("model_paths", -1); // Allowing all positional arguments to be treated as "compulsory"
@@ -161,7 +163,7 @@ int main(int argc, char** argv) {
     {
         std::vector<std::vector<size_t>> fusion_ratio_raw;
         std::vector<size_t> currentCombination;
-        generateCombinations(fusion_ratio_raw, currentCombination, 0, resolution, number_of_model);
+        generateCombinations(fusion_ratio_raw, currentCombination, 0, size_t(resolution*max_fusion_ratio), number_of_model);
 
         fusion_ratio.reserve(fusion_ratio_raw.size());
         for (const auto& line : fusion_ratio_raw) {
