@@ -175,7 +175,7 @@ int main(int argc, char** argv) {
                 proportion_line.push_back(vf);
                 sum += vf;
             }
-            if (sum <= 1.0f) {
+            if (sum <= max_fusion_ratio) {
                 fusion_ratio.push_back(proportion_line);
             }
         }
