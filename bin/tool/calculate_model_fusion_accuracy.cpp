@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
             ("dataset_path", po::value<std::string>(&dataset_path_str)->default_value("../../../dataset/MNIST/"), "specify dataset path")
             ("use_fixed_test_dataset,f", po::value<bool>(&use_fixed_test_dataset)->default_value(true), "use fixed testing dataset")
             ("caffe_solver_path", po::value<std::string>(&solver_path_str)->default_value("../../../dataset/MNIST/lenet_solver_memory.prototxt"), "specify the ML solver path")
-            ("max_fusion_ratio, m", po::value<float>(&max_fusion_ratio)->default_value(1.0f), "the maximum fusion ratio. 2--the sum of all models=2xone model")
+            ("max_fusion_ratio,m", po::value<float>(&max_fusion_ratio)->default_value(1.0f), "the maximum fusion ratio. 2--the sum of all models=2xone model")
             ;
     po::positional_options_description p;
     p.add("model_paths", -1); // Allowing all positional arguments to be treated as "compulsory"
