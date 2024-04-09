@@ -114,50 +114,45 @@ int main(int argc, char** argv) {
         solver_for_testing[i].load_caffe_model(solver_path_str);
     }
 
-    // generate fusion data
-    std::cout << "generate fusion data" << std::endl;
+    // generate model pairs
+    std::cout << "generate model pair" << std::endl;
     size_t number_of_model = all_models.size();
-    std::vector<std::vector<float>> fusion_ratio;
+    std::vector<std::pair<size_t, size_t>> all_model_pairs;
     {
-        std::vector<std::vector<size_t>> fusion_ratio_raw;
-        std::vector<size_t> currentCombination;
-        generateCombinations(fusion_ratio_raw, currentCombination, 0, resolution, number_of_model);
-
-        fusion_ratio.reserve(fusion_ratio_raw.size());
-        for (const auto& line : fusion_ratio_raw) {
-            std::vector<float> proportion_line;
-            proportion_line.reserve(line.size());
-            float sum = 0.0f;
-            for (const auto& v : line) {
-                float vf = float(v)/float(resolution);
-                proportion_line.push_back(vf);
-                sum += vf;
-            }
-            if (sum <= 1.0f) {
-                fusion_ratio.push_back(proportion_line);
+        std::set<std::pair<size_t, size_t>> all_model_pairs_set;
+        for (size_t i = 0; i < all_models.size(); ++i) {
+            for (size_t j = 0; j < all_models.size(); ++j) {
+                if (i==j) {
+                    continue;
+                }
+                if (i<j) {
+                    all_model_pairs_set.emplace(i,j);
+                }
+                else {
+                    all_model_pairs_set.emplace(j, i);
+                }
             }
         }
+        for (const auto& i : all_model_pairs_set) {
+            all_model_pairs.push_back(i);
+        }
     }
-    std::cout << "generate fusion data done" << std::endl;
+    std::cout << "generate model pair done" << std::endl;
 
     // calculate accuracy
     std::atomic_uint64_t finished_task = 0;
     std::atomic_uint32_t current_percentage = 0;
-    size_t total_tasks = fusion_ratio.size();
+    size_t total_tasks = all_model_pairs.size();
     LOG_ASSERT(!all_models.empty());
     LOG_ASSERT(all_model_names.size() == all_models.size());
     size_t model_size = all_models.size();
-    std::map<std::vector<float>, float> accuracy_result, loss_result;
+    std::map<std::pair<size_t, size_t>, float> accuracy_result, loss_result;
     std::mutex accuracy_result_lock;
 
     auto time_start = std::chrono::system_clock::now();
-//    tmt::ParallelExecution_StepIncremental
-    tmt::ParallelExecution_StepIncremental([total_tasks, &current_percentage, &time_start, &solver_for_testing, &finished_task, &cout_mutex, &test_dataset, &all_models, &test_size, &model_size, &fixed_test_dataset, &accuracy_result_lock, &accuracy_result, &loss_result](uint32_t index, uint32_t thread_index, const std::vector<float>& current_fusion_ratio) {
-        Ml::caffe_parameter_net<model_datatype> fusion_model = all_models[0] * current_fusion_ratio[0];
-        for (size_t i = 1; i < model_size; ++i) {
-            auto temp = all_models[i] * current_fusion_ratio[i];
-            fusion_model = fusion_model + temp;
-        }
+    tmt::ParallelExecution_StepIncremental([total_tasks, &current_percentage, &time_start, &solver_for_testing, &finished_task, &cout_mutex, &test_dataset, &all_models, &test_size, &fixed_test_dataset, &accuracy_result_lock, &accuracy_result, &loss_result](uint32_t index, uint32_t thread_index, const std::pair<size_t,size_t>& current_model_pair) {
+        auto [index0, index1] = current_model_pair;
+        Ml::caffe_parameter_net<model_datatype> fusion_model = all_models[index0] * 0.5 + all_models[index1] * 0.5;
 
         //testing
         std::vector<const Ml::tensor_blob_like<model_datatype>*> test_data, test_label;
@@ -173,8 +168,8 @@ int main(int argc, char** argv) {
 
         {
             std::lock_guard guard(accuracy_result_lock);
-            accuracy_result.emplace(current_fusion_ratio, accuracy);
-            loss_result.emplace(current_fusion_ratio, loss);
+            accuracy_result.emplace(current_model_pair, accuracy);
+            loss_result.emplace(current_model_pair, loss);
         }
 
         finished_task++;
@@ -196,29 +191,48 @@ int main(int argc, char** argv) {
                 std::cout << "finishing " << current_percentage << "%%," << " expected to finish: " << std::put_time(end_time_tm, "%Y-%m-%d %H:%M:%S")<< std::endl;
             }
         }
-    }, total_tasks, fusion_ratio.data());
+    }, all_model_pairs.size(), all_model_pairs.data());
 
     delete[] solver_for_testing;
 
     // save to file
-    std::ofstream csv_file("fusion_model_accuracy.csv", std::ios::binary);
-    LOG_ASSERT(csv_file.good());
-    // header
-    for (int i = 0; i < model_size; ++i) {
-        csv_file << all_model_names[i] << ",";
-    }
-    csv_file << "accuracy,loss" << std::endl;
-
-    // data
-    for (const auto& single_ratio : fusion_ratio) {
-        for (int i = 0; i < model_size; ++i) {
-            csv_file << single_ratio[i] << ",";
+    {
+        std::ofstream csv_file("model_similarity.csv", std::ios::binary);
+        LOG_ASSERT(csv_file.good());
+        // header
+        csv_file << "node_index0,node_index1,accuracy,loss" << std::endl;
+        // data
+        for (const auto &single_pair: all_model_pairs) {
+            auto [index0, index1] = single_pair;
+            csv_file << all_model_names[index0] << "," << all_model_names[index1] << ",";
+            csv_file << accuracy_result[single_pair] << "," << loss_result[single_pair] << std::endl;
         }
-        csv_file << accuracy_result[single_ratio] << "," << loss_result[single_ratio] << std::endl;
+
+        csv_file.flush();
+        csv_file.close();
     }
 
-    csv_file.flush();
-    csv_file.close();
+    // save to net file
+    {
+        std::ofstream net_file("model_similarity.net", std::ios::binary);
+        LOG_ASSERT(net_file.good());
+
+        // header
+        net_file << "*Vertices" << " " << all_models.size() << std::endl;
+        for (size_t i=0; i < all_model_names.size(); i++) {
+            net_file << i+1 << " " << "\"" << all_model_names[i] << "\"" << std::endl;
+        }
+
+        // data
+        net_file << "*Arcs" << std::endl;
+        for (const auto &single_pair: all_model_pairs) {
+            auto [index0, index1] = single_pair;
+            net_file << index0+1 << " " << index1+1 << " " << loss_result[single_pair] << std::endl;
+        }
+
+        net_file.flush();
+        net_file.close();
+    }
 
     return 0;
 }
