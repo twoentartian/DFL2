@@ -1722,7 +1722,7 @@ public:
     std::filesystem::path output_records_path;
     std::string path;
     std::vector<std::string> nodes_to_record;
-
+    std::set<std::string> layers_to_record;
 
     delta_weight_after_training_averaging_record()
     {
@@ -1735,6 +1735,11 @@ public:
         this->path = config["path"];
         std::string nodes_to_record_str = config["nodes_to_record"];
         this->nodes_to_record = util::split(nodes_to_record_str, ',');
+        std::string layers_to_record_str = config["layers_to_record"];
+        const std::vector<std::string> layers = util::split(layers_to_record_str, ',');
+        for (const auto& layer : layers) {
+            this->layers_to_record.emplace(layer);
+        }
         return {service_status::success, ""};
     }
 
@@ -1843,6 +1848,10 @@ private:
         *file << "tick" << "," << "type";
         for (const Ml::caffe_parameter_layer<model_datatype>& layer : model.getLayers()) {
             const auto& layer_name = layer.getName();
+            if ( !(layers_to_record.contains(layer_name) || layers_to_record.contains("all")) ) {
+                continue;
+            }
+
             const size_t layer_size = layer.size();
             if (layer_size == 0) continue;
             for (size_t j = 0; j < layer_size; ++j) {
@@ -1859,6 +1868,11 @@ private:
     void store_weight_to_csv_row(std::shared_ptr<std::ofstream> file, std::string type, int tick, const Ml::caffe_parameter_net<model_datatype>& model) {
         *file << tick << "," << type;
         for (const Ml::caffe_parameter_layer<model_datatype>& layer : model.getLayers()) {
+            const auto& layer_name = layer.getName();
+            if ( !(layers_to_record.contains(layer_name) || layers_to_record.contains("all")) ) {
+                continue;
+            }
+
             const auto layer_size = layer.size();
             if (layer_size == 0) continue;
             const auto& blobs = layer.getBlob_p();
