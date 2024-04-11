@@ -2397,6 +2397,15 @@ private:
             model.set_all(target_weight_value);
             iter->second->solver->set_parameter(model);
         }
+        if (script.contains("scale_weights")) {
+            const model_datatype scale_value = script["scale_weights"].get<model_datatype>();
+            const std::string target_node_name = target_node->name;
+            auto iter = node_container->find(target_node_name);
+            LOG_ASSERT(iter != node_container->end());
+            auto model = iter->second->solver->get_parameter();
+            model = model * scale_value;
+            iter->second->solver->set_parameter(model);
+        }
     }
 
     bool remove_peer_of_node(const std::string& node_name, const std::string& peer_name) {
