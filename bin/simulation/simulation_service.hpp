@@ -2388,6 +2388,15 @@ private:
                 }
             }
         }
+        if (script.contains("set_weights")) {
+            const model_datatype target_weight_value = script["set_weights"].get<model_datatype>();
+            const std::string target_node_name = target_node->name;
+            auto iter = node_container->find(target_node_name);
+            LOG_ASSERT(iter != node_container->end());
+            auto model = iter->second->solver->get_parameter();
+            model.set_all(target_weight_value);
+            iter->second->solver->set_parameter(model);
+        }
     }
 
     bool remove_peer_of_node(const std::string& node_name, const std::string& peer_name) {
