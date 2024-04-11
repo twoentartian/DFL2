@@ -114,6 +114,34 @@ def set_node_model_override_model_from(script_target, tick: int, nodes, src_node
     })
 
 
+def set_node_weights(script_target, tick:int, value: float, nodes):
+    nodes = __convert_arg_to_list__(nodes)
+    changed_nodes = {}
+    for index, node in enumerate(nodes):
+        node_config = {
+            "set_weights": value
+        }
+        changed_nodes[str(node)] = node_config
+    script_target.append({
+        "tick": tick,
+        "script": changed_nodes,
+    })
+
+
+def scale_node_weights(script_target, tick:int, value: float, nodes):
+    nodes = __convert_arg_to_list__(nodes)
+    changed_nodes = {}
+    for index, node in enumerate(nodes):
+        node_config = {
+            "scale_weights": value
+        }
+        changed_nodes[str(node)] = node_config
+    script_target.append({
+        "tick": tick,
+        "script": changed_nodes,
+    })
+
+
 def find_edges_among_two_blocks(G: nx.Graph, block_a, block_b):
     edges_between_a_and_b = []
     for node in G.nodes:
