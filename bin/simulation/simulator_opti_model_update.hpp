@@ -237,6 +237,79 @@ protected:
     size_t _model_count;
 };
 
+template <typename model_datatype>
+class train_50_average_50_fix_variance_self : public opti_model_update<model_datatype> {
+public:
+    train_50_average_50_fix_variance_self() {
+        _model_count = 0;
+        _is_first_model = true;
+    }
+    
+    std::shared_ptr<opti_model_update<model_datatype>> create_shared() override {
+        return std::make_shared<train_50_average_50_fix_variance_self>();
+    }
+    
+    std::string get_name() override {
+        return "train_50_average_50_fix_variance_self";
+    }
+    
+    void add_model(const Ml::caffe_parameter_net<model_datatype>& model) override {
+        std::lock_guard guard(_lock);
+        _model_count++;
+        if (_is_first_model) {
+            _is_first_model = false;
+            _buffered_model = model;
+        }
+        else {
+            _buffered_model = _buffered_model + model;
+        }
+        
+        return;
+    }
+    
+    Ml::caffe_parameter_net<model_datatype> get_output_model(const Ml::caffe_parameter_net<model_datatype>& self_model, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_data, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_label) override {
+        std::lock_guard guard(_lock);
+        std::map<std::string, model_datatype> self_old_variance = opti_model_update_util::get_variance_for_model(self_model);
+        Ml::caffe_parameter_net<model_datatype> output = self_model * 0.5 + _buffered_model/_model_count * 0.5;
+        //modify variance
+        std::map<std::string, model_datatype> self_variance = opti_model_update_util::get_variance_for_model(output);
+        for (Ml::caffe_parameter_layer<model_datatype>& layer : output.getLayers()) {
+            const std::string& name = layer.getName();
+            const auto& blobs = layer.getBlob_p();
+            if (!blobs.empty()) {
+                auto self_layer_variance = self_variance[name];
+                auto target_variance = self_old_variance[name];
+//                scale_variance(blobs[0]->getData(), self_layer_variance + (average_variance[name] - self_layer_variance) *(variance_ratio_to_average_received_model_variance));
+                //factor = 1.01 -> loss=NAN at tick 5030
+                //factor = 0.99 -> no NAN until tick 10000
+                
+                opti_model_update_util::scale_variance(blobs[0]->getData(), target_variance);
+                
+                LOG(INFO) << "scale variance from " << self_layer_variance << " to " << target_variance << ("self old variance");
+            }
+        }
+        
+        std::map<std::string, model_datatype> self_variance_after_scaling = opti_model_update_util::get_variance_for_model(output);
+        
+        _model_count = 0;
+        _is_first_model = true;
+        return output;
+    }
+    
+    size_t get_model_count() override {
+        return _model_count;
+    }
+    
+    static void register_algorithm() {
+        opti_model_update<model_datatype>::_registerAlgorithm(std::make_shared<train_50_average_50_fix_variance_self>());
+    }
+
+protected:
+    std::mutex _lock;
+    bool _is_first_model;
+    Ml::caffe_parameter_net<model_datatype> _buffered_model;
+    size_t _model_count;
+};
 
 template <typename model_datatype>
 class train_50_average_50_fix_variance_auto_05 : public opti_model_update<model_datatype> {
@@ -589,6 +662,7 @@ void register_model_updating_algorithms() {
     train_0_average_100_fix_variance_auto<model_datatype>::register_algorithm();
     train_50_average_50_fix_variance_auto_05<model_datatype>::register_algorithm();
     train_50_average_50_fix_variance_auto_099<model_datatype>::register_algorithm();
+    train_50_average_50_fix_variance_self<model_datatype>::register_algorithm();
 }
 
 
