@@ -17,10 +17,10 @@ def __convert_arg_to_list__(args):
         raise Exception("arg has to be int or [int]")
 
 
-def set_node_status(script_target, tick: int, nodes, enabled: bool):
+def set_node_status_raw(script_target, tick: int, nodes, key, value):
     nodes = __convert_arg_to_list__(nodes)
     node_config = {
-        "enable": enabled
+        key: value
     }
     changed_nodes = {}
     for node in nodes:
@@ -29,6 +29,10 @@ def set_node_status(script_target, tick: int, nodes, enabled: bool):
         "tick": tick,
         "script": changed_nodes,
     })
+
+
+def set_node_status(script_target, tick: int, nodes, enabled: bool):
+    set_node_status_raw(script_target, tick, nodes, "enable", enabled)
 
 
 # normal,
@@ -45,17 +49,7 @@ def set_node_status(script_target, tick: int, nodes, enabled: bool):
 # normal_label_0_4,   //normal nodes but only receive training dataset whose labels are from 0 to 4
 # normal_label_5_9,   //normal nodes but only receive training dataset whose labels are from 5 to 9
 def set_node_type(script_target, tick: int, nodes, node_type: str):
-    nodes = __convert_arg_to_list__(nodes)
-    node_config = {
-        "node_type": node_type
-    }
-    changed_nodes = {}
-    for node in nodes:
-        changed_nodes[str(node)] = node_config
-    script_target.append({
-        "tick": tick,
-        "script": changed_nodes,
-    })
+    set_node_status_raw(script_target, tick, nodes, "node_type", node_type)
 
 
 def set_node_buffer_size(script_target, tick: int, nodes, buffer_size):
@@ -80,17 +74,7 @@ def set_node_buffer_size(script_target, tick: int, nodes, buffer_size):
 
 
 def set_node_training_interval_tick(script_target, tick: int, nodes, training_interval_tick):
-    nodes = __convert_arg_to_list__(nodes)
-    changed_nodes = {}
-    node_config = {
-        "training_interval_tick": training_interval_tick
-    }
-    for node in nodes:
-        changed_nodes[str(node)] = node_config
-    script_target.append({
-        "tick": tick,
-        "script": changed_nodes,
-    })
+    set_node_status_raw(script_target, tick, nodes, "training_interval_tick", training_interval_tick)
 
 
 def set_node_model_override_model_from(script_target, tick: int, nodes, src_nodes):
@@ -114,32 +98,12 @@ def set_node_model_override_model_from(script_target, tick: int, nodes, src_node
     })
 
 
-def set_node_weights(script_target, tick:int, value: float, nodes):
-    nodes = __convert_arg_to_list__(nodes)
-    changed_nodes = {}
-    for index, node in enumerate(nodes):
-        node_config = {
-            "set_weights": value
-        }
-        changed_nodes[str(node)] = node_config
-    script_target.append({
-        "tick": tick,
-        "script": changed_nodes,
-    })
+def set_node_weights(script_target, tick:int, nodes, value: float):
+    set_node_status_raw(script_target, tick, nodes, "set_weights", value)
 
 
-def scale_node_weights(script_target, tick:int, value: float, nodes):
-    nodes = __convert_arg_to_list__(nodes)
-    changed_nodes = {}
-    for index, node in enumerate(nodes):
-        node_config = {
-            "scale_weights": value
-        }
-        changed_nodes[str(node)] = node_config
-    script_target.append({
-        "tick": tick,
-        "script": changed_nodes,
-    })
+def scale_node_weights(script_target, tick:int, nodes, value: float):
+    set_node_status_raw(script_target, tick, nodes, "set_weights", value)
 
 
 def find_edges_among_two_blocks(G: nx.Graph, block_a, block_b):
