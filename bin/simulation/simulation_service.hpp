@@ -2360,7 +2360,7 @@ private:
                 if (result == nullptr) {
                     LOG(FATAL) << "unknown node type:" << new_target_node_type;
                 } else {
-                    temp_node = result->new_node(iter->second->name, iter->second->buffer_size);
+                    temp_node = result->new_node(iter->second->name, iter->second->buffer_size, iter->second->node_type_arg);
                 }
             }
             //move properties of old node to new node

@@ -155,6 +155,10 @@ int main(int argc, char *argv[])
 		const int buf_size = single_node["buffer_size"];
 		
 		const std::string node_type = single_node["node_type"];
+        std::optional<std::string> node_type_arg = {};
+        if (single_node.contains("node_type_arg")) {
+            node_type_arg = {single_node["node_type"]};
+        }
 		
 		node<model_datatype> *temp_node = nullptr;
 		
@@ -167,7 +171,7 @@ int main(int argc, char *argv[])
 			}
 			else
 			{
-				temp_node = result->new_node(node_name, buf_size);
+				temp_node = result->new_node(node_name, buf_size, node_type_arg);
 			}
 		}
 		

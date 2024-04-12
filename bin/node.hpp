@@ -71,7 +71,9 @@ enum node_type
     normal_label_5_9,   //normal nodes but only receive training dataset whose labels are from 5 to 9
 
     federated_learning_server,  //server do not training, only perform averaging and send averaged model to other nodes
-
+    
+    normal_reduced_sending, //normal node but only send models to others per x rounds. x can be specified by args.
+    
 	node_type_last_index
 };
 
@@ -93,7 +95,7 @@ template<typename model_datatype>
 class node
 {
 public:
-	node(std::string _name, size_t buf_size) : name(std::move(_name)), next_train_tick(0), buffer_size(buf_size), planned_buffer_size(buf_size), dataset_mode(dataset_mode_type::unknown), model_generation_type(Ml::model_compress_type::unknown), filter_limit(0.0f), last_measured_accuracy(0.0f), last_measured_tick(0), type(node_type::unknown_node_type)
+	node(std::string _name, size_t buf_size, std::optional<std::string> arg = {}) : name(std::move(_name)), next_train_tick(0), buffer_size(buf_size), planned_buffer_size(buf_size), dataset_mode(dataset_mode_type::unknown), model_generation_type(Ml::model_compress_type::unknown), filter_limit(0.0f), last_measured_accuracy(0.0f), last_measured_tick(0), type(node_type::unknown_node_type), node_type_arg(arg)
 	{
 		solver.reset(new Ml::MlCaffeModel<model_datatype, caffe::SGDSolver>());
         enable = true;
@@ -105,6 +107,7 @@ public:
 	std::string name;
 	dataset_mode_type dataset_mode;
 	node_type type;
+    std::optional<std::string> node_type_arg;
 	//std::unordered_map<int, std::tuple<Ml::caffe_parameter_net<model_datatype>, float>> nets_record; //for delayed accuracy testing
 	std::unordered_map<int, model_datatype> nets_accuracy_only_record; //for non-delayed accuracy testing
 	int next_train_tick;
@@ -181,7 +184,7 @@ public:
 	
 	virtual std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() = 0;
 	
-	virtual node<model_datatype> *new_node(std::string _name, size_t buf_size) = 0;
+	virtual node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) = 0;
 	
 	static node<model_datatype> *get_node_by_type(const std::string type)
 	{
@@ -256,7 +259,7 @@ public:
 		node<model_datatype>::_registerNodeType(type_name(), new normal_node("template", 0));
 	}
 	
-	node<model_datatype> *new_node(std::string _name, size_t buf_size) override
+	node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
 	{
 		return new normal_node(_name, buf_size);
 	}
@@ -293,7 +296,7 @@ public:
 		node<model_datatype>::_registerNodeType(type_name(), new observer_node("template", 0));
 	}
 	
-	node<model_datatype> *new_node(std::string _name, size_t buf_size) override
+	node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
 	{
 		return new observer_node(_name, buf_size);
 	}
@@ -331,7 +334,7 @@ public:
         node<model_datatype>::_registerNodeType(type_name(), new no_training_node("template", 0));
     }
     
-    node<model_datatype> *new_node(std::string _name, size_t buf_size) override
+    node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
     {
         return new no_training_node(_name, buf_size);
     }
@@ -372,7 +375,7 @@ public:
         node<model_datatype>::_registerNodeType(type_name(), new pontificator_node("template", 0));
     }
 
-    node<model_datatype> *new_node(std::string _name, size_t buf_size) override
+    node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
     {
         return new pontificator_node(_name, buf_size);
     }
@@ -411,7 +414,7 @@ public:
 		node<model_datatype>::_registerNodeType(type_name(), new malicious_model_poisoning_random_model_node("template", 0));
 	}
 	
-	node<model_datatype> *new_node(std::string _name, size_t buf_size) override
+	node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
 	{
 		return new malicious_model_poisoning_random_model_node(_name, buf_size);
 	}
@@ -456,7 +459,7 @@ public:
 		node<model_datatype>::_registerNodeType(type_name(), new malicious_model_poisoning_random_model_by_turn_node("template", 0));
 	}
 	
-	node<model_datatype> *new_node(std::string _name, size_t buf_size) override
+	node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
 	{
 		return new malicious_model_poisoning_random_model_by_turn_node(_name, buf_size);
 	}
@@ -507,7 +510,7 @@ public:
 		node<model_datatype>::_registerNodeType(type_name(), new malicious_model_poisoning_random_model_biased_0_1_node("template", 0));
 	}
 	
-	node<model_datatype> *new_node(std::string _name, size_t buf_size) override
+	node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
 	{
 		return new malicious_model_poisoning_random_model_biased_0_1_node(_name, buf_size);
 	}
@@ -548,7 +551,7 @@ public:
 		node<model_datatype>::_registerNodeType(type_name(), new malicious_duplication_attack_node("template", 0));
 	}
 	
-	node<model_datatype> *new_node(std::string _name, size_t buf_size) override
+	node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
 	{
 		return new malicious_duplication_attack_node(_name, buf_size);
 	}
@@ -585,7 +588,7 @@ public:
 		node<model_datatype>::_registerNodeType(type_name(), new malicious_data_poisoning_shuffle_label_node("template", 0));
 	}
 	
-	node<model_datatype> *new_node(std::string _name, size_t buf_size) override
+	node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
 	{
 		return new malicious_data_poisoning_shuffle_label_node(_name, buf_size);
 	}
@@ -646,7 +649,7 @@ public:
 		node<model_datatype>::_registerNodeType(type_name(), new malicious_data_poisoning_shuffle_label_biased_1_node("template", 0));
 	}
 	
-	node<model_datatype> *new_node(std::string _name, size_t buf_size) override
+	node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
 	{
 		return new malicious_data_poisoning_shuffle_label_biased_1_node(_name, buf_size);
 	}
@@ -706,7 +709,7 @@ public:
 		node<model_datatype>::_registerNodeType(type_name(), new malicious_data_poisoning_random_data_node("template", 0));
 	}
 	
-	node<model_datatype> *new_node(std::string _name, size_t buf_size) override
+	node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
 	{
 		return new malicious_data_poisoning_random_data_node(_name, buf_size);
 	}
@@ -759,7 +762,7 @@ public:
         node<model_datatype>::_registerNodeType(type_name(), new normal_node_label_0_4("template", 0));
     }
 
-    node<model_datatype> *new_node(std::string _name, size_t buf_size) override
+    node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
     {
         return new normal_node_label_0_4(_name, buf_size);
     }
@@ -796,7 +799,7 @@ public:
         node<model_datatype>::_registerNodeType(type_name(), new normal_node_label_5_9("template", 0));
     }
 
-    node<model_datatype> *new_node(std::string _name, size_t buf_size) override
+    node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
     {
         return new normal_node_label_5_9(_name, buf_size);
     }
@@ -833,7 +836,7 @@ public:
         node<model_datatype>::_registerNodeType(type_name(), new federated_learning_server_node("template", 0));
     }
 
-    node<model_datatype> *new_node(std::string _name, size_t buf_size) override
+    node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
     {
         return new federated_learning_server_node(_name, buf_size);
     }
@@ -849,6 +852,57 @@ public:
     {
         if (!this->enable) return {};
         return {this->solver->get_parameter()};
+    }
+};
+
+template<typename model_datatype>
+class normal_node_reduced_sending : public node<model_datatype>
+{
+private:
+    int reduce_factor;
+    int send_counter;
+    
+public:
+    normal_node_reduced_sending(std::string _name, size_t buf_size, int reduce_factor) : node<model_datatype>(_name, buf_size, {std::to_string(reduce_factor)})
+    {
+        this->type = normal_reduced_sending;
+        this->send_counter = 0;
+        this->reduce_factor = reduce_factor;
+    };
+    
+    static std::string type_name()
+    {
+        return "normal_reduced_sending";
+    }
+    
+    static void registerNodeType()
+    {
+        node<model_datatype>::_registerNodeType(type_name(), new normal_node_reduced_sending("template", 0, 0));
+    }
+    
+    node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
+    {
+        LOG_ASSERT(arg.has_value());
+        int arg_reduce_factor = std::stoi(*arg);
+        return new normal_node_reduced_sending(_name, buf_size, arg_reduce_factor);
+    }
+    
+    void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
+    {
+        if (!this->enable) return;
+        this->solver->train(data, label, display);
+    }
+    
+    std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() override
+    {
+        if (!this->enable) return {};
+        
+        send_counter++;
+        if (send_counter == reduce_factor) {
+            send_counter = 0;
+            return {this->solver->get_parameter()};
+        }
+        return {};
     }
 };
 
@@ -873,6 +927,8 @@ static void register_node_types()
     normal_node_label_5_9<model_datatype>::registerNodeType();
 
     federated_learning_server_node<model_datatype>::registerNodeType();
+    
+    normal_node_reduced_sending<model_datatype>::registerNodeType();
 }
 
 #endif //DFL_NODE_HPP

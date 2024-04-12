@@ -58,6 +58,7 @@ configuration_file::json get_default_simulation_configuration()
 	node["filter_limit"] = 0.5;
     node["first_train_tick"] = 0;
 	node["node_type"] = "normal";
+    node["node_type_arg"] = "none";
 	node["non_iid_distribution"] = node_non_iid;
 	
 	configuration_file::json nodes = configuration_file::json::array();
