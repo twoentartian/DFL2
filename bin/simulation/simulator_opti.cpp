@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
         const std::string node_type = single_node["node_type"];
         std::optional<std::string> node_type_arg = {};
         if (single_node.contains("node_type_arg")) {
-            node_type_arg = {single_node["node_type"]};
+            node_type_arg = std::make_optional(single_node["node_type_arg"].get<std::string>());
         }
 
         node<model_datatype> *temp_node = nullptr;
