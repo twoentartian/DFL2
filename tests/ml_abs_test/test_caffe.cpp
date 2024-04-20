@@ -335,4 +335,76 @@ BOOST_AUTO_TEST_CASE (caffe_ext_predict)
 	std::cout << "predict accuracy: " << float (correct_count) / all_count << std::endl;
 }
 
+BOOST_AUTO_TEST_CASE (caffe_mobile_net_v2_train)
+{
+    Ml::caffe_solver_ext<float, caffe::SGDSolver> model1("../../../dataset/CIFAR10/cifar10_solver.prototxt");
+    BOOST_CHECK(model1.checkValidFirstLayer_memoryLayer());
+
+    const std::string dataset_path = "../../../dataset/CIFAR10";
+
+    LOG(INFO) << "loading dataset";
+    Ml::data_converter<float> dataset;
+    dataset.load_dataset_cifar10(dataset_path, Ml::load_dataset_type::TRAIN);
+    LOG(INFO) << "loading dataset - done";
+    LOG(INFO) << "total data samples: " << dataset.get_data().size();
+
+    Ml::caffe_parameter_net<float> net;
+//    net.fromNet(*model1.net());
+
+    for (int repeat = 0; repeat < 5000; ++repeat)
+    {
+        auto [train_x, train_y] = dataset.get_random_data(100);
+//        MEASURE_TIME(model1.TrainDataset(train_x, train_y));
+        model1.TrainDataset(train_x, train_y);
+
+//        net.fromNet(*model1.net());
+
+        if (repeat%100==0) {
+            auto [test_x, test_y] = dataset.get_random_data(1000);
+            MEASURE_TIME(auto results = model1.TestDataset(test_x, test_y));
+            for (auto&& result : results)
+            {
+                auto& [accuracy,loss] = result;
+                std::cout << "accuracy:" << accuracy << "    loss:" << loss << std::endl;
+            }
+        }
+    }
+
+    auto [test_x, test_y] = dataset.get_random_data(1000);
+    std::vector<std::vector<Ml::tensor_blob_like<float>>> result = model1.PredictDataset(test_x);
+    std::vector<Ml::tensor_blob_like<float>> predict_labels;
+    predict_labels.reserve(test_y.size());
+    for (int i = 0; i < result[0].size(); ++i)
+    {
+        float max_prob = 0;
+        int max_prob_label = 0;
+        for (int label_index = 0; label_index < result[0][i].size(); ++label_index)
+        {
+            Ml::tensor_blob_like<float>& tensorBlobLike = result[0][i];
+            float value = tensorBlobLike.getData()[label_index];
+            if (value > max_prob)
+            {
+                max_prob = value;
+                max_prob_label = label_index;
+            }
+        }
+        Ml::tensor_blob_like<float> label;
+        label.getShape() = {1};
+        label.getData() = {float(max_prob_label)};
+        predict_labels.push_back(label);
+    }
+
+    int correct_count = 0;
+    int all_count = 0;
+    for (int i = 0; i < predict_labels.size(); ++i)
+    {
+        if (predict_labels[i].roughly_equal(*test_y[i], 0.1))
+        {
+            correct_count++;
+        }
+        all_count++;
+    }
+    std::cout << "predict accuracy: " << float (correct_count) / all_count << std::endl;
+}
+
 BOOST_AUTO_TEST_SUITE_END( )

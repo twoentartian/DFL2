@@ -1,0 +1,10 @@
+//LeNET
+
+"ml_solver_proto": "../../../dataset/MNIST/lenet_solver_memory.prototxt",
+"ml_test_batch_size": 100,
+"ml_test_dataset": "../../../dataset/MNIST/t10k-images.idx3-ubyte",
+"ml_test_dataset_label": "../../../dataset/MNIST/t10k-labels.idx1-ubyte",
+"ml_train_batch_size": 64,
+"ml_train_dataset": "../../../dataset/MNIST/train-images.idx3-ubyte",
+"ml_train_dataset_label": "../../../dataset/MNIST/train-labels.idx1-ubyte",
+

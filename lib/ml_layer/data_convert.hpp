@@ -9,6 +9,7 @@
 #include <fstream>
 #include <random>
 #include <unordered_map>
+#include <filesystem>
 #include <glog/logging.h>
 
 #include <boost_serialization_wrapper.hpp>
@@ -35,7 +36,12 @@ namespace Ml{
 	private:
 		std::unordered_map<std::string, float> _distribution;
 	};
-	
+
+    enum load_dataset_type {
+        TRAIN,
+        TEST
+    };
+
     template <typename DType>
     class data_converter
     {
@@ -91,17 +97,79 @@ namespace Ml{
 		       current_label_blob[0] = temp_label;
 	        }
 	        delete[] temp_pixels;
-	        
-	        //generate _data_tensor_by_label
-	        for (int index = 0; index < num_items; ++index)
-	        {
-	        	std::string key = _label[index].get_str();
+
+            load_data_post_processing();
+        }
+
+        void load_dataset_cifar10(const std::string &dataset_folder_path, load_dataset_type type) {
+            auto read_single_cifar_file = [](const std::string& path, std::vector<Ml::tensor_blob_like<DType>>& data, std::vector<Ml::tensor_blob_like<DType>>& label){
+                std::ifstream file;
+                file.open(path, std::ios::in | std::ios::binary | std::ios::ate);
+                if (!file) {
+                    std::cout << "Error opening file: " << path << std::endl;
+                    return;
+                }
+                auto file_size = file.tellg();
+                std::unique_ptr<char[]> buffer(new char[file_size]);
+                file.seekg(0, std::ios::beg);
+                file.read(buffer.get(), file_size);
+                file.close();
+
+                // Prepare the size for the new
+                const size_t size = 10000;
+                const size_t rows = 32;
+                const size_t cols = 32;
+                const size_t channel = 3;
+                const size_t total_label_count = 10;
+                size_t begin_loc = data.size();
+                LOG_ASSERT(data.size()==label.size());
+                data.resize(data.size() + size);
+                label.resize(label.size() + size);
+
+                for(std::size_t i = 0; i < size; ++i){
+                    auto& current_data_blob = data[begin_loc+i].getData();
+                    auto& current_label_blob = label[begin_loc+i].getData();
+                    data[begin_loc+i].getShape() = {channel, static_cast<int>(rows), static_cast<int>(cols)};
+                    label[begin_loc+i].getShape() = {1};
+
+                    current_label_blob.resize(1);
+                    current_label_blob[0] = buffer[i * (rows*cols*channel+1)];
+                    LOG_ASSERT(current_label_blob[0] < total_label_count);
+                    current_data_blob.resize(rows*cols*channel);
+                    for(std::size_t j = 0; j < rows*cols*channel; ++j){
+                        current_data_blob[j] = buffer[i * (rows*cols*channel+1) + j + 1];
+                    }
+                }
+            };
+
+            std::filesystem::path target(dataset_folder_path);
+            if (type == load_dataset_type::TRAIN) {
+                read_single_cifar_file(target / "data_batch_1.bin", _data, _label);
+                read_single_cifar_file(target / "data_batch_2.bin", _data, _label);
+                read_single_cifar_file(target / "data_batch_3.bin", _data, _label);
+                read_single_cifar_file(target / "data_batch_4.bin", _data, _label);
+                read_single_cifar_file(target / "data_batch_5.bin", _data, _label);
+            }
+            else if (type == load_dataset_type::TEST) {
+                read_single_cifar_file(target / "test_batch.bin", _data, _label);
+            }
+
+            load_data_post_processing();
+        }
+
+        void load_data_post_processing()
+        {
+            //generate _data_tensor_by_label
+            LOG_ASSERT(_data.size() == _label.size());
+            for (int index = 0; index < _data.size(); ++index)
+            {
+                std::string key = _label[index].get_str();
                 //add to data container
                 {
                     auto key_iter = _data_tensor_by_label.find(key);
                     if (key_iter == _data_tensor_by_label.end())
                     {
-                        _data_tensor_by_label[key].reserve(num_items / 5);
+                        _data_tensor_by_label[key].reserve(_data.size() / 5);
                     }
                     _data_tensor_by_label[key].push_back(_data[index]);
                 }
@@ -113,16 +181,16 @@ namespace Ml{
                         _label_tensor_by_label[key] = _label[index];
                     }
                 }
-	        }
-	        for(auto&& iter: _data_tensor_by_label)
-	        {
-		        iter.second.shrink_to_fit();
-	        }
+            }
+            for(auto&& iter: _data_tensor_by_label)
+            {
+                iter.second.shrink_to_fit();
+            }
 
             //generate a fixed sequence for use_random_data==false
             std::vector<size_t> sequence;
-            sequence.reserve(num_items);
-            for (int i = 0; i < num_items; ++i) {
+            sequence.reserve(_data.size());
+            for (int i = 0; i < _data.size(); ++i) {
                 sequence.push_back(i);
             }
             std::shuffle(sequence.begin(), sequence.end(), std::mt19937(_dev()));
