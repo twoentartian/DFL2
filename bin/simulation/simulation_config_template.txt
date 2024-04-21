@@ -1,5 +1,6 @@
-//LeNET
-
+//MNIST
+"ml_dataset_type": "mnist",
+...
 "ml_solver_proto": "../../../dataset/MNIST/lenet_solver_memory.prototxt",
 "ml_test_batch_size": 100,
 "ml_test_dataset": "../../../dataset/MNIST/t10k-images.idx3-ubyte",
@@ -8,3 +9,13 @@
 "ml_train_dataset": "../../../dataset/MNIST/train-images.idx3-ubyte",
 "ml_train_dataset_label": "../../../dataset/MNIST/train-labels.idx1-ubyte",
 
+//CIFAR10
+"ml_dataset_type": "cifar10",
+...
+"ml_solver_proto": "../../../dataset/CIFAR10/cifar10_solver.prototxt",
+"ml_test_batch_size": 100,
+"ml_test_dataset": "../../../dataset/CIFAR10",
+"ml_test_dataset_label": "",
+"ml_train_batch_size": 100,
+"ml_train_dataset": "../../../dataset/CIFAR10",
+"ml_train_dataset_label": "",

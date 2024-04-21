@@ -98,6 +98,7 @@ int main(int argc, char *argv[])
 	
 	//update global var
     model_updating_algorithm_name = *config.get<std::string>("simulator_opti_averaging_algorithm");
+    auto ml_dataset_type = *config.get<std::string>("ml_dataset_type");
     auto random_training_sequence = *config.get<bool>("random_training_sequence");
 	auto ml_solver_proto = *config.get<std::string>("ml_solver_proto");
 	auto ml_train_dataset = *config.get<std::string>("ml_train_dataset");
@@ -371,9 +372,18 @@ int main(int argc, char *argv[])
 	
 	//load dataset
 	Ml::data_converter<model_datatype> train_dataset;
-	train_dataset.load_dataset_mnist(ml_train_dataset, ml_train_dataset_label);
-	Ml::data_converter<model_datatype> test_dataset;
-	test_dataset.load_dataset_mnist(ml_test_dataset, ml_test_dataset_label);
+    Ml::data_converter<model_datatype> test_dataset;
+    if (ml_dataset_type == "mnist") {
+        train_dataset.load_dataset_mnist(ml_train_dataset, ml_train_dataset_label);
+        test_dataset.load_dataset_mnist(ml_test_dataset, ml_test_dataset_label);
+    }
+    else if (ml_dataset_type == "cifar10") {
+        train_dataset.load_dataset_cifar10(ml_train_dataset, Ml::load_dataset_type::TRAIN);
+        test_dataset.load_dataset_cifar10(ml_test_dataset, Ml::load_dataset_type::TEST);
+    }
+    else {
+        LOG(FATAL) << "unknown ml_model_type:" << ml_dataset_type;
+    }
 	
 	//node vector container
 	std::vector<node<model_datatype>*> node_pointer_vector_container;

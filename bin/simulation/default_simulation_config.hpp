@@ -16,7 +16,9 @@ configuration_file::json get_default_simulation_configuration()
 	output["report_time_remaining_per_tick_elapsed"] = 100;
 
     output["random_training_sequence"] = true;
-	
+
+    output["ml_dataset_type"] = "mnist";
+    output["ml_model_type_candidate"] = "mnist,cifar10";
 	output["ml_solver_proto"] = "../../../dataset/MNIST/lenet_solver_memory.prototxt";
 	output["ml_train_dataset"] = "../../../dataset/MNIST/train-images.idx3-ubyte";
 	output["ml_train_dataset_label"] = "../../../dataset/MNIST/train-labels.idx1-ubyte";
