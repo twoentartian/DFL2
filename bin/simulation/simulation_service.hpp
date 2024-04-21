@@ -119,13 +119,20 @@ public:
 		LOG_IF(FATAL, test_dataset == nullptr) << "test_dataset is not set";
 		
 		accuracy_file.reset(new std::ofstream(output_path / "accuracy.csv", std::ios::binary));
-		
 		*accuracy_file << "tick";
 		for (auto &single_node : *(this->node_container))
 		{
 			*accuracy_file << "," << single_node.second->name;
 		}
 		*accuracy_file << std::endl;
+
+        loss_file.reset(new std::ofstream(output_path / "loss.csv", std::ios::binary));
+        *loss_file << "tick";
+        for (auto &single_node : *(this->node_container))
+        {
+            *loss_file << "," << single_node.second->name;
+        }
+        *loss_file << std::endl;
 		
 		//solver for testing
 		size_t solver_for_testing_size = std::thread::hardware_concurrency();
@@ -180,7 +187,9 @@ public:
             }
             auto model = single_node->solver->get_parameter();
             solver_for_testing[thread_index].set_parameter(model);
-            auto accuracy = solver_for_testing[thread_index].evaluation(test_data, test_label);
+            model_datatype loss = 0;
+            auto accuracy = solver_for_testing[thread_index].evaluation(test_data, test_label, &loss);
+            single_node->nets_loss_only_record.emplace(tick, loss);
             single_node->nets_accuracy_only_record.emplace(tick, accuracy);
         }, this->node_vector_container->size(), this->node_vector_container->data());
         
@@ -200,6 +209,23 @@ public:
             }
         }
         *accuracy_file << std::endl;
+
+        //print loss to file
+        *loss_file << tick;
+        for (auto &single_node: *(this->node_container))
+        {
+            auto iter_find = single_node.second->nets_loss_only_record.find(tick);
+            if (iter_find != single_node.second->nets_loss_only_record.end())
+            {
+                auto loss = iter_find->second;
+                *loss_file << "," << loss;
+            }
+            else
+            {
+                *loss_file << "," << " ";
+            }
+        }
+        *loss_file << std::endl;
         
 		return {service_status::success, ""};
 	}
@@ -215,6 +241,8 @@ public:
 		delete[] solver_for_testing;
 		accuracy_file->flush();
 		accuracy_file->close();
+        loss_file->flush();
+        loss_file->close();
 		
 		return {service_status::success, ""};
 	}
@@ -222,6 +250,7 @@ public:
 private:
 	Ml::MlCaffeModel<float, caffe::SGDSolver>* solver_for_testing;
 	std::shared_ptr<std::ofstream> accuracy_file;
+    std::shared_ptr<std::ofstream> loss_file;
 };
 
 template <typename model_datatype>

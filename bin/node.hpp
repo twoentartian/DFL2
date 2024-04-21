@@ -110,6 +110,7 @@ public:
     std::optional<std::string> node_type_arg;
 	//std::unordered_map<int, std::tuple<Ml::caffe_parameter_net<model_datatype>, float>> nets_record; //for delayed accuracy testing
 	std::unordered_map<int, model_datatype> nets_accuracy_only_record; //for non-delayed accuracy testing
+    std::unordered_map<int, model_datatype> nets_loss_only_record; //for non-delayed accuracy testing
 	int next_train_tick;
 	std::unordered_map<int, std::tuple<float, float>> special_non_iid_distribution; //label:{min,max}
 	std::vector<int> training_interval_tick;
