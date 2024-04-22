@@ -137,7 +137,7 @@ namespace Ml{
                     LOG_ASSERT(current_label_blob[0] < total_label_count);
                     current_data_blob.resize(rows*cols*channel);
                     for(std::size_t j = 0; j < rows*cols*channel; ++j){
-                        current_data_blob[j] = buffer[i * (rows*cols*channel+1) + j + 1];
+                        current_data_blob[j] = static_cast<uint8_t>(buffer[i * (rows*cols*channel+1) + j + 1]);
                     }
                 }
             };
