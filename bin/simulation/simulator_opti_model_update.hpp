@@ -275,6 +275,10 @@ public:
         std::map<std::string, model_datatype> self_variance = opti_model_update_util::get_variance_for_model(output);
         for (Ml::caffe_parameter_layer<model_datatype>& layer : output.getLayers()) {
             const std::string& name = layer.getName();
+            const std::string layer_type = layer.getType();
+//            if (layer_type == "BatchNorm") continue;
+            if (layer_type == "Scale") continue;
+
             const auto& blobs = layer.getBlob_p();
             if (!blobs.empty()) {
                 auto self_layer_variance = self_variance[name];
