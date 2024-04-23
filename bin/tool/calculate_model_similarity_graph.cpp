@@ -90,16 +90,34 @@ int main(int argc, char** argv) {
         if (!std::filesystem::exists(model_path)) {
             LOG(FATAL) << model_path << " does not exist";
         }
-        std::ifstream model_file;
-        model_file.open(model_path, std::ios::binary);
-        LOG_IF(FATAL, model_file.bad()) << "cannot open file: " << model_path;
-        std::stringstream buffer;
-        buffer << model_file.rdbuf();
-        auto model = deserialize_wrap<boost::archive::binary_iarchive, Ml::caffe_parameter_net<float>>(buffer.str());
-        std::string model_name = model_path.filename().replace_extension();
-        all_models.emplace_back(model);
-        all_model_names.push_back(model_name);
-        std::cout << "loading model: " << model_name << ". with path: " << model_path << std::endl;
+
+        if (std::filesystem::is_directory(model_path)) {
+            for (const auto & entry : std::filesystem::directory_iterator(model_path)) {
+                const std::filesystem::path& _model_path(entry);
+                std::ifstream model_file;
+                model_file.open(_model_path, std::ios::binary);
+                LOG_IF(FATAL, model_file.bad()) << "cannot open file: " << _model_path;
+                std::stringstream buffer;
+                buffer << model_file.rdbuf();
+                auto model = deserialize_wrap<boost::archive::binary_iarchive, Ml::caffe_parameter_net<float>>(buffer.str());
+                std::string model_name = _model_path.filename().replace_extension();
+                all_models.emplace_back(model);
+                all_model_names.push_back(model_name);
+                std::cout << "loading model: " << model_name << ". with path: " << _model_path << std::endl;
+            }
+        }
+        else if (std::filesystem::is_regular_file(model_path)) {
+            std::ifstream model_file;
+            model_file.open(model_path, std::ios::binary);
+            LOG_IF(FATAL, model_file.bad()) << "cannot open file: " << model_path;
+            std::stringstream buffer;
+            buffer << model_file.rdbuf();
+            auto model = deserialize_wrap<boost::archive::binary_iarchive, Ml::caffe_parameter_net<float>>(buffer.str());
+            std::string model_name = model_path.filename().replace_extension();
+            all_models.emplace_back(model);
+            all_model_names.push_back(model_name);
+            std::cout << "loading model: " << model_name << ". with path: " << model_path << std::endl;
+        }
     }
 
     //solver for testing
