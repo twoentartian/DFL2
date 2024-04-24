@@ -14,7 +14,7 @@ layer {
     mean_value: 128
   }
   memory_data_param {
-    batch_size: 100
+    batch_size: 128
     channels: 3
     height: 32
     width: 32
