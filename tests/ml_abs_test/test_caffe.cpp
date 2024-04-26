@@ -578,7 +578,7 @@ BOOST_AUTO_TEST_CASE (caffe_ResNet20_train)
 
     for (int repeat = 0; repeat < 20000; ++repeat)
     {
-        auto [train_x, train_y] = dataset.get_random_data(100);
+        auto [train_x, train_y] = dataset.get_random_data(128);
 //        MEASURE_TIME(model1.TrainDataset(train_x, train_y));
         model1.TrainDataset(train_x, train_y);
 

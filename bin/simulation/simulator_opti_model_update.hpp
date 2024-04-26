@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mutex>
+#include <sstream>
 #include <map>
 #include <ml_layer.hpp>
 
@@ -15,7 +16,7 @@ public:
 
 	virtual void add_model(const Ml::caffe_parameter_net<model_datatype>& model) = 0;
 	
-	virtual Ml::caffe_parameter_net<model_datatype> get_output_model(const Ml::caffe_parameter_net<model_datatype>& self_model, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_data, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_label, const std::string& info) = 0;
+	virtual Ml::caffe_parameter_net<model_datatype> get_output_model(const Ml::caffe_parameter_net<model_datatype>& self_model, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_data, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_label, const std::string& info, const std::map<std::string, std::string>& args = {}) = 0;
 	
 	virtual size_t get_model_count() = 0;
 
@@ -83,9 +84,16 @@ namespace opti_model_update_util {
     }
 
     template<typename model_datatype>
-    static void scale_variance(std::vector<model_datatype>& data_series, model_datatype target_variance, float ratio=1.0f) {
+    static void scale_variance(std::vector<model_datatype>& data_series, model_datatype target_variance, float ratio=1.0f, float self_layer_variance=NAN) {
         model_datatype meanD1 = calculate_mean(data_series);
-        model_datatype varD1 = calculate_variance(data_series);
+    
+        model_datatype varD1 = 0;
+        if (isnan(self_layer_variance)) {
+            varD1 = calculate_variance(data_series);
+        }
+        else {
+            varD1 = self_layer_variance;
+        }
 
         // Calculate the standard deviation of D1 and the target standard deviation (sqrt of v2)
         model_datatype stdD1 = std::sqrt(varD1);
@@ -129,7 +137,7 @@ public:
 		}
 	}
 	
-	Ml::caffe_parameter_net<model_datatype> get_output_model(const Ml::caffe_parameter_net<model_datatype>& self_model, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_data, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_label, const std::string& info) override {
+	Ml::caffe_parameter_net<model_datatype> get_output_model(const Ml::caffe_parameter_net<model_datatype>& self_model, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_data, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_label, const std::string& info, const std::map<std::string, std::string>& args = {}) override {
 		std::lock_guard guard(_lock);
 		auto output = self_model * 0.5 + _buffered_model/_model_count * 0.5;
 		_model_count = 0;
@@ -185,7 +193,7 @@ public:
         return;
     }
 
-    Ml::caffe_parameter_net<model_datatype> get_output_model(const Ml::caffe_parameter_net<model_datatype>& self_model, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_data, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_label, const std::string& info) override {
+    Ml::caffe_parameter_net<model_datatype> get_output_model(const Ml::caffe_parameter_net<model_datatype>& self_model, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_data, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_label, const std::string& info, const std::map<std::string, std::string>& args = {}) override {
         std::lock_guard guard(_lock);
         Ml::caffe_parameter_net<model_datatype> output = self_model * 0.5 + _buffered_model/_model_count * 0.5;
         //modify variance
@@ -267,7 +275,7 @@ public:
         return;
     }
     
-    Ml::caffe_parameter_net<model_datatype> get_output_model(const Ml::caffe_parameter_net<model_datatype>& self_model, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_data, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_label, const std::string& info) override {
+    Ml::caffe_parameter_net<model_datatype> get_output_model(const Ml::caffe_parameter_net<model_datatype>& self_model, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_data, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_label, const std::string& info, const std::map<std::string, std::string>& args = {}) override {
         std::lock_guard guard(_lock);
         std::map<std::string, model_datatype> self_old_variance = opti_model_update_util::get_variance_for_model(self_model);
         Ml::caffe_parameter_net<model_datatype> output = self_model * 0.5 + _buffered_model/_model_count * 0.5;
@@ -348,7 +356,7 @@ public:
         return;
     }
 
-    Ml::caffe_parameter_net<model_datatype> get_output_model(const Ml::caffe_parameter_net<model_datatype>& self_model, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_data, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_label, const std::string& info) override {
+    Ml::caffe_parameter_net<model_datatype> get_output_model(const Ml::caffe_parameter_net<model_datatype>& self_model, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_data, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_label, const std::string& info, const std::map<std::string, std::string>& args = {}) override {
         std::lock_guard guard(_lock);
         Ml::caffe_parameter_net<model_datatype> output = self_model * 0.5 + _buffered_model/_model_count * 0.5;
         //modify variance
@@ -433,7 +441,7 @@ public:
         return;
     }
 
-    Ml::caffe_parameter_net<model_datatype> get_output_model(const Ml::caffe_parameter_net<model_datatype>& self_model, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_data, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_label, const std::string& info) override {
+    Ml::caffe_parameter_net<model_datatype> get_output_model(const Ml::caffe_parameter_net<model_datatype>& self_model, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_data, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_label, const std::string& info, const std::map<std::string, std::string>& args = {}) override {
         std::lock_guard guard(_lock);
         Ml::caffe_parameter_net<model_datatype> output = self_model * 0.5 + _buffered_model/_model_count * 0.5;
         //modify variance
@@ -503,7 +511,7 @@ public:
 	void add_model(const Ml::caffe_parameter_net<model_datatype>& model) override {
 	}
 	
-	Ml::caffe_parameter_net<model_datatype> get_output_model(const Ml::caffe_parameter_net<model_datatype>& self_model, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_data, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_label, const std::string& info) override {
+	Ml::caffe_parameter_net<model_datatype> get_output_model(const Ml::caffe_parameter_net<model_datatype>& self_model, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_data, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_label, const std::string& info, const std::map<std::string, std::string>& args = {}) override {
 		return self_model;
 	}
 	
@@ -549,7 +557,7 @@ public:
         }
     }
 
-    Ml::caffe_parameter_net<model_datatype> get_output_model(const Ml::caffe_parameter_net<model_datatype>& self_model, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_data, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_label, const std::string& info) override {
+    Ml::caffe_parameter_net<model_datatype> get_output_model(const Ml::caffe_parameter_net<model_datatype>& self_model, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_data, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_label, const std::string& info, const std::map<std::string, std::string>& args = {}) override {
         std::lock_guard guard(_lock);
         auto output = _buffered_model/_model_count;
         _model_count = 0;
@@ -605,7 +613,7 @@ public:
         return;
     }
 
-    Ml::caffe_parameter_net<model_datatype> get_output_model(const Ml::caffe_parameter_net<model_datatype>& self_model, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_data, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_label, const std::string& info) override {
+    Ml::caffe_parameter_net<model_datatype> get_output_model(const Ml::caffe_parameter_net<model_datatype>& self_model, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_data, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_label, const std::string& info, const std::map<std::string, std::string>& args = {}) override {
         std::lock_guard guard(_lock);
         Ml::caffe_parameter_net<model_datatype> output = _buffered_model/_model_count;
         //modify variance
@@ -658,6 +666,131 @@ protected:
 };
 
 template <typename model_datatype>
+class train_average_standard : public opti_model_update<model_datatype> {
+public:
+    train_average_standard() {
+        _model_count = 0;
+        _is_first_model = true;
+    }
+    
+    std::shared_ptr<opti_model_update<model_datatype>> create_shared() override {
+        return std::make_shared<train_average_standard>();
+    }
+    
+    std::string get_name() override {
+        return "train_average_standard";
+    }
+    
+    void add_model(const Ml::caffe_parameter_net<model_datatype>& model) override {
+        std::lock_guard guard(_lock);
+        _model_count++;
+        if (_is_first_model) {
+            _is_first_model = false;
+            _buffered_model = model;
+        }
+        else {
+            _buffered_model = _buffered_model + model;
+        }
+        //add variance
+        std::map<std::string, model_datatype> variance_per_layer = opti_model_update_util::get_variance_for_model(model);
+        _variances.push_back(variance_per_layer);
+        
+        return;
+    }
+    
+    Ml::caffe_parameter_net<model_datatype> get_output_model(const Ml::caffe_parameter_net<model_datatype>& self_model, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_data, const std::vector<const Ml::tensor_blob_like<model_datatype>*>& test_label, const std::string& info, const std::map<std::string, std::string>& args = {}) override {
+        std::lock_guard guard(_lock);
+        Ml::caffe_parameter_net<model_datatype> output = _buffered_model/_model_count;
+        
+        //check args
+        LOG_ASSERT(args.contains("beta"));
+        float beta = std::stof(args.at("beta"));
+        LOG_ASSERT(args.contains("variance_correction"));
+        bool enable_variance_correction;
+        std::istringstream(args.at("variance_correction")) >> std::boolalpha >> enable_variance_correction;
+        LOG_ASSERT(args.contains("variance_correction_method"));
+        std::string variance_correction_method = args.at("variance_correction_method");
+        //variance_correction_method: self, others, follow_beta
+        LOG_ASSERT(args.contains("skip_layers"));
+        std::string skip_layers_str = args.at("variance_correction_method");
+        std::set<std::string> skipped_layers;
+        //insert to skipped_layers
+        {
+            std::vector<std::string> skipped_layers_vec = util::split(skip_layers_str, ',');
+            for (const auto& i : skipped_layers_vec)
+            {
+                skipped_layers.emplace(i);
+            }
+        }
+        //check existence of layers
+        {
+            std::map<std::string, bool> check_exist;
+            for (const auto& i : skipped_layers)
+            {
+                check_exist.emplace(i, false);
+            }
+            for (Ml::caffe_parameter_layer<model_datatype>& layer : output.getLayers()) {
+                const std::string layer_type = layer.getType();
+                auto iter = check_exist.find(layer_type);
+                if (iter != check_exist.end()) {
+                    iter->second = true;
+                }
+            }
+            for (const auto& [layer_name, exist] : check_exist)
+            {
+                LOG_IF(FATAL, !exist) << layer_name << " specified in [skip_layers] does not appear in the model";
+            }
+        }
+        
+        //modify variance
+        std::map<std::string, model_datatype> self_variance = opti_model_update_util::get_variance_for_model(output);
+        std::map<std::string, model_datatype> sum_variance;
+        for (const auto& variance_of_a_model : _variances) {
+            for (const auto& [layer_name, variance] : variance_of_a_model) {
+                sum_variance[layer_name] += variance;
+            }
+        }
+        for (Ml::caffe_parameter_layer<model_datatype>& layer : output.getLayers()) {
+            const std::string& name = layer.getName();
+            const std::string layer_type = layer.getType();
+            if (skipped_layers.contains(layer_type)) continue;
+            const auto& blobs = layer.getBlob_p();
+            if (!blobs.empty()) {
+                auto self_layer_variance = self_variance[name];
+                auto sum_layer_variance = sum_variance[name];
+                auto target_variance = sum_layer_variance / _model_count * (1-beta) + self_layer_variance * beta;
+                
+                opti_model_update_util::scale_variance(blobs[0]->getData(), target_variance, 1.0f, self_layer_variance);
+                
+                LOG(INFO) << info << ", layer " << layer.getName() << ", scale variance from " << self_layer_variance << " to " << target_variance << " -- " << sum_layer_variance << "(total variance)" << "/" << _model_count;
+            }
+        }
+        
+        std::map<std::string, model_datatype> self_variance_after_scaling = opti_model_update_util::get_variance_for_model(output);
+        
+        _model_count = 0;
+        _variances.clear();
+        _is_first_model = true;
+        return output;
+    }
+    
+    size_t get_model_count() override {
+        return _model_count;
+    }
+    
+    static void register_algorithm() {
+        opti_model_update<model_datatype>::_registerAlgorithm(std::make_shared<train_average_standard>());
+    }
+
+protected:
+    std::mutex _lock;
+    bool _is_first_model;
+    Ml::caffe_parameter_net<model_datatype> _buffered_model;
+    std::vector<std::map<std::string, model_datatype>> _variances;
+    size_t _model_count;
+};
+
+template <typename model_datatype>
 void register_model_updating_algorithms() {
     train_50_average_50<model_datatype>::register_algorithm();
     train_100_average_0<model_datatype>::register_algorithm();
@@ -667,6 +800,8 @@ void register_model_updating_algorithms() {
     train_50_average_50_fix_variance_auto_05<model_datatype>::register_algorithm();
     train_50_average_50_fix_variance_auto_099<model_datatype>::register_algorithm();
     train_50_average_50_fix_variance_self<model_datatype>::register_algorithm();
+    
+    train_average_standard<model_datatype>::register_algorithm();
 }
 
 
