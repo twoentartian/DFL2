@@ -712,7 +712,7 @@ public:
         std::string variance_correction_method = args.at("variance_correction_method");
         //variance_correction_method: self, others, follow_beta
         LOG_ASSERT(args.contains("skip_layers"));
-        std::string skip_layers_str = args.at("variance_correction_method");
+        std::string skip_layers_str = args.at("skip_layers");
         std::set<std::string> skipped_layers;
         //insert to skipped_layers
         {
@@ -758,9 +758,21 @@ public:
             if (!blobs.empty()) {
                 auto self_layer_variance = self_variance[name];
                 auto sum_layer_variance = sum_variance[name];
-                auto target_variance = sum_layer_variance / _model_count * (1-beta) + self_layer_variance * beta;
+                float target_variance = 0;
+                if (variance_correction_method == "self") {
+                    target_variance = self_layer_variance;
+                }
+                else if (variance_correction_method == "others") {
+                    target_variance = sum_layer_variance / _model_count;
+                }
+                else if (variance_correction_method == "follow_beta") {
+                    target_variance = sum_layer_variance / _model_count * (1-beta) + self_layer_variance * beta;
+                }
+                else {
+                    LOG(FATAL) << "unknown variance_correction_method:" << variance_correction_method;
+                }
                 
-                opti_model_update_util::scale_variance(blobs[0]->getData(), target_variance, 1.0f, self_layer_variance);
+                opti_model_update_util::scale_variance(blobs[0]->getData(), target_variance, 1.0f, float(self_layer_variance));
                 
                 LOG(INFO) << info << ", layer " << layer.getName() << ", scale variance from " << self_layer_variance << " to " << target_variance << " -- " << sum_layer_variance << "(total variance)" << "/" << _model_count;
             }

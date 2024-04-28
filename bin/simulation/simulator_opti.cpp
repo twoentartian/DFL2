@@ -43,7 +43,7 @@ std::unordered_map<std::string, std::shared_ptr<opti_model_update<model_datatype
 ////set model updating algorithm
 //using model_updating_algorithm = train_50_average_50<model_datatype>;
 //using model_updating_algorithm = train_50_average_50_fix_variance_auto<model_datatype>;
-std::string model_updating_algorithm_name = "";
+std::string model_updating_algorithm_name;
 
 void handler(int sig) {
     void *array[10];
@@ -84,10 +84,18 @@ int main(int argc, char *argv[])
 	//load configuration
 	configuration_file config;
 	config.SetDefaultConfiguration(get_default_simulation_configuration());
-	auto load_config_rc = config.LoadConfiguration(config_file_path, {
-        "/services"_json_pointer, "/services/accuracy"_json_pointer,
-        "/services/force_broadcast_average"_json_pointer, "/services/model_record"_json_pointer});    //"services/accuracy" is due to the "fixed_test_dataset" field
-	if (load_config_rc < 0)
+    auto load_config_rc = config.LoadConfiguration(config_file_path, {
+            "/services"_json_pointer, "/services/accuracy"_json_pointer, "/services/apply_delta_weight"_json_pointer,
+            "/services/apply_received_model"_json_pointer,"/services/compiled_services"_json_pointer,
+            "/services/delta_weight_after_training_averaging_record"_json_pointer,
+            "/services/force_broadcast_average"_json_pointer,"/services/model_abs_change_during_averaging"_json_pointer,
+            "/services/model_record"_json_pointer,
+            "/services/model_weights_difference_record"_json_pointer,"/services/model_weights_variance_record"_json_pointer,
+            "/services/network_topology_manager"_json_pointer,
+            "/services/network_topology_manager/connection_pair_swap"_json_pointer,"/services/network_topology_manager/read_from_file"_json_pointer,"/services/network_topology_manager/scale_free_network"_json_pointer,
+            "/services/received_model_record"_json_pointer,"/services/reputation_record"_json_pointer,"/services/stage_manager"_json_pointer,
+            "/services/time_based_hierarchy_service"_json_pointer}); //"services/accuracy" is due to the "fixed_test_dataset" field
+    if (load_config_rc < 0)
 	{
 		LOG(FATAL) << "cannot load configuration file, wrong format?";
 		return -1;
@@ -98,6 +106,16 @@ int main(int argc, char *argv[])
 	
 	//update global var
     model_updating_algorithm_name = *config.get<std::string>("simulator_opti_averaging_algorithm");
+    std::map<std::string, std::string> model_updating_algorithm_args;
+    {
+        if (config_json.contains("simulator_opti_averaging_algorithm_args")) {
+            const auto& simulator_opti_averaging_algorithm_args_json = config_json["simulator_opti_averaging_algorithm_args"];
+            LOG_ASSERT(simulator_opti_averaging_algorithm_args_json.is_object());
+            for (const auto& it : simulator_opti_averaging_algorithm_args_json.items()) {
+                model_updating_algorithm_args[it.key()] = it.value();
+            }
+        }
+    }
     auto ml_dataset_type = *config.get<std::string>("ml_dataset_type");
     auto random_training_sequence = *config.get<bool>("random_training_sequence");
 	auto ml_solver_proto = *config.get<std::string>("ml_solver_proto");
@@ -686,7 +704,7 @@ int main(int argc, char *argv[])
             trigger_service(tick, service_trigger_type::start_of_averaging);
 
 			////check fedavg buffer full
-			tmt::ParallelExecution_StepIncremental([&tick,&test_dataset,&model_abs_change_during_averaging_service, &ml_test_batch_size,&ml_dataset_all_possible_labels, &accuracy_container_lock, &accuracy_container](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
+			tmt::ParallelExecution_StepIncremental([&model_updating_algorithm_args, &tick,&test_dataset,&model_abs_change_during_averaging_service, &ml_test_batch_size,&ml_dataset_all_possible_labels, &accuracy_container_lock, &accuracy_container](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
 				if (node_model_update[single_node->name]->get_model_count() >= single_node->buffer_size) {
 					single_node->model_averaged = true;
 
@@ -701,7 +719,7 @@ int main(int argc, char *argv[])
 					printf("%s\n", log_msg.data());
 					LOG(INFO) << log_msg;
 
-                    parameter = node_model_update[single_node->name]->get_output_model(parameter, test_data, test_label, single_node->name);   //reset the model buffer and get the output
+                    parameter = node_model_update[single_node->name]->get_output_model(parameter, test_data, test_label, single_node->name, model_updating_algorithm_args);   //reset the model buffer and get the output
                     if (single_node->enable_averaging) {
                         single_node->solver->set_parameter(parameter);
                     }

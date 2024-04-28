@@ -10,9 +10,17 @@ configuration_file::json get_default_simulation_configuration()
 	configuration_file::json output;
 
     //simulator_opti_specific
-    output["simulator_opti_averaging_algorithm"] = "train_50_average_50_fix_variance_auto";
-    output["simulator_opti_averaging_algorithm_all_possible"] = {"train_50_average_50", "train_50_average_50_fix_variance_auto", "train_100_average_0", "train_0_average_100", "train_0_average_100_fix_variance_auto"};
-	
+    output["simulator_opti_averaging_algorithm"] = "train_average_standard";
+    output["simulator_opti_averaging_algorithm_all_possible"] = {"train_average_standard", "train_50_average_50", "train_50_average_50_fix_variance_auto", "train_100_average_0", "train_0_average_100", "train_0_average_100_fix_variance_auto"};
+    configuration_file::json opti_averaging_algorithm_args;
+    opti_averaging_algorithm_args["beta"] = "0.5";
+    opti_averaging_algorithm_args["variance_correction"] = "true";
+    opti_averaging_algorithm_args["variance_correction_method"] = "self";
+    opti_averaging_algorithm_args["variance_correction_method_all_possible"] = "self,others,follow_beta";
+    opti_averaging_algorithm_args["skip_layers"] = "";
+    opti_averaging_algorithm_args["skip_layers_example"] = "conv1,conv2,conv3,ip1";
+    output["simulator_opti_averaging_algorithm_args"] = opti_averaging_algorithm_args;
+
 	output["report_time_remaining_per_tick_elapsed"] = 100;
 
     output["random_training_sequence"] = true;

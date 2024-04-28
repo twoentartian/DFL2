@@ -80,8 +80,16 @@ int main(int argc, char *argv[])
 	configuration_file config;
 	config.SetDefaultConfiguration(get_default_simulation_configuration());
     auto load_config_rc = config.LoadConfiguration(config_file_path, {
-            "/services"_json_pointer, "/services/accuracy"_json_pointer,
-            "/services/force_broadcast_average"_json_pointer, "/services/model_record"_json_pointer});    //"services/accuracy" is due to the "fixed_test_dataset" field
+            "/services"_json_pointer, "/services/accuracy"_json_pointer, "/services/apply_delta_weight"_json_pointer,
+            "/services/apply_received_model"_json_pointer,"/services/compiled_services"_json_pointer,
+            "/services/delta_weight_after_training_averaging_record"_json_pointer,
+            "/services/force_broadcast_average"_json_pointer,"/services/model_abs_change_during_averaging"_json_pointer,
+            "/services/model_record"_json_pointer,
+            "/services/model_weights_difference_record"_json_pointer,"/services/model_weights_variance_record"_json_pointer,
+            "/services/network_topology_manager"_json_pointer,
+            "/services/network_topology_manager/connection_pair_swap"_json_pointer,"/services/network_topology_manager/read_from_file"_json_pointer,"/services/network_topology_manager/scale_free_network"_json_pointer,
+            "/services/received_model_record"_json_pointer,"/services/reputation_record"_json_pointer,"/services/stage_manager"_json_pointer,
+            "/services/time_based_hierarchy_service"_json_pointer}); //"services/accuracy" is due to the "fixed_test_dataset" field
 	if (load_config_rc < 0)
 	{
 		LOG(FATAL) << "cannot load configuration file, wrong format?";
