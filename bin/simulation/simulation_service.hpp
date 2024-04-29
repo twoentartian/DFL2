@@ -377,6 +377,8 @@ public:
         //LOG_IF(FATAL, node_vector_container == nullptr) << "node_vector_container is not set";
         this->set_node_container(_node_container, _node_vector_container);
 
+        if (this->enable == false) return {service_status::skipped, "not enabled"};
+
         model_abs_change_file.reset(new std::ofstream(output_path / "modeL_abs_change_per_averaging.txt", std::ios::binary));
         LOG_ASSERT(model_abs_change_file->good());
 
