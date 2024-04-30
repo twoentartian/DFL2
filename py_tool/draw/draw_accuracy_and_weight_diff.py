@@ -2,6 +2,10 @@ import pandas
 import matplotlib.pyplot as plt
 import numpy
 
+draw_only_first_node = False
+enable_draw_every_tick = False
+draw_every_tick = 500
+
 
 def calculate_herd_effect_delay(arg_accuracy_df: pandas.DataFrame, arg_model_weight_diff_df: pandas.DataFrame):
     average_accuracy: pandas.Series = arg_accuracy_df.mean(axis=1)
@@ -16,7 +20,8 @@ def calculate_herd_effect_delay(arg_accuracy_df: pandas.DataFrame, arg_model_wei
 
 accuracy_file_path = 'accuracy.csv'
 accuracy_df = pandas.read_csv(accuracy_file_path, index_col=0, header=0)
-
+if enable_draw_every_tick:
+    accuracy_df = accuracy_df[accuracy_df.index % draw_every_tick ==0]
 print(accuracy_df)
 
 accuracy_x = accuracy_df.index
@@ -36,7 +41,11 @@ fig, axs = plt.subplots(2, figsize=(10, 10))
 
 axs[0].axvline(x=herd_effect_delay, color='r', label=f'herd effect delay={herd_effect_delay}')
 for col in accuracy_df.columns:
-    axs[0].plot(accuracy_x, accuracy_df[col], label=col, alpha=0.75)
+    if draw_only_first_node:
+        if col == "0":
+            axs[0].plot(accuracy_x, accuracy_df[col], label=col, alpha=0.75)
+    else:
+        axs[0].plot(accuracy_x, accuracy_df[col], label=col, alpha=0.75)
 
 axs[1].axvline(x=herd_effect_delay, color='r', label=f'herd effect delay={herd_effect_delay}')
 for col in weight_diff_df.columns:
