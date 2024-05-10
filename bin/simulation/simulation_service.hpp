@@ -2378,7 +2378,7 @@ public:
                         }
                     }
                     else {
-                        LOG(FATAL) <<
+                        //other stuffs that would not work at end_of_tick
                     }
                 }
             }
