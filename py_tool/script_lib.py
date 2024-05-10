@@ -98,6 +98,19 @@ def set_node_model_override_model_from(script_target, tick: int, nodes, src_node
     })
 
 
+def set_only_enable_nodes(script_target, tick: int, nodes):
+    nodes = __convert_arg_to_list__(nodes)
+    changed_nodes = {}
+    enabled_nodes = []
+    for index, node in enumerate(nodes):
+        enabled_nodes.append(str(node))
+    changed_nodes["only_enable"] = enabled_nodes
+    script_target.append({
+        "tick": tick,
+        "script": changed_nodes,
+    })
+
+
 def set_node_weights(script_target, tick:int, nodes, value: float):
     set_node_status_raw(script_target, tick, nodes, "set_weights", value)
 
