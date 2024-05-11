@@ -677,11 +677,15 @@ int main(int argc, char *argv[])
                     //add ML network to FedAvg buffer
                     for (auto [updating_node_name, updating_node] : single_node->peers)
                     {
-                        //only add send model to other nodes if they are enabled.
-                        if (updating_node->enable) node_model_update[updating_node_name]->add_model(parameter_output);
+                        //only add send model to other nodes if they are enabled
+                        if (!updating_node->enable) continue;
+
+                        //allow peer node pre-processing the model
+                        auto model_after_pre_processing = updating_node->preprocess_received_models(parameter_output);
+                        node_model_update[updating_node_name]->add_model(model_after_pre_processing);
                         {
                             std::lock_guard guard(updating_node->simulation_service_data.just_received_model_ptr_lock);
-                            updating_node->simulation_service_data.just_received_model_ptr = &parameter_output;
+                            updating_node->simulation_service_data.just_received_model_ptr = &model_after_pre_processing;
                             updating_node->simulation_service_data.just_received_model_source_node_name = single_node->name;
                             received_model_record_service->process_on_event(tick, service_trigger_type::model_added_to_average_buffer, updating_node_name);
                             model_abs_change_during_averaging_service->process_on_event(tick, service_trigger_type::model_added_to_average_buffer, updating_node_name);
@@ -722,6 +726,7 @@ int main(int argc, char *argv[])
                     parameter = node_model_update[single_node->name]->get_output_model(parameter, test_data, test_label, single_node->name, model_updating_algorithm_args);   //reset the model buffer and get the output
                     if (single_node->enable_averaging) {
                         single_node->solver->set_parameter(parameter);
+                        single_node->post_averaging_models();   // allow node to post process the model after averaging
                     }
                     else {
                         LOG(INFO) << "skip averaging for node " << single_node->name << " at tick " << tick;

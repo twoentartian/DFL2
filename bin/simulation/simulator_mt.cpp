@@ -721,10 +721,14 @@ int main(int argc, char *argv[])
 					//add ML network to FedAvg buffer
 					for (auto [updating_node_name, updating_node] : single_node->peers)
 					{
-                        //only add send model to other nodes if they are enabled.
-                        if (updating_node->enable) {
+                        //only add send model to other nodes if they are enabled
+                        if (!updating_node->enable) continue;
+
+                        //allow peer node pre-processing the model
+                        auto model_after_pre_processing = updating_node->preprocess_received_models(parameter_output);
+                        {
                             std::lock_guard guard(updating_node->parameter_buffer_lock);
-                            updating_node->parameter_buffer.emplace_back(single_node->name, type, parameter_output);
+                            updating_node->parameter_buffer.emplace_back(single_node->name, type, model_after_pre_processing);
                         }
 					}
 				}
@@ -802,6 +806,7 @@ int main(int argc, char *argv[])
                     if (single_node->enable_averaging) {
                         reputation_dll.get()->update_model(parameter, self_accuracy, received_models, reputation_map);
                         single_node->solver->set_parameter(parameter);
+                        single_node->post_averaging_models();   // allow node to post process the model after averaging
                     }
 					
 					//clear buffer and start new loop

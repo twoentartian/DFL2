@@ -72,7 +72,11 @@ enum node_type
 
     federated_learning_server,  //server do not training, only perform averaging and send averaged model to other nodes
     
-    normal_reduced_sending, //normal node but only send models to others per x rounds. x can be specified by args.
+    normal_reduced_sending, //normal node but only send models to others per x rounds. x can be specified by args
+
+    normal_share_delta, //normal nodes but send {weights - initial weights} to other peers
+    observer_receive_delta, //similar to observer, but can accept delta weights
+    observer_receive_delta_rescale, //similar to observer_receive_delta, but will rescale weights to initial variance
     
 	node_type_last_index
 };
@@ -186,6 +190,14 @@ public:
 	virtual std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() = 0;
 	
 	virtual node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) = 0;
+
+    virtual Ml::caffe_parameter_net<model_datatype> preprocess_received_models(const Ml::caffe_parameter_net<model_datatype>& model) {
+        return model;
+    }
+
+    virtual void post_averaging_models() {
+
+    }
 	
 	static node<model_datatype> *get_node_by_type(const std::string type)
 	{
@@ -262,6 +274,7 @@ public:
 	
 	node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
 	{
+        LOG_ASSERT(!arg.has_value());
 		return new normal_node(_name, buf_size);
 	}
  
@@ -299,6 +312,7 @@ public:
 	
 	node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
 	{
+        LOG_ASSERT(!arg.has_value());
 		return new observer_node(_name, buf_size);
 	}
 	
@@ -337,6 +351,7 @@ public:
     
     node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
     {
+        LOG_ASSERT(!arg.has_value());
         return new no_training_node(_name, buf_size);
     }
     
@@ -378,6 +393,7 @@ public:
 
     node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
     {
+        LOG_ASSERT(!arg.has_value());
         return new pontificator_node(_name, buf_size);
     }
 
@@ -417,6 +433,7 @@ public:
 	
 	node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
 	{
+        LOG_ASSERT(!arg.has_value());
 		return new malicious_model_poisoning_random_model_node(_name, buf_size);
 	}
     
@@ -462,6 +479,7 @@ public:
 	
 	node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
 	{
+        LOG_ASSERT(!arg.has_value());
 		return new malicious_model_poisoning_random_model_by_turn_node(_name, buf_size);
 	}
 	
@@ -513,6 +531,7 @@ public:
 	
 	node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
 	{
+        LOG_ASSERT(!arg.has_value());
 		return new malicious_model_poisoning_random_model_biased_0_1_node(_name, buf_size);
 	}
     
@@ -554,6 +573,7 @@ public:
 	
 	node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
 	{
+        LOG_ASSERT(!arg.has_value());
 		return new malicious_duplication_attack_node(_name, buf_size);
 	}
     
@@ -591,6 +611,7 @@ public:
 	
 	node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
 	{
+        LOG_ASSERT(!arg.has_value());
 		return new malicious_data_poisoning_shuffle_label_node(_name, buf_size);
 	}
 	
@@ -652,6 +673,7 @@ public:
 	
 	node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
 	{
+        LOG_ASSERT(!arg.has_value());
 		return new malicious_data_poisoning_shuffle_label_biased_1_node(_name, buf_size);
 	}
     
@@ -712,6 +734,7 @@ public:
 	
 	node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
 	{
+        LOG_ASSERT(!arg.has_value());
 		return new malicious_data_poisoning_random_data_node(_name, buf_size);
 	}
     
@@ -765,6 +788,7 @@ public:
 
     node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
     {
+        LOG_ASSERT(!arg.has_value());
         return new normal_node_label_0_4(_name, buf_size);
     }
 
@@ -802,6 +826,7 @@ public:
 
     node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
     {
+        LOG_ASSERT(!arg.has_value());
         return new normal_node_label_5_9(_name, buf_size);
     }
 
@@ -839,6 +864,7 @@ public:
 
     node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
     {
+        LOG_ASSERT(!arg.has_value());
         return new federated_learning_server_node(_name, buf_size);
     }
 
@@ -860,8 +886,8 @@ template<typename model_datatype>
 class normal_node_reduced_sending : public node<model_datatype>
 {
 private:
-    int reduce_factor;
-    int send_counter;
+    int reduce_factor{};
+    int send_counter{};
     
 public:
     normal_node_reduced_sending(std::string _name, size_t buf_size, int reduce_factor) : node<model_datatype>(_name, buf_size, {std::to_string(reduce_factor)})
@@ -907,6 +933,211 @@ public:
     }
 };
 
+template<typename model_datatype>
+class normal_share_delta_node : public node<model_datatype>
+{
+private:
+    Ml::caffe_parameter_net<model_datatype> initial_model;
+public:
+    normal_share_delta_node(std::string _name, size_t buf_size) : node<model_datatype>(_name, buf_size)
+    {
+        this->type = normal_share_delta;
+        initial_model = this->solver->get_parameter();
+    };
+
+    static std::string type_name()
+    {
+        return "normal_share_delta";
+    }
+
+    static void registerNodeType()
+    {
+        node<model_datatype>::_registerNodeType(type_name(), new normal_share_delta_node("template", 0));
+    }
+
+    node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
+    {
+        LOG_ASSERT(!arg.has_value());
+        return new normal_share_delta_node(_name, buf_size);
+    }
+
+    void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
+    {
+        if (!this->enable) return;
+        this->solver->train(data, label, display);
+    }
+
+    std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() override
+    {
+        if (!this->enable) return {};
+
+        return {this->solver->get_parameter()};
+    }
+
+    Ml::caffe_parameter_net<model_datatype> preprocess_received_models(const Ml::caffe_parameter_net<model_datatype>& model) override {
+        return model + initial_model;
+    }
+};
+
+template<typename model_datatype>
+class observer_receive_delta_node : public node<model_datatype>
+{
+private:
+    Ml::caffe_parameter_net<model_datatype> initial_model;
+public:
+    observer_receive_delta_node(std::string _name, size_t buf_size) : node<model_datatype>(_name, buf_size)
+    {
+        this->type = observer_receive_delta;
+        initial_model = this->solver->get_parameter();
+    };
+
+    static std::string type_name()
+    {
+        return "observer_receive_delta";
+    }
+
+    static void registerNodeType()
+    {
+        node<model_datatype>::_registerNodeType(type_name(), new observer_receive_delta_node("template", 0));
+    }
+
+    node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
+    {
+        LOG_ASSERT(!arg.has_value());
+        return new observer_receive_delta_node(_name, buf_size);
+    }
+
+    void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
+    {
+        if (!this->enable) return;
+    }
+
+    std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() override
+    {
+        if (!this->enable) return {};
+        return {};
+    }
+
+    Ml::caffe_parameter_net<model_datatype> preprocess_received_models(const Ml::caffe_parameter_net<model_datatype>& model) override {
+        return model + initial_model;
+    }
+};
+
+template<typename model_datatype>
+class observer_receive_delta_rescale_node : public node<model_datatype>
+{
+private:
+    Ml::caffe_parameter_net<model_datatype> initial_model;
+    std::map<std::string, float> initial_model_variance;
+public:
+    observer_receive_delta_rescale_node(std::string _name, size_t buf_size) : node<model_datatype>(_name, buf_size)
+    {
+        this->type = observer_receive_delta_rescale;
+        initial_model = this->solver->get_parameter();
+        initial_model_variance = get_variance_for_model(initial_model);
+    };
+
+    static std::string type_name()
+    {
+        return "observer_receive_delta_rescale";
+    }
+
+    static void registerNodeType()
+    {
+        node<model_datatype>::_registerNodeType(type_name(), new observer_receive_delta_rescale_node("template", 0));
+    }
+
+    node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
+    {
+        LOG_ASSERT(!arg.has_value());
+        return new observer_receive_delta_rescale_node(_name, buf_size);
+    }
+
+    void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) override
+    {
+        if (!this->enable) return;
+    }
+
+    std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() override
+    {
+        if (!this->enable) return {};
+        return {};
+    }
+
+    Ml::caffe_parameter_net<model_datatype> preprocess_received_models(const Ml::caffe_parameter_net<model_datatype>& model) override {
+        return model + initial_model;
+    }
+
+    void post_averaging_models() override {
+        Ml::caffe_parameter_net<model_datatype> model = this->solver->get_parameter();
+        for (Ml::caffe_parameter_layer<model_datatype>& layer : model.getLayers()) {
+            const std::string& name = layer.getName();
+            const auto& blobs = layer.getBlob_p();
+            if (!blobs.empty()) {
+                scale_variance(blobs[0]->getData(), initial_model_variance[name] * 1.00f);      //bias should not be re-scaled
+            }
+        }
+        this->solver->set_parameter(model);
+    }
+
+private:
+    static model_datatype calculate_mean(const std::vector<model_datatype>& data) {
+        model_datatype sum = 0.0;
+        for (const double& value : data) {
+            sum += value;
+        }
+        return sum / static_cast<double>(data.size());
+    }
+
+    static model_datatype calculate_variance(const std::vector<model_datatype>& data) {
+        if (data.empty()) {
+            return 0.0; // Handle empty data
+        }
+
+        model_datatype mean = calculate_mean(data);
+        model_datatype variance = 0.0;
+
+        for (const double& value : data) {
+            double diff = value - mean;
+            variance += diff * diff;
+        }
+
+        return variance / static_cast<model_datatype>(data.size());
+    }
+
+    static std::map<std::string, float> get_variance_for_model(const Ml::caffe_parameter_net<model_datatype>& model) {
+        std::map<std::string, float> variance_per_layer;
+        for (const Ml::caffe_parameter_layer<model_datatype>& layer : model.getLayers()) {
+            const auto blobs = layer.getBlob_p();
+            if (!blobs.empty()) {
+                variance_per_layer.emplace(layer.getName(), calculate_variance(blobs[0]->getData()));
+            }
+        }
+        return variance_per_layer;
+    }
+
+    static void scale_variance(std::vector<model_datatype>& data_series, model_datatype target_variance, float ratio=1.0f, float self_layer_variance=NAN) {
+        model_datatype meanD1 = calculate_mean(data_series);
+
+        model_datatype varD1 = 0;
+        if (isnan(self_layer_variance)) {
+            varD1 = calculate_variance(data_series);
+        }
+        else {
+            varD1 = self_layer_variance;
+        }
+
+        // Calculate the standard deviation of D1 and the target standard deviation (sqrt of v2)
+        model_datatype stdD1 = std::sqrt(varD1);
+        model_datatype targetStd = std::sqrt(target_variance);
+
+        // Scale each data point in D1
+        const float scale_factor = (targetStd/stdD1-1)*ratio + 1;
+        std::transform(data_series.begin(), data_series.end(), data_series.begin(), [&](model_datatype value) {
+            return (value - meanD1) * scale_factor + meanD1;
+        });
+    }
+};
 
 template<typename model_datatype>
 static void register_node_types()
@@ -930,6 +1161,10 @@ static void register_node_types()
     federated_learning_server_node<model_datatype>::registerNodeType();
     
     normal_node_reduced_sending<model_datatype>::registerNodeType();
+
+    normal_share_delta_node<model_datatype>::registerNodeType();
+    observer_receive_delta_node<model_datatype>::registerNodeType();
+    observer_receive_delta_rescale_node<model_datatype>::registerNodeType();
 }
 
 #endif //DFL_NODE_HPP
