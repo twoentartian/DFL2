@@ -976,7 +976,7 @@ public:
     {
         if (!this->enable) return {};
 
-        return {this->solver->get_parameter()};
+        return {this->solver->get_parameter() - initial_model};
     }
 
     Ml::caffe_parameter_net<model_datatype> preprocess_received_models(const Ml::caffe_parameter_net<model_datatype>& model) override {
@@ -1093,6 +1093,9 @@ public:
     void node_init() override {
         initial_model = this->solver->get_parameter();
         initial_model_variance = get_variance_for_model(initial_model);
+        auto model_copy = this->solver->get_parameter();
+        model_copy.set_all(0);
+        this->solver->set_parameter(model_copy);
     }
 
 private:
