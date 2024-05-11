@@ -177,6 +177,8 @@ public:
         target->last_measured_tick = last_measured_tick;
         target->model_trained = model_trained;
         target->model_averaged = model_averaged;
+
+        target->node_init();
     }
 
 	virtual void train_model(const std::vector<const Ml::tensor_blob_like<model_datatype>*> &data, const std::vector<const Ml::tensor_blob_like<model_datatype>*> &label, bool display) = 0;
@@ -196,6 +198,10 @@ public:
     }
 
     virtual void post_averaging_models() {
+
+    }
+
+    virtual void node_init() {
 
     }
 	
@@ -957,7 +963,6 @@ public:
     node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
     {
         LOG_ASSERT(!arg.has_value());
-        initial_model = this->solver->get_parameter();
         return new normal_share_delta_node(_name, buf_size);
     }
 
@@ -976,6 +981,10 @@ public:
 
     Ml::caffe_parameter_net<model_datatype> preprocess_received_models(const Ml::caffe_parameter_net<model_datatype>& model) override {
         return model + initial_model;
+    }
+
+    void node_init() override {
+        initial_model = this->solver->get_parameter();
     }
 };
 
@@ -1003,7 +1012,6 @@ public:
     node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
     {
         LOG_ASSERT(!arg.has_value());
-        initial_model = this->solver->get_parameter();
         return new observer_receive_delta_node(_name, buf_size);
     }
 
@@ -1020,6 +1028,10 @@ public:
 
     Ml::caffe_parameter_net<model_datatype> preprocess_received_models(const Ml::caffe_parameter_net<model_datatype>& model) override {
         return model + initial_model;
+    }
+
+    void node_init() override {
+        initial_model = this->solver->get_parameter();
     }
 };
 
@@ -1048,8 +1060,6 @@ public:
     node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
     {
         LOG_ASSERT(!arg.has_value());
-        initial_model = this->solver->get_parameter();
-        initial_model_variance = get_variance_for_model(initial_model);
         return new observer_receive_delta_rescale_node(_name, buf_size);
     }
 
@@ -1078,6 +1088,11 @@ public:
             }
         }
         this->solver->set_parameter(model);
+    }
+
+    void node_init() override {
+        initial_model = this->solver->get_parameter();
+        initial_model_variance = get_variance_for_model(initial_model);
     }
 
 private:

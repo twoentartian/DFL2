@@ -594,8 +594,8 @@ int main(int argc, char *argv[])
 	////////////  BEGIN SIMULATION  ////////////
 	std::mutex accuracy_container_lock;
 	std::map<std::string, float> accuracy_container;
-	for (const auto& [node_name, node]: node_container)
-	{
+	for (const auto& [node_name, node]: node_container) {
+        node->node_init();
 		accuracy_container[node_name] = 0.0;
 	}
 	
