@@ -942,7 +942,6 @@ public:
     normal_share_delta_node(std::string _name, size_t buf_size) : node<model_datatype>(_name, buf_size)
     {
         this->type = normal_share_delta;
-        initial_model = this->solver->get_parameter();
     };
 
     static std::string type_name()
@@ -958,6 +957,7 @@ public:
     node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
     {
         LOG_ASSERT(!arg.has_value());
+        initial_model = this->solver->get_parameter();
         return new normal_share_delta_node(_name, buf_size);
     }
 
@@ -988,7 +988,6 @@ public:
     observer_receive_delta_node(std::string _name, size_t buf_size) : node<model_datatype>(_name, buf_size)
     {
         this->type = observer_receive_delta;
-        initial_model = this->solver->get_parameter();
     };
 
     static std::string type_name()
@@ -1004,6 +1003,7 @@ public:
     node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
     {
         LOG_ASSERT(!arg.has_value());
+        initial_model = this->solver->get_parameter();
         return new observer_receive_delta_node(_name, buf_size);
     }
 
@@ -1033,8 +1033,6 @@ public:
     observer_receive_delta_rescale_node(std::string _name, size_t buf_size) : node<model_datatype>(_name, buf_size)
     {
         this->type = observer_receive_delta_rescale;
-        initial_model = this->solver->get_parameter();
-        initial_model_variance = get_variance_for_model(initial_model);
     };
 
     static std::string type_name()
@@ -1050,6 +1048,8 @@ public:
     node<model_datatype> *new_node(std::string _name, size_t buf_size, std::optional<std::string> arg) override
     {
         LOG_ASSERT(!arg.has_value());
+        initial_model = this->solver->get_parameter();
+        initial_model_variance = get_variance_for_model(initial_model);
         return new observer_receive_delta_rescale_node(_name, buf_size);
     }
 
