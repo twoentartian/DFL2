@@ -19,7 +19,9 @@ simulation_max_tick = 10000
 client_fraction = 0.5
 training_tick = 10
 fed_server_send_model_tick = 5
+R = 1
 
+client_count_per_round = round((network_size-1)*client_fraction)
 
 def generate_topology() -> nx.Graph:
     return nx.star_graph(network_size-1)
@@ -27,7 +29,7 @@ def generate_topology() -> nx.Graph:
 
 def special_nodes() -> {}:
     special_nodes = {}
-    special_nodes["0"] = {"node_type": "federated_learning_server", "first_train_tick": fed_server_send_model_tick}
+    special_nodes["0"] = {"node_type": "federated_learning_server", "first_train_tick": fed_server_send_model_tick, "buffer_size": client_count_per_round*R}
 
     return special_nodes
 
@@ -35,11 +37,16 @@ def special_nodes() -> {}:
 def generate_script():
     script_content = []
     script_lib.set_node_model_override_model_from(script_content, 0, list(range(1, network_size)), 0)
-    available_clients = [i for i in range(1, network_size)]
-    for tick in range(fed_server_send_model_tick, simulation_max_tick+1, training_tick):
-        selected_clients = random.sample(available_clients, round((network_size-1)*client_fraction))
-        selected_clients.append(0)
-        script_lib.set_only_enable_nodes(script_content, tick, selected_clients)
+
+    if client_fraction < 1.0:
+        script_lib.set_node_status(script_content, 0, list(range(0, network_size)), False)
+
+        available_clients = [i for i in range(1, network_size)]
+        for tick in range(fed_server_send_model_tick, simulation_max_tick+1, training_tick):
+            selected_clients = random.sample(available_clients, client_count_per_round)
+            selected_clients.append(0)
+            script_lib.set_only_enable_nodes(script_content, tick, selected_clients)
+            script_lib.set_only_enable_nodes(script_content, tick + training_tick - fed_server_send_model_tick, selected_clients)
     return script_content
 
 
