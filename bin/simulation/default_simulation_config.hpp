@@ -88,6 +88,7 @@ configuration_file::json get_default_simulation_configuration()
 		accuracy_service["enable"] = true;
 		accuracy_service["interval"] = 20;
         accuracy_service["fixed_test_dataset"] = true;
+        accuracy_service["ignore_disabled_node"] = false;
 		services["accuracy"] = accuracy_service;
 	}
 	{

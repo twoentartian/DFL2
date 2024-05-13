@@ -93,6 +93,7 @@ private:
     std::optional<std::tuple<std::vector<const Ml::tensor_blob_like<model_datatype>*>, std::vector<const Ml::tensor_blob_like<model_datatype>*>>> fixed_test_dataset;
 	int ml_test_interval_tick;
     bool use_fixed_test_dataset;
+    bool ignore_disabled_node;
 public:
 	accuracy_record()
 	{
@@ -108,6 +109,7 @@ public:
 		this->enable = config["enable"];
 		this->ml_test_interval_tick = config["interval"];
         this->use_fixed_test_dataset = config["fixed_test_dataset"];
+        this->ignore_disabled_node = config["ignore_disabled_node"];
 		
 		return {service_status::success, ""};
 	}
@@ -178,19 +180,25 @@ public:
 		if (tick % ml_test_interval_tick != 0) return {service_status::skipped, "not time yet"};
 
         tmt::ParallelExecution([&tick, this](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node) {
-            std::vector<const Ml::tensor_blob_like<model_datatype>*> test_data, test_label;
-            if (fixed_test_dataset.has_value()) {
-                std::tie(test_data, test_label) = *fixed_test_dataset;
+            if (this->ignore_disabled_node && !single_node->enable) {
+                single_node->nets_loss_only_record.emplace(tick, 0);
+                single_node->nets_accuracy_only_record.emplace(tick, 0);
             }
             else {
-                std::tie(test_data, test_label) = test_dataset->get_random_data(ml_test_batch_size);
+                std::vector<const Ml::tensor_blob_like<model_datatype>*> test_data, test_label;
+                if (fixed_test_dataset.has_value()) {
+                    std::tie(test_data, test_label) = *fixed_test_dataset;
+                }
+                else {
+                    std::tie(test_data, test_label) = test_dataset->get_random_data(ml_test_batch_size);
+                }
+                auto model = single_node->solver->get_parameter();
+                solver_for_testing[thread_index].set_parameter(model);
+                model_datatype loss = 0;
+                auto accuracy = solver_for_testing[thread_index].evaluation(test_data, test_label, &loss);
+                single_node->nets_loss_only_record.emplace(tick, loss);
+                single_node->nets_accuracy_only_record.emplace(tick, accuracy);
             }
-            auto model = single_node->solver->get_parameter();
-            solver_for_testing[thread_index].set_parameter(model);
-            model_datatype loss = 0;
-            auto accuracy = solver_for_testing[thread_index].evaluation(test_data, test_label, &loss);
-            single_node->nets_loss_only_record.emplace(tick, loss);
-            single_node->nets_accuracy_only_record.emplace(tick, accuracy);
         }, this->node_vector_container->size(), this->node_vector_container->data());
         
         //print accuracy to file
