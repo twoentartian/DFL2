@@ -379,7 +379,7 @@ public:
 
         if (this->enable == false) return {service_status::skipped, "not enabled"};
 
-        model_abs_change_file.reset(new std::ofstream(output_path / "modeL_abs_change_per_averaging.txt", std::ios::binary));
+        model_abs_change_file.reset(new std::ofstream(output_path / "model_abs_change_per_averaging.txt", std::ios::binary));
         LOG_ASSERT(model_abs_change_file->good());
 
         return {service_status::success, ""};
