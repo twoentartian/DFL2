@@ -995,6 +995,8 @@ public:
 
     void node_init() override {
         initial_model = this->solver->get_parameter();
+        current_delta_weight = this->solver->get_parameter();
+        current_delta_weight.set_all(0.0);
     }
 };
 
