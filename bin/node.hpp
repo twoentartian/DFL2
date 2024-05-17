@@ -196,7 +196,11 @@ public:
     virtual Ml::caffe_parameter_net<model_datatype> preprocess_received_models(const Ml::caffe_parameter_net<model_datatype>& model) {
         return model;
     }
-
+    
+    virtual void pre_averaging_models() {
+    
+    }
+    
     virtual void post_averaging_models() {
 
     }
@@ -943,7 +947,7 @@ template<typename model_datatype>
 class normal_share_delta_node : public node<model_datatype>
 {
 private:
-    Ml::caffe_parameter_net<model_datatype> initial_model;
+    Ml::caffe_parameter_net<model_datatype> initial_model, current_delta_weight;
 public:
     normal_share_delta_node(std::string _name, size_t buf_size) : node<model_datatype>(_name, buf_size)
     {
@@ -975,12 +979,18 @@ public:
     std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() override
     {
         if (!this->enable) return {};
-
-        return {this->solver->get_parameter() - initial_model};
+        current_delta_weight = this->solver->get_parameter() - initial_model;
+        return {current_delta_weight};
     }
 
     Ml::caffe_parameter_net<model_datatype> preprocess_received_models(const Ml::caffe_parameter_net<model_datatype>& model) override {
-        return model + initial_model;
+        return model + initial_model + current_delta_weight;
+    }
+    
+    void pre_averaging_models() override {
+        auto model = this->solver->get_parameter();
+        model = model + current_delta_weight;
+        this->solver->set_parameter(model);
     }
 
     void node_init() override {

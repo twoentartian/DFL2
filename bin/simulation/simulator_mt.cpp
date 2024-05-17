@@ -804,6 +804,7 @@ int main(int argc, char *argv[])
 					auto &reputation_map = single_node->reputation_map;
 
                     if (single_node->enable_averaging) {
+                        single_node->pre_averaging_models();
                         reputation_dll.get()->update_model(parameter, self_accuracy, received_models, reputation_map);
                         single_node->solver->set_parameter(parameter);
                         single_node->post_averaging_models();   // allow node to post process the model after averaging

@@ -725,6 +725,7 @@ int main(int argc, char *argv[])
 
                     parameter = node_model_update[single_node->name]->get_output_model(parameter, test_data, test_label, single_node->name, model_updating_algorithm_args);   //reset the model buffer and get the output
                     if (single_node->enable_averaging) {
+                        single_node->pre_averaging_models();
                         single_node->solver->set_parameter(parameter);
                         single_node->post_averaging_models();   // allow node to post process the model after averaging
                     }
