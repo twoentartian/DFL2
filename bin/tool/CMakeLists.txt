@@ -42,6 +42,8 @@ add_executable(calculate_model_similarity_graph calculate_model_similarity_graph
 target_link_libraries(calculate_model_similarity_graph ${DFL_LINKER_LIBS})
 add_custom_command(TARGET calculate_model_similarity_graph POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/calculate_model_similarity_graph.sh ${CMAKE_CURRENT_BINARY_DIR}/calculate_model_similarity_graph.sh COMMENT "copy calculate_model_similarity_graph script to build dir")
 
+add_executable(extract_columns_from_csv extract_columns_from_csv.cpp)
+target_link_libraries(extract_columns_from_csv ${DFL_LINKER_LIBS})
 
 # find CUDA
 if (NOT CPU_ONLY)

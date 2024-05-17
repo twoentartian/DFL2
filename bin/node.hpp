@@ -979,15 +979,18 @@ public:
     std::optional<Ml::caffe_parameter_net<model_datatype>> generate_model_sent() override
     {
         if (!this->enable) return {};
-        current_delta_weight = this->solver->get_parameter() - initial_model;
-        return {current_delta_weight};
+        return {this->solver->get_parameter() - initial_model};
     }
 
     Ml::caffe_parameter_net<model_datatype> preprocess_received_models(const Ml::caffe_parameter_net<model_datatype>& model) override {
-        return model + initial_model + current_delta_weight;
+        return model + initial_model;
     }
     
     void pre_averaging_models() override {
+        current_delta_weight = this->solver->get_parameter() - initial_model;
+    }
+    
+    void post_averaging_models() override {
         auto model = this->solver->get_parameter();
         model = model + current_delta_weight;
         this->solver->set_parameter(model);
@@ -995,8 +998,6 @@ public:
 
     void node_init() override {
         initial_model = this->solver->get_parameter();
-        current_delta_weight = this->solver->get_parameter();
-        current_delta_weight.set_all(0.0);
     }
 };
 
