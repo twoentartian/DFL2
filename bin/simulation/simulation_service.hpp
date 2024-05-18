@@ -291,14 +291,20 @@ public:
         LOG_ASSERT(model_weights_file->good());
 		*model_weights_file << "tick";
         
+        model_weights_square_file.reset(new std::ofstream(output_path / "model_weight_diff_square.csv", std::ios::binary));
+        LOG_ASSERT(model_weights_square_file->good());
+        *model_weights_square_file << "tick";
+        
         const auto& weights = (*this->node_vector_container)[0]->solver->get_parameter();
 		const auto& layers = weights.getLayers();
 		
 		for (auto& single_layer: layers)
 		{
 			*model_weights_file << "," << single_layer.getName();
+            *model_weights_square_file << "," << single_layer.getName();
 		}
 		*model_weights_file << std::endl;
+        *model_weights_square_file << std::endl;
 		
 		return {service_status::success, ""};
 	}
@@ -315,9 +321,13 @@ public:
         const auto& layers = weights.getLayers();
         size_t number_of_layers = layers.size();
         auto *weight_diff_sums = new std::atomic<float>[number_of_layers];
-        for (int i = 0; i < number_of_layers; ++i) weight_diff_sums[i] = 0;
+        auto *weight_diff_sums_square = new std::atomic<float>[number_of_layers];
+        for (int i = 0; i < number_of_layers; ++i) {
+            weight_diff_sums[i] = 0;
+            weight_diff_sums_square[i] = 0;
+        }
         
-        tmt::ParallelExecution([this, &weight_diff_sums, &number_of_layers](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node)
+        tmt::ParallelExecution([this, &weight_diff_sums, &number_of_layers, &weight_diff_sums_square](uint32_t index, uint32_t thread_index, node<model_datatype> *single_node)
                                {
                                    uint32_t index_next = index + 1;
                                    const uint32_t total_size = this->node_vector_container->size();
@@ -328,20 +338,31 @@ public:
                                    auto layers2 = net2.getLayers();
                                    for (int i = 0; i < number_of_layers; ++i)
                                    {
-                                       auto diff = layers1[i] - layers2[i];
-                                       diff.abs();
-                                       auto value = diff.sum();
-                                       weight_diff_sums[i] = weight_diff_sums[i] + value;
+                                       {
+                                           auto diff = layers1[i] - layers2[i];
+                                           diff.abs();
+                                           auto value = diff.sum();
+                                           weight_diff_sums[i] = weight_diff_sums[i] + value;
+                                       }
+                                       {
+                                           auto diff = layers1[i].dot_product(layers1[i]) - layers2[i].dot_product(layers2[i]);
+                                           diff.abs();
+                                           auto value = diff.sum();
+                                           weight_diff_sums_square[i] = weight_diff_sums_square[i] + value;
+                                       }
                                    }
                                }, this->node_vector_container->size() - 1, this->node_vector_container->data());
         
         *model_weights_file << tick;
+        *model_weights_square_file << tick;
         for (int i = 0; i < number_of_layers; ++i)
         {
             *model_weights_file << "," << weight_diff_sums[i];
+            *model_weights_square_file << "," << weight_diff_sums_square[i];
         }
         *model_weights_file << std::endl;
-        delete[] weight_diff_sums;
+        *model_weights_square_file << std::endl;
+        delete[] weight_diff_sums, weight_diff_sums_square;
         
 		return {service_status::success, ""};
 	}
@@ -356,12 +377,15 @@ public:
 	{
 		model_weights_file->flush();
 		model_weights_file->close();
+        
+        model_weights_square_file->flush();
+        model_weights_square_file->close();
 		
 		return {service_status::success, ""};
 	}
 
 private:
-	std::shared_ptr<std::ofstream> model_weights_file;
+	std::shared_ptr<std::ofstream> model_weights_file, model_weights_square_file;
 };
 
 template <typename model_datatype>
