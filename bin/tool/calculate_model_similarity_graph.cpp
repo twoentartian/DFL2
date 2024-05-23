@@ -160,19 +160,22 @@ int main(int argc, char** argv) {
     LOG_ASSERT(!all_models.empty());
     LOG_ASSERT(all_model_names.size() == all_models.size());
     size_t model_size = all_models.size();
-    std::map<std::pair<size_t, size_t>, float> accuracy_result, loss_result, distance_result;
+    std::map<std::pair<size_t, size_t>, float> accuracy_result, loss_result, distance_result, distance_result_square;
     std::mutex accuracy_result_lock;
 
     auto time_start = std::chrono::system_clock::now();
-    tmt::ParallelExecution_StepIncremental([total_tasks, &current_percentage, &time_start, &solver_for_testing, &finished_task, &cout_mutex, &test_dataset, &all_models, &test_size, &fixed_test_dataset, &accuracy_result_lock, &accuracy_result, &distance_result, &loss_result](uint32_t index, uint32_t thread_index, const std::pair<size_t,size_t>& current_model_pair) {
+    tmt::ParallelExecution_StepIncremental([total_tasks, &current_percentage, &time_start, &solver_for_testing, &finished_task, &cout_mutex, &test_dataset, &all_models, &test_size, &fixed_test_dataset, &accuracy_result_lock, &accuracy_result, &distance_result, &distance_result_square, &loss_result](uint32_t index, uint32_t thread_index, const std::pair<size_t,size_t>& current_model_pair) {
         auto [index0, index1] = current_model_pair;
         Ml::caffe_parameter_net<model_datatype> fusion_model = all_models[index0] * 0.5 + all_models[index1] * 0.5;
 
         auto distance_model = all_models[index0] - all_models[index1];
         distance_model.abs();
         auto distance = distance_model.sum();
-
-
+    
+        auto distance_square_model = all_models[index0].dot_product(all_models[index0]) - all_models[index1].dot_product(all_models[index1]);
+        distance_square_model.abs();
+        auto distance_square = distance_square_model.sum();
+        
         //testing
         std::vector<const Ml::tensor_blob_like<model_datatype>*> test_data, test_label;
         if (fixed_test_dataset.has_value()) {
@@ -188,6 +191,7 @@ int main(int argc, char** argv) {
         {
             std::lock_guard guard(accuracy_result_lock);
             distance_result.emplace(current_model_pair, distance);
+            distance_result_square.emplace(current_model_pair, distance_square);
             accuracy_result.emplace(current_model_pair, accuracy);
             loss_result.emplace(current_model_pair, loss);
         }
@@ -220,12 +224,13 @@ int main(int argc, char** argv) {
         std::ofstream csv_file("model_similarity.csv", std::ios::binary);
         LOG_ASSERT(csv_file.good());
         // header
-        csv_file << "node_index0,node_index1,accuracy,loss,distance" << std::endl;
+        csv_file << "node_index0,node_index1,accuracy,loss,distance,distance_square" << std::endl;
         // data
         for (const auto &single_pair: all_model_pairs) {
             auto [index0, index1] = single_pair;
             csv_file << all_model_names[index0] << "," << all_model_names[index1] << ",";
-            csv_file << accuracy_result[single_pair] << "," << loss_result[single_pair] << "," << distance_result[single_pair] << std::endl;
+            csv_file << accuracy_result[single_pair] << "," << loss_result[single_pair] << ",";
+            csv_file << distance_result[single_pair] << "," << distance_result_square[single_pair] << std::endl;
         }
 
         csv_file.flush();
