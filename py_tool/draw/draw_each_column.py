@@ -20,7 +20,7 @@ def axis_apply_style(axis, draw_name, df):
     axis.grid(which='minor', color='#EEEEEE', linestyle=':', linewidth=1)
     axis.set_title(f"{draw_name}")
     axis.set_xlabel('tick')
-    axis.set_ylabel('model weight')
+    axis.set_ylabel('column value')
     axis.set_xlim([0, max(df['tick'])])
 
 
