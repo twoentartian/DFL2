@@ -39,6 +39,7 @@ enum class service_trigger_type
     //process_on_event trigger type
     model_before_training,
     model_after_training,
+    model_before_averaging,
     model_after_averaging,
     model_added_to_average_buffer,
 
@@ -434,7 +435,7 @@ public:
             abs_of_received_models[triggered_node_name].push_back(abs);
         }
         if (trigger == service_trigger_type::model_after_averaging) {
-            const auto& parameter = *((*this->node_container)[triggered_node_name]->simulation_service_data.average_output_ptr);
+            const auto& parameter = *((*this->node_container)[triggered_node_name]->simulation_service_data.model_after_averaging_ptr);
             const auto iter_abs_of_received_models_for_triggered_node = abs_of_received_models.find(triggered_node_name);
             LOG_ASSERT(iter_abs_of_received_models_for_triggered_node != abs_of_received_models.end());
             {
@@ -2253,6 +2254,159 @@ private:
 
 };
 
+template <typename model_datatype>
+class variance_control : public service<model_datatype>
+{
+private:
+
+public:
+    bool enable_constant_variance_during_averaging;
+    bool enable_same_variance_as_single_node_during_training;
+
+public:
+    variance_control()
+    {
+        this->node_vector_container = nullptr;
+    }
+    
+    std::tuple<service_status, std::string> apply_config(const configuration_file::json &config) override
+    {
+        this->enable = config["enable"];
+        if (this->enable == false) return {service_status::skipped, "not enabled"};
+        
+        enable_constant_variance_during_averaging = config["enable_constant_variance_during_averaging"];
+        enable_same_variance_as_single_node_during_training = config["enable_same_variance_as_single_node_during_training"];
+        
+        return {service_status::success, ""};
+    }
+    
+    std::tuple<service_status, std::string> init_service(const std::filesystem::path &output_path, std::map<std::string, node<model_datatype> *> &_node_container, std::vector<node<model_datatype> *> &_node_vector_container) override
+    {
+        if (this->enable == false) return {service_status::skipped, "not enabled"};
+        
+        this->set_node_container(_node_container, _node_vector_container);
+        
+        return {service_status::success, ""};
+    }
+    
+    std::tuple<service_status, std::string> process_per_tick(int tick, service_trigger_type trigger) override
+    {
+        if (this->enable == false) return {service_status::skipped, "not enabled"};
+        
+        //nothing to do
+        return {service_status::skipped, "nothing to do"};
+    }
+    
+    std::tuple<service_status, std::string> process_on_event(int tick, service_trigger_type trigger, std::string triggered_node_name) override
+    {
+        if (this->enable == false) return {service_status::skipped, "not enabled"};
+        
+        if (enable_constant_variance_during_averaging) {
+            if (trigger == service_trigger_type::model_before_averaging) {
+                //record variance
+                auto node_iter = this->node_container->find(triggered_node_name);
+                LOG_ASSERT(node_iter != this->node_container->end());
+                node<model_datatype>* node = node_iter->second;
+                auto model = node->solver->get_parameter();
+                auto variance_per_layer = get_variance_for_model(model);
+                latest_weights_variance[triggered_node_name] = variance_per_layer;
+            }
+            if (trigger == service_trigger_type::model_after_averaging) {
+                //rescale weights
+                auto node_iter = this->node_container->find(triggered_node_name);
+                LOG_ASSERT(node_iter != this->node_container->end());
+                node<model_datatype>* node = node_iter->second;
+                auto model = node->solver->get_parameter();
+                for (Ml::caffe_parameter_layer<model_datatype>& layer : model.getLayers()) {
+                    const std::string &layer_name = layer.getName();
+                    const auto &blobs = layer.getBlob_p();
+                    if (!blobs.empty()) {
+                        auto target_variance = latest_weights_variance[triggered_node_name][layer_name];
+                        scale_variance(blobs[0]->getData(), target_variance);
+                    }
+                }
+                node->solver->set_parameter(model);
+            }
+        }
+    
+        if (enable_same_variance_as_single_node_during_training) {
+            if (trigger == service_trigger_type::model_before_training) {
+            
+            }
+    
+            if (trigger == service_trigger_type::model_after_training) {
+            
+            }
+        }
+        
+        return {service_status::success, "not implemented"};
+    }
+    
+    std::tuple<service_status, std::string> destruction_service() override
+    {
+        return {service_status::success, ""};
+    }
+
+private:
+    static std::map<std::string, model_datatype> get_variance_for_model(const Ml::caffe_parameter_net<model_datatype>& model) {
+        std::map<std::string, model_datatype> variance_per_layer;
+        for (const Ml::caffe_parameter_layer<model_datatype>& layer : model.getLayers()) {
+            const auto blobs = layer.getBlob_p();
+            if (!blobs.empty()) {
+                variance_per_layer.emplace(layer.getName(), calculate_variance(blobs[0]->getData()));
+            }
+        }
+        return variance_per_layer;
+    }
+    
+    static model_datatype calculate_variance(const std::vector<model_datatype>& data) {
+        if (data.empty()) {
+            return 0.0; // Handle empty data
+        }
+        
+        model_datatype mean = calculate_mean(data);
+        model_datatype variance = 0.0;
+        
+        for (const double& value : data) {
+            double diff = value - mean;
+            variance += diff * diff;
+        }
+        
+        return variance / static_cast<model_datatype>(data.size());
+    }
+    
+    static model_datatype calculate_mean(const std::vector<model_datatype>& data) {
+        model_datatype sum = 0.0;
+        for (const double& value : data) {
+            sum += value;
+        }
+        return sum / static_cast<double>(data.size());
+    }
+    
+    static void scale_variance(std::vector<model_datatype>& data_series, model_datatype target_variance, float ratio=1.0f, float self_layer_variance=NAN) {
+        model_datatype meanD1 = calculate_mean(data_series);
+        
+        model_datatype varD1 = 0;
+        if (isnan(self_layer_variance)) {
+            varD1 = calculate_variance(data_series);
+        }
+        else {
+            varD1 = self_layer_variance;
+        }
+        
+        // Calculate the standard deviation of D1 and the target standard deviation (sqrt of v2)
+        model_datatype stdD1 = std::sqrt(varD1);
+        model_datatype targetStd = std::sqrt(target_variance);
+        
+        // Scale each data point in D1
+        const float scale_factor = (targetStd/stdD1-1)*ratio + 1;
+        std::transform(data_series.begin(), data_series.end(), data_series.begin(), [&](model_datatype value) {
+            return (value - meanD1) * scale_factor + meanD1;
+        });
+    }
+    
+    std::map<std::string, std::map<std::string, model_datatype>> latest_weights_variance;
+};
 
 template <typename model_datatype>
 class stage_manager_service : public service<model_datatype>

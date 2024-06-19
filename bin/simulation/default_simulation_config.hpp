@@ -19,6 +19,7 @@ configuration_file::json get_default_simulation_configuration()
     opti_averaging_algorithm_args["variance_correction_method_all_possible"] = "self,others,follow_beta";
     opti_averaging_algorithm_args["skip_layers"] = "";
     opti_averaging_algorithm_args["skip_layers_example"] = "conv1,conv2,conv3,ip1";
+    opti_averaging_algorithm_args["treat_beta_as_step_length"] = false;
     output["simulator_opti_averaging_algorithm_args"] = opti_averaging_algorithm_args;
 
 	output["report_time_remaining_per_tick_elapsed"] = 100;
@@ -163,6 +164,13 @@ configuration_file::json get_default_simulation_configuration()
         received_modeL_record["path"] = "./received_models";
         received_modeL_record["nodes"] = "0,1,2,3,4";
         services["received_model_record"] = received_modeL_record;
+    }
+    {
+        configuration_file::json variance_control = configuration_file::json::object();
+        variance_control["enable"] = false;
+        variance_control["enable_constant_variance_during_averaging"] = true;
+        variance_control["enable_same_variance_as_single_node_during_training"] = true;
+        services["variance_control"] = variance_control;
     }
     {
         configuration_file::json stage_manager = configuration_file::json::object();

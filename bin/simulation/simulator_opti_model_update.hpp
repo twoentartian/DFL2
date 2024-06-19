@@ -105,6 +105,44 @@ namespace opti_model_update_util {
             return (value - meanD1) * scale_factor + meanD1;
         });
     }
+    
+    template<typename model_datatype>
+    static model_datatype calculate_norm_for_layer(std::vector<model_datatype>& data_series) {
+        model_datatype output = 0;
+        for (const auto& v : data_series) {
+            output += v * v;
+        }
+        return std::sqrt(output);
+    }
+    
+    template<typename model_datatype>
+    static std::map<std::string, model_datatype> calculate_norm(const Ml::caffe_parameter_net<model_datatype>& model) {
+        std::map<std::string, model_datatype> norm;
+        for (const Ml::caffe_parameter_layer<model_datatype>& layer : model.getLayers()) {
+            const auto blobs = layer.getBlob_p();
+            if (!blobs.empty()) {
+                norm.emplace(layer.getName(), calculate_norm_for_layer(blobs[0]->getData()));
+            }
+        }
+        return norm;
+    }
+    
+    template<typename model_datatype>
+    static Ml::caffe_parameter_net<model_datatype> calculate_angle_norm(const Ml::caffe_parameter_net<model_datatype>& model, const std::map<std::string, model_datatype>& norm) {
+        Ml::caffe_parameter_net<model_datatype> output = model.deep_clone();
+        for (const Ml::caffe_parameter_layer<model_datatype>& layer : output.getLayers()) {
+            const auto blobs = layer.getBlob_p();
+            const auto layer_name = layer.getName();
+            if (blobs.empty()) continue;
+            auto& layer_weights = blobs[0]->getData();
+            auto layer_norm_iter = norm.find(layer_name);
+            model_datatype layer_norm = layer_norm_iter->second;
+            for (auto& v : layer_weights) {
+                v = v / layer_norm;
+            }
+        }
+        return output;
+    }
 }
 
 template <typename model_datatype>
@@ -705,6 +743,9 @@ public:
         //check args
         LOG_ASSERT(args.contains("beta"));
         float beta = std::stof(args.at("beta"));
+        LOG_ASSERT(args.contains("treat_beta_as_step_length"));
+        bool treat_beta_as_step_length;
+        std::istringstream(args.at("treat_beta_as_step_length")) >> std::boolalpha >> treat_beta_as_step_length;
         LOG_ASSERT(args.contains("variance_correction"));
         bool enable_variance_correction;
         std::istringstream(args.at("variance_correction")) >> std::boolalpha >> enable_variance_correction;
@@ -741,6 +782,19 @@ public:
                 LOG_IF(FATAL, !exist) << layer_name << " specified in [skip_layers] does not appear in the model";
             }
         }
+        
+        //averaging
+        if (treat_beta_as_step_length) {
+            auto diff_model = output - self_model;
+            auto diff_model_norm = opti_model_update_util::calculate_norm(diff_model);
+            auto diff_model_angle = opti_model_update_util::calculate_angle_norm(diff_model, diff_model_norm);
+            diff_model_angle = diff_model_angle * beta;
+            output = self_model + diff_model_angle;
+        }
+        else {
+            output = self_model * beta + output * (1-beta);
+        }
+        
         
         //modify variance
         std::map<std::string, model_datatype> self_variance = opti_model_update_util::get_variance_for_model(output);

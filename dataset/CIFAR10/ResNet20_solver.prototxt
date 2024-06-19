@@ -1,6 +1,6 @@
 test_iter: 100000
 test_interval: 100000
-base_lr: 0.1
+base_lr: 0.01
 display: 100
 max_iter: 10000000
 lr_policy: "multistep"
@@ -12,6 +12,5 @@ snapshot_prefix: "../../../dataset/CIFAR10/result/snap"
 solver_mode: CPU
 net: "../../../dataset/CIFAR10/ResNet20_train.prototxt"
 test_initialization: true
-stepvalue: 32000
-stepvalue: 48000
-type: "Nesterov"
+stepvalue: 80000
+type: "Adam"

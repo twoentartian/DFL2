@@ -88,11 +88,15 @@ public:
     Ml::caffe_parameter_net<model_datatype>* just_received_model_ptr;
     std::string just_received_model_source_node_name;
     std::mutex just_received_model_ptr_lock;
-
-    Ml::caffe_parameter_net<model_datatype>* average_output_ptr;
+    
+    Ml::caffe_parameter_net<model_datatype>* model_before_averaging_ptr;
+    Ml::caffe_parameter_net<model_datatype>* model_after_averaging_ptr;
 
     Ml::caffe_parameter_net<model_datatype>* model_before_training_ptr;
     Ml::caffe_parameter_net<model_datatype>* model_after_training_ptr;
+    
+    std::vector<const Ml::tensor_blob_like<model_datatype>*> recent_training_data;
+    std::vector<const Ml::tensor_blob_like<model_datatype>*> recent_training_label;
 };
 
 template<typename model_datatype>
