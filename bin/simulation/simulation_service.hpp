@@ -332,7 +332,7 @@ public:
                                {
                                    uint32_t index_next = index + 1;
                                    const uint32_t total_size = this->node_vector_container->size();
-                                   if (index_next == total_size - 1) index_next = 0;
+                                   if (index_next == total_size) index_next = 0;
                                    auto net1 = (*this->node_vector_container)[index]->solver->get_parameter();
                                    auto net2 = (*this->node_vector_container)[index_next]->solver->get_parameter();
                                    auto layers1 = net1.getLayers();
@@ -352,7 +352,7 @@ public:
                                            weight_diff_sums_square[i] = weight_diff_sums_square[i] + value;
                                        }
                                    }
-                               }, this->node_vector_container->size() - 1, this->node_vector_container->data());
+                               }, this->node_vector_container->size(), this->node_vector_container->data());
         
         *model_weights_file << tick;
         *model_weights_square_file << tick;
