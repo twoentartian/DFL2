@@ -746,6 +746,8 @@ public:
         LOG_ASSERT(args.contains("treat_beta_as_step_length"));
         bool treat_beta_as_step_length;
         std::istringstream(args.at("treat_beta_as_step_length")) >> std::boolalpha >> treat_beta_as_step_length;
+        LOG_ASSERT(args.contains("treat_beta_as_step_length_step_modifier_factor_of_difference"));
+        float treat_beta_as_step_length_step_modifier_factor_of_difference = std::stof(args.at("treat_beta_as_step_length_step_modifier_factor_of_difference"));
         LOG_ASSERT(args.contains("variance_correction"));
         bool enable_variance_correction;
         std::istringstream(args.at("variance_correction")) >> std::boolalpha >> enable_variance_correction;
@@ -786,10 +788,25 @@ public:
         //averaging
         if (treat_beta_as_step_length) {
             auto diff_model = output - self_model;
-            auto diff_model_norm = opti_model_update_util::calculate_norm(diff_model);
-            auto diff_model_angle = opti_model_update_util::calculate_angle_norm(diff_model, diff_model_norm);
-            diff_model_angle = diff_model_angle * beta;
-            output = self_model + diff_model_angle;
+            std::map<std::string, model_datatype> diff_model_norm = opti_model_update_util::calculate_norm(diff_model);
+            Ml::caffe_parameter_net<model_datatype> diff_model_angle = opti_model_update_util::calculate_angle_norm(diff_model, diff_model_norm);
+            Ml::caffe_parameter_net<model_datatype> output_model = diff_model_angle;
+            std::vector<Ml::caffe_parameter_layer<model_datatype>>& layers = diff_model_angle.getLayers();
+            for (size_t i=0; i < layers.size(); i++) {
+                const auto& layer = layers[i];
+                const auto layer_name = layer.getName();
+                const auto layer_norm_iter = diff_model_norm.find(layer_name);
+                if (layer_norm_iter == diff_model_norm.end()) {
+                    continue;
+                }
+                const auto layer_norm = layer_norm_iter->second;
+                auto step_from_diff_modifier = layer_norm * treat_beta_as_step_length_step_modifier_factor_of_difference;
+                auto step = std::max(beta, step_from_diff_modifier);
+                auto& output_layers = output_model.getLayers();
+                output_layers[i] = layer * step;
+            }
+            
+            output = self_model + output_model;
         }
         else {
             output = self_model * beta + output * (1-beta);

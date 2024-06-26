@@ -85,6 +85,7 @@ int main(int argc, char *argv[])
 	configuration_file config;
 	config.SetDefaultConfiguration(get_default_simulation_configuration());
     auto load_config_rc = config.LoadConfiguration(config_file_path, {
+            "/simulator_opti_averaging_algorithm_args"_json_pointer,
             "/services"_json_pointer, "/services/accuracy"_json_pointer, "/services/apply_delta_weight"_json_pointer,
             "/services/apply_received_model"_json_pointer,"/services/compiled_services"_json_pointer,
             "/services/delta_weight_after_training_averaging_record"_json_pointer,
