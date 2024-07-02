@@ -2518,6 +2518,7 @@ class compiled_services : public service<model_datatype>{
 public:
     static constexpr bool ENABLE_SET_NODE_0_WEIGHT = false;
     static constexpr bool ENABLE_TRAIN_0_4_FIRST_10000_TICK_5_9_LATER_10000_TICK = false;
+    static constexpr bool ENABLE_SET_NODE_1_TO_REVERSED_NODE_0 = true;
 
     bool enable_model_randomness;
     float init_model_randomness;
@@ -2543,6 +2544,7 @@ public:
         // set all weights of node 0 to a value at tick 0
         if (ENABLE_SET_NODE_0_WEIGHT && tick == 0 && trigger == service_trigger_type::start_of_tick) {
             LOG(WARNING) << "ENABLE_SET_NODE_0_WEIGHT is true, the model weight of node 0 will be set to specific values";
+            std::cout << "ENABLE_SET_NODE_0_WEIGHT is true, the model weight of node 0 will be set to specific values" << std::endl;
 
             const auto node_0_iter = this->node_container->find("0");
             LOG_IF(FATAL, node_0_iter == this->node_container->end()) << "node 0 does not exist";
@@ -2565,6 +2567,7 @@ public:
         //override the initial models with a specific model + randomness
         if (enable_model_randomness && tick == 0 && trigger == service_trigger_type::start_of_tick) {
             LOG(WARNING) << "enable_model_randomness is true, setting the model to a mixture of node 0 and randomness model";
+            std::cout << "enable_model_randomness is true, setting the model to a mixture of node 0 and randomness model" << std::endl;
 
             const auto node_0_iter = this->node_container->find("0");
             LOG_IF(FATAL, node_0_iter == this->node_container->end()) << "node 0 does not exist";
@@ -2577,18 +2580,33 @@ public:
         }
 
         //ENABLE_TRAIN_0_4_FIRST_10000_TICK_5_9_LATER_10000_TICK
-        if(ENABLE_TRAIN_0_4_FIRST_10000_TICK_5_9_LATER_10000_TICK) {
+        if (ENABLE_TRAIN_0_4_FIRST_10000_TICK_5_9_LATER_10000_TICK) {
             if (tick == 0 && trigger == service_trigger_type::start_of_tick) {
                 LOG(WARNING) << "ENABLE_TRAIN_0_4_FIRST_10000_TICK_5_9_LATER_10000_TICK is true, setting all nodes to normal_label_0_4";
+                std::cout << "ENABLE_TRAIN_0_4_FIRST_10000_TICK_5_9_LATER_10000_TICK is true, setting all nodes to normal_label_0_4" << std::endl;
                 for (auto& node: *(this->node_container)) {
                     node.second->type = node_type::normal_label_0_4;
                 }
             }
             if (tick == 10000 && trigger == service_trigger_type::start_of_tick) {
                 LOG(WARNING) << "ENABLE_TRAIN_0_4_FIRST_10000_TICK_5_9_LATER_10000_TICK is true, setting all nodes to normal";
+                std::cout << "ENABLE_TRAIN_0_4_FIRST_10000_TICK_5_9_LATER_10000_TICK is true, setting all nodes to normal" << std::endl;
                 for (auto& node: *(this->node_container)) {
                     node.second->type = node_type::normal;
                 }
+            }
+        }
+
+        //set the model of node 1 to the reversed model of node 0
+        if (ENABLE_SET_NODE_1_TO_REVERSED_NODE_0) {
+            if (tick == 0 && trigger == service_trigger_type::start_of_tick) {
+                LOG(WARNING) << "ENABLE_SET_NODE_1_TO_REVERSED_NODE_0 is true, setting model on node 1 to the reversed model of node 0";
+                std::cout << "ENABLE_SET_NODE_1_TO_REVERSED_NODE_0 is true, setting model on node 1 to the reversed model of node 0" << std::endl;
+                node<model_datatype>* node0 = this->node_container->at("0");
+                Ml::caffe_parameter_net<model_datatype> model0 = node0->solver->get_parameter();
+                model0 = model0 * -1;
+                node<model_datatype>* node1 = this->node_container->at("1");
+                node1->solver->set_parameter(model0);
             }
         }
 
