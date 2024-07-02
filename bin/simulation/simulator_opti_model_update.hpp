@@ -105,6 +105,44 @@ namespace opti_model_update_util {
             return (value - meanD1) * scale_factor + meanD1;
         });
     }
+    
+    template<typename model_datatype>
+    static model_datatype calculate_norm_for_layer(std::vector<model_datatype>& data_series) {
+        model_datatype output = 0;
+        for (const auto& v : data_series) {
+            output += v * v;
+        }
+        return std::sqrt(output);
+    }
+    
+    template<typename model_datatype>
+    static std::map<std::string, model_datatype> calculate_norm(const Ml::caffe_parameter_net<model_datatype>& model) {
+        std::map<std::string, model_datatype> norm;
+        for (const Ml::caffe_parameter_layer<model_datatype>& layer : model.getLayers()) {
+            const auto blobs = layer.getBlob_p();
+            if (!blobs.empty()) {
+                norm.emplace(layer.getName(), calculate_norm_for_layer(blobs[0]->getData()));
+            }
+        }
+        return norm;
+    }
+    
+    template<typename model_datatype>
+    static Ml::caffe_parameter_net<model_datatype> calculate_angle_norm(const Ml::caffe_parameter_net<model_datatype>& model, const std::map<std::string, model_datatype>& norm) {
+        Ml::caffe_parameter_net<model_datatype> output = model.deep_clone();
+        for (const Ml::caffe_parameter_layer<model_datatype>& layer : output.getLayers()) {
+            const auto blobs = layer.getBlob_p();
+            const auto layer_name = layer.getName();
+            if (blobs.empty()) continue;
+            auto& layer_weights = blobs[0]->getData();
+            auto layer_norm_iter = norm.find(layer_name);
+            model_datatype layer_norm = layer_norm_iter->second;
+            for (auto& v : layer_weights) {
+                v = v / layer_norm;
+            }
+        }
+        return output;
+    }
 }
 
 template <typename model_datatype>
@@ -705,42 +743,131 @@ public:
         //check args
         LOG_ASSERT(args.contains("beta"));
         float beta = std::stof(args.at("beta"));
+        LOG_ASSERT(args.contains("treat_beta_as_step_length"));
+        bool treat_beta_as_step_length;
+        std::istringstream(args.at("treat_beta_as_step_length")) >> std::boolalpha >> treat_beta_as_step_length;
+        LOG_ASSERT(args.contains("treat_beta_as_step_length_step_modifier_factor_of_difference"));
+        float treat_beta_as_step_length_step_modifier_factor_of_difference = std::stof(args.at("treat_beta_as_step_length_step_modifier_factor_of_difference"));
         LOG_ASSERT(args.contains("variance_correction"));
         bool enable_variance_correction;
         std::istringstream(args.at("variance_correction")) >> std::boolalpha >> enable_variance_correction;
         LOG_ASSERT(args.contains("variance_correction_method"));
         std::string variance_correction_method = args.at("variance_correction_method");
         //variance_correction_method: self, others, follow_beta
-        LOG_ASSERT(args.contains("skip_layers"));
-        std::string skip_layers_str = args.at("skip_layers");
-        std::set<std::string> skipped_layers;
-        //insert to skipped_layers
+        LOG_ASSERT(args.contains("skip_layers_variance_correction"));
+        LOG_ASSERT(args.contains("skip_layers_averaging"));
+        std::string skip_vc_layers_str = args.at("skip_layers_variance_correction");
+        std::string skip_averaging_layer_str = args.at("skip_layers_averaging");
+        std::set<std::string> skipped_vc_layers;
+        std::set<std::string> skipped_averaging_layers;
         {
-            std::vector<std::string> skipped_layers_vec = util::split(skip_layers_str, ',');
-            for (const auto& i : skipped_layers_vec)
+            //insert to skipped_vc_layers
             {
-                skipped_layers.emplace(i);
-            }
-        }
-        //check existence of layers
-        {
-            std::map<std::string, bool> check_exist;
-            for (const auto& i : skipped_layers)
-            {
-                check_exist.emplace(i, false);
-            }
-            for (Ml::caffe_parameter_layer<model_datatype>& layer : output.getLayers()) {
-                const std::string layer_type = layer.getType();
-                auto iter = check_exist.find(layer_type);
-                if (iter != check_exist.end()) {
-                    iter->second = true;
+                std::vector<std::string> skipped_layers_vec = util::split(skip_vc_layers_str, ',');
+                for (const auto &i: skipped_layers_vec)
+                {
+                    skipped_vc_layers.emplace(i);
                 }
             }
-            for (const auto& [layer_name, exist] : check_exist)
+            //check existence of layers
             {
-                LOG_IF(FATAL, !exist) << layer_name << " specified in [skip_layers] does not appear in the model";
+                std::map<std::string, bool> check_exist;
+                for (const auto& i : skipped_vc_layers)
+                {
+                    check_exist.emplace(i, false);
+                }
+                for (Ml::caffe_parameter_layer<model_datatype>& layer : output.getLayers()) {
+                    const std::string layer_name = layer.getName();
+                    const std::string layer_type = layer.getType();
+                    {
+                        auto iter = check_exist.find(layer_type);
+                        if (iter != check_exist.end()) {
+                            iter->second = true;
+                        }
+                    }
+                    {
+                        auto iter = check_exist.find(layer_name);
+                        if (iter != check_exist.end()) {
+                            iter->second = true;
+                        }
+                    }
+                }
+                for (const auto& [layer_name, exist] : check_exist)
+                {
+                    LOG_IF(FATAL, !exist) << layer_name << " specified in [skip_layers_variance_correction] does not appear in the model";
+                }
             }
         }
+        {
+            //insert to skip_averaging_layer_str
+            {
+                std::vector<std::string> skipped_layers_vec = util::split(skip_averaging_layer_str, ',');
+                for (const auto &i: skipped_layers_vec)
+                {
+                    skipped_averaging_layers.emplace(i);
+                }
+            }
+            //check existence of layers
+            {
+                std::map<std::string, bool> check_exist;
+                for (const auto& i : skipped_averaging_layers)
+                {
+                    check_exist.emplace(i, false);
+                }
+                for (Ml::caffe_parameter_layer<model_datatype>& layer : output.getLayers()) {
+                    const std::string layer_name = layer.getName();
+                    const std::string layer_type = layer.getType();
+                    {
+                        auto iter = check_exist.find(layer_type);
+                        if (iter != check_exist.end()) {
+                            iter->second = true;
+                        }
+                    }
+                    {
+                        auto iter = check_exist.find(layer_name);
+                        if (iter != check_exist.end()) {
+                            iter->second = true;
+                        }
+                    }
+                }
+                for (const auto& [layer_name, exist] : check_exist)
+                {
+                    LOG_IF(FATAL, !exist) << layer_name << " specified in [skip_layers_averaging] does not appear in the model";
+                }
+            }
+        }
+        
+        //averaging
+        if (treat_beta_as_step_length) {
+            auto diff_model = output - self_model;
+            std::map<std::string, model_datatype> diff_model_norm = opti_model_update_util::calculate_norm(diff_model);
+            Ml::caffe_parameter_net<model_datatype> diff_model_angle = opti_model_update_util::calculate_angle_norm(diff_model, diff_model_norm);
+            Ml::caffe_parameter_net<model_datatype> output_model = diff_model_angle;
+            std::vector<Ml::caffe_parameter_layer<model_datatype>>& layers = diff_model_angle.getLayers();
+            for (size_t i=0; i < layers.size(); i++) {
+                const auto& layer = layers[i];
+                const auto layer_name = layer.getName();
+                const std::string layer_type = layer.getType();
+                if (skipped_averaging_layers.contains(layer_type)) continue;
+                if (skipped_averaging_layers.contains(layer_name)) continue;
+                
+                const auto layer_norm_iter = diff_model_norm.find(layer_name);
+                if (layer_norm_iter == diff_model_norm.end()) {
+                    continue;
+                }
+                const auto layer_norm = layer_norm_iter->second;
+                auto step_from_diff_modifier = layer_norm * treat_beta_as_step_length_step_modifier_factor_of_difference;
+                auto step = std::max(beta, step_from_diff_modifier);
+                auto& output_layers = output_model.getLayers();
+                output_layers[i] = layer * step;
+            }
+            
+            output = self_model + output_model;
+        }
+        else {
+            output = self_model * beta + output * (1-beta);
+        }
+        
         
         //modify variance
         std::map<std::string, model_datatype> self_variance = opti_model_update_util::get_variance_for_model(output);
@@ -753,7 +880,8 @@ public:
         for (Ml::caffe_parameter_layer<model_datatype>& layer : output.getLayers()) {
             const std::string& name = layer.getName();
             const std::string layer_type = layer.getType();
-            if (skipped_layers.contains(layer_type)) continue;
+            if (skipped_vc_layers.contains(layer_type)) continue;
+            if (skipped_vc_layers.contains(name)) continue;
             const auto& blobs = layer.getBlob_p();
             if (!blobs.empty()) {
                 auto self_layer_variance = self_variance[name];

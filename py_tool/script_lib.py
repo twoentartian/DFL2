@@ -130,3 +130,13 @@ def find_edges_among_two_blocks(G: nx.Graph, block_a, block_b):
     return edges_between_a_and_b
 
 
+def add_edge_no_direction(script_target, tick:int, edges):
+    new_edges = []
+    for a,b in edges:
+        new_edges.append(f"{a}--{b}")
+    operation = {}
+    operation["add_edge"] = new_edges
+    script_target.append({
+        "tick": tick,
+        "script": operation,
+    })
