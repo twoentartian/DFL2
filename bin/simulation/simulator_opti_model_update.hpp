@@ -754,34 +754,86 @@ public:
         LOG_ASSERT(args.contains("variance_correction_method"));
         std::string variance_correction_method = args.at("variance_correction_method");
         //variance_correction_method: self, others, follow_beta
-        LOG_ASSERT(args.contains("skip_layers"));
-        std::string skip_layers_str = args.at("skip_layers");
-        std::set<std::string> skipped_layers;
-        //insert to skipped_layers
+        LOG_ASSERT(args.contains("skip_layers_variance_correction"));
+        LOG_ASSERT(args.contains("skip_layers_averaging"));
+        std::string skip_vc_layers_str = args.at("skip_layers_variance_correction");
+        std::string skip_averaging_layer_str = args.at("skip_layers_averaging");
+        std::set<std::string> skipped_vc_layers;
+        std::set<std::string> skipped_averaging_layers;
         {
-            std::vector<std::string> skipped_layers_vec = util::split(skip_layers_str, ',');
-            for (const auto& i : skipped_layers_vec)
+            //insert to skipped_vc_layers
             {
-                skipped_layers.emplace(i);
-            }
-        }
-        //check existence of layers
-        {
-            std::map<std::string, bool> check_exist;
-            for (const auto& i : skipped_layers)
-            {
-                check_exist.emplace(i, false);
-            }
-            for (Ml::caffe_parameter_layer<model_datatype>& layer : output.getLayers()) {
-                const std::string layer_type = layer.getType();
-                auto iter = check_exist.find(layer_type);
-                if (iter != check_exist.end()) {
-                    iter->second = true;
+                std::vector<std::string> skipped_layers_vec = util::split(skip_vc_layers_str, ',');
+                for (const auto &i: skipped_layers_vec)
+                {
+                    skipped_vc_layers.emplace(i);
                 }
             }
-            for (const auto& [layer_name, exist] : check_exist)
+            //check existence of layers
             {
-                LOG_IF(FATAL, !exist) << layer_name << " specified in [skip_layers] does not appear in the model";
+                std::map<std::string, bool> check_exist;
+                for (const auto& i : skipped_vc_layers)
+                {
+                    check_exist.emplace(i, false);
+                }
+                for (Ml::caffe_parameter_layer<model_datatype>& layer : output.getLayers()) {
+                    const std::string layer_name = layer.getName();
+                    const std::string layer_type = layer.getType();
+                    {
+                        auto iter = check_exist.find(layer_type);
+                        if (iter != check_exist.end()) {
+                            iter->second = true;
+                        }
+                    }
+                    {
+                        auto iter = check_exist.find(layer_name);
+                        if (iter != check_exist.end()) {
+                            iter->second = true;
+                        }
+                    }
+                }
+                for (const auto& [layer_name, exist] : check_exist)
+                {
+                    LOG_IF(FATAL, !exist) << layer_name << " specified in [skip_layers_variance_correction] does not appear in the model";
+                }
+            }
+        }
+        {
+            //insert to skip_averaging_layer_str
+            {
+                std::vector<std::string> skipped_layers_vec = util::split(skip_averaging_layer_str, ',');
+                for (const auto &i: skipped_layers_vec)
+                {
+                    skipped_averaging_layers.emplace(i);
+                }
+            }
+            //check existence of layers
+            {
+                std::map<std::string, bool> check_exist;
+                for (const auto& i : skipped_averaging_layers)
+                {
+                    check_exist.emplace(i, false);
+                }
+                for (Ml::caffe_parameter_layer<model_datatype>& layer : output.getLayers()) {
+                    const std::string layer_name = layer.getName();
+                    const std::string layer_type = layer.getType();
+                    {
+                        auto iter = check_exist.find(layer_type);
+                        if (iter != check_exist.end()) {
+                            iter->second = true;
+                        }
+                    }
+                    {
+                        auto iter = check_exist.find(layer_name);
+                        if (iter != check_exist.end()) {
+                            iter->second = true;
+                        }
+                    }
+                }
+                for (const auto& [layer_name, exist] : check_exist)
+                {
+                    LOG_IF(FATAL, !exist) << layer_name << " specified in [skip_layers_averaging] does not appear in the model";
+                }
             }
         }
         
@@ -795,6 +847,10 @@ public:
             for (size_t i=0; i < layers.size(); i++) {
                 const auto& layer = layers[i];
                 const auto layer_name = layer.getName();
+                const std::string layer_type = layer.getType();
+                if (skipped_averaging_layers.contains(layer_type)) continue;
+                if (skipped_averaging_layers.contains(layer_name)) continue;
+                
                 const auto layer_norm_iter = diff_model_norm.find(layer_name);
                 if (layer_norm_iter == diff_model_norm.end()) {
                     continue;
@@ -824,7 +880,8 @@ public:
         for (Ml::caffe_parameter_layer<model_datatype>& layer : output.getLayers()) {
             const std::string& name = layer.getName();
             const std::string layer_type = layer.getType();
-            if (skipped_layers.contains(layer_type)) continue;
+            if (skipped_vc_layers.contains(layer_type)) continue;
+            if (skipped_vc_layers.contains(name)) continue;
             const auto& blobs = layer.getBlob_p();
             if (!blobs.empty()) {
                 auto self_layer_variance = self_variance[name];

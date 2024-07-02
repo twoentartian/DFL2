@@ -17,7 +17,8 @@ configuration_file::json get_default_simulation_configuration()
     opti_averaging_algorithm_args["variance_correction"] = "true";
     opti_averaging_algorithm_args["variance_correction_method"] = "self";
     opti_averaging_algorithm_args["variance_correction_method_all_possible"] = "self,others,follow_beta";
-    opti_averaging_algorithm_args["skip_layers"] = "";
+    opti_averaging_algorithm_args["skip_layers_variance_correction"] = "";
+    opti_averaging_algorithm_args["skip_layers_averaging"] = "";
     opti_averaging_algorithm_args["skip_layers_example"] = "conv1,conv2,conv3,ip1";
     opti_averaging_algorithm_args["treat_beta_as_step_length"] = "false";
     opti_averaging_algorithm_args["treat_beta_as_step_length_step_modifier_factor_of_difference"] = "0.001";
