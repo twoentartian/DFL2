@@ -2696,7 +2696,7 @@ class compiled_services : public service<model_datatype>{
 public:
     static constexpr bool ENABLE_SET_NODE_0_WEIGHT = false;
     static constexpr bool ENABLE_TRAIN_0_4_FIRST_10000_TICK_5_9_LATER_10000_TICK = false;
-    static constexpr bool ENABLE_SET_NODE_1_TO_REVERSED_NODE_0 = false;
+    static constexpr bool ENABLE_SET_NODE_1_TO_OPPOSITE_NODE_0 = false;
 
     bool enable_model_randomness;
     float init_model_randomness;
@@ -2776,7 +2776,7 @@ public:
         }
 
         //set the model of node 1 to the reversed model of node 0
-        if (ENABLE_SET_NODE_1_TO_REVERSED_NODE_0) {
+        if (ENABLE_SET_NODE_1_TO_OPPOSITE_NODE_0) {
             if (tick == 0 && trigger == service_trigger_type::start_of_tick) {
                 LOG(WARNING) << "ENABLE_SET_NODE_1_TO_REVERSED_NODE_0 is true, setting model on node 1 to the reversed model of node 0";
                 std::cout << "ENABLE_SET_NODE_1_TO_REVERSED_NODE_0 is true, setting model on node 1 to the reversed model of node 0" << std::endl;
