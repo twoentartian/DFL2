@@ -13,6 +13,7 @@
 
 #include <tmt.hpp>
 #include <ml_layer.hpp>
+#include "../simulation/simulator_opti_model_update.hpp"
 
 using model_datatype = float;
 namespace po = boost::program_options;
@@ -160,13 +161,34 @@ int main(int argc, char** argv) {
     LOG_ASSERT(!all_models.empty());
     LOG_ASSERT(all_model_names.size() == all_models.size());
     size_t model_size = all_models.size();
-    std::map<std::pair<size_t, size_t>, float> accuracy_result, loss_result, distance_result, distance_result_square;
+    std::map<std::pair<size_t, size_t>, float> accuracy_result, accuracy_after_vc_result, loss_result, loss_after_vc_result, distance_result, distance_result_square;
     std::mutex accuracy_result_lock;
 
     auto time_start = std::chrono::system_clock::now();
-    tmt::ParallelExecution_StepIncremental([total_tasks, &current_percentage, &time_start, &solver_for_testing, &finished_task, &cout_mutex, &test_dataset, &all_models, &test_size, &fixed_test_dataset, &accuracy_result_lock, &accuracy_result, &distance_result, &distance_result_square, &loss_result](uint32_t index, uint32_t thread_index, const std::pair<size_t,size_t>& current_model_pair) {
+    tmt::ParallelExecution_StepIncremental([total_tasks, &current_percentage, &time_start, &solver_for_testing, &finished_task, &cout_mutex, &test_dataset, &all_models, &test_size, &fixed_test_dataset, &accuracy_result_lock, &accuracy_result, &distance_result, &distance_result_square, &loss_result, &accuracy_after_vc_result, &loss_after_vc_result](uint32_t index, uint32_t thread_index, const std::pair<size_t,size_t>& current_model_pair) {
         auto [index0, index1] = current_model_pair;
         Ml::caffe_parameter_net<model_datatype> fusion_model = all_models[index0] * 0.5 + all_models[index1] * 0.5;
+        Ml::caffe_parameter_net<model_datatype> fusion_model_after_vc = fusion_model.deep_clone();
+        std::map<std::string, model_datatype> self_variance = opti_model_update_util::get_variance_for_model(fusion_model);
+        {
+            auto var_model1 = opti_model_update_util::get_variance_for_model(all_models[index0]);
+            {
+                auto var_model2 = opti_model_update_util::get_variance_for_model(all_models[index1]);
+                for (auto& [k, v] : var_model1) {
+                    v += var_model2[k];
+                }
+                for (auto& [k, v] : var_model1) {
+                    v /= 2;
+                }
+            }
+            for (Ml::caffe_parameter_layer<model_datatype>& layer : fusion_model_after_vc.getLayers()) {
+                const std::string& name = layer.getName();
+                const auto &blobs = layer.getBlob_p();
+                if (!blobs.empty()) {
+                    opti_model_update_util::scale_variance(blobs[0]->getData(), var_model1[name], 1.0f, self_variance[name]);
+                }
+            }
+        }
 
         auto distance_model = all_models[index0] - all_models[index1];
         distance_model.abs();
@@ -184,9 +206,14 @@ int main(int argc, char** argv) {
         else {
             std::tie(test_data, test_label) = test_dataset.get_random_data(test_size);
         }
+
         solver_for_testing[thread_index].set_parameter(fusion_model);
         float loss = 0;
         auto accuracy = solver_for_testing[thread_index].evaluation(test_data, test_label, &loss);
+
+        solver_for_testing[thread_index].set_parameter(fusion_model_after_vc);
+        float loss_after_vc = 0;
+        auto accuracy_after_vc = solver_for_testing[thread_index].evaluation(test_data, test_label, &loss_after_vc);
 
         {
             std::lock_guard guard(accuracy_result_lock);
@@ -194,6 +221,8 @@ int main(int argc, char** argv) {
             distance_result_square.emplace(current_model_pair, distance_square);
             accuracy_result.emplace(current_model_pair, accuracy);
             loss_result.emplace(current_model_pair, loss);
+            accuracy_after_vc_result.emplace(current_model_pair, accuracy_after_vc);
+            loss_after_vc_result.emplace(current_model_pair, loss_after_vc);
         }
 
         finished_task++;
@@ -224,12 +253,13 @@ int main(int argc, char** argv) {
         std::ofstream csv_file("model_similarity.csv", std::ios::binary);
         LOG_ASSERT(csv_file.good());
         // header
-        csv_file << "node_index0,node_index1,accuracy,loss,distance,distance_square" << std::endl;
+        csv_file << "node_index0,node_index1,accuracy,loss,accuracy_after_vc,loss_after_vc,distance,distance_square" << std::endl;
         // data
         for (const auto &single_pair: all_model_pairs) {
             auto [index0, index1] = single_pair;
             csv_file << all_model_names[index0] << "," << all_model_names[index1] << ",";
             csv_file << accuracy_result[single_pair] << "," << loss_result[single_pair] << ",";
+            csv_file << accuracy_after_vc_result[single_pair] << "," << loss_after_vc_result[single_pair] << ",";
             csv_file << distance_result[single_pair] << "," << distance_result_square[single_pair] << std::endl;
         }
 
