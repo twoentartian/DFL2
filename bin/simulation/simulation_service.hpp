@@ -1418,6 +1418,10 @@ private:
     float connection_pair_swap_percentage;
     int connection_pair_swap_interval;
 
+    bool enable_regular_network;
+    int regular_network_k;
+    int regular_network_interval;
+
     std::filesystem::path output_file_path;
     std::ofstream output_file;
     int last_topology_update_tick;
@@ -1450,12 +1454,17 @@ public:
             connection_pair_swap_percentage = connection_pair_swap_config["percentage"];
             connection_pair_swap_interval = connection_pair_swap_config["interval"];
 
+            auto regular_network_config = config["regular_network"];
+            enable_regular_network = regular_network_config["enable"];
+            regular_network_k = regular_network_config["k"];
+            regular_network_interval = regular_network_config["interval"];
+
         }
 
         LOG_IF(FATAL, enable_read_from_file) << "read from file is not implemented yet";
 
-        this->enable = enable_read_from_file || enable_scale_free_network || enable_connection_pair_swap_config;
-        if (static_cast<int>(enable_read_from_file) + static_cast<int>(enable_scale_free_network) + static_cast<int>(enable_connection_pair_swap_config) > 1)
+        this->enable = enable_read_from_file || enable_scale_free_network || enable_connection_pair_swap_config || enable_regular_network;
+        if (static_cast<int>(enable_read_from_file) + static_cast<int>(enable_scale_free_network) + static_cast<int>(enable_connection_pair_swap_config) + static_cast<int>(enable_regular_network) > 1)
         {
             LOG(FATAL) << "cannot enable multiple network_topology_manager services";
         }
@@ -1504,6 +1513,16 @@ public:
             if (tick >= last_topology_update_tick + connection_pair_swap_interval)
             {
                 connection_pair_swap(tick);
+                last_topology_update_tick = tick;
+            }
+        }
+
+        ////regular network
+        if (enable_regular_network)
+        {
+            if (tick >= last_topology_update_tick + regular_network_interval)
+            {
+                regular_network(tick);
                 last_topology_update_tick = tick;
             }
         }
@@ -1672,6 +1691,139 @@ private:
             output_file << ",\n" << "\"tick-" << std::to_string(tick) << "\":" << output.dump();
         }
 
+    }
+
+    void regular_network(int tick)
+    {
+        int node_count = this->node_container->size();
+
+        bool flop_connection = (regular_network_k > node_count / 2);
+        int regular_network_k_override = flop_connection?(node_count - 1 - regular_network_k):regular_network_k;
+        LOG_IF(FATAL, regular_network_k * node_count % 2 != 0) << "impossible situation: regular_network_k("<< regular_network_k << ") * node_count(" << node_count << ") % 2 != 0";
+
+        int try_count = 0;
+        bool whole_success = false;
+        std::vector<std::tuple<int,int>> connections;
+
+        while (try_count < 10000)
+        {
+            try_count++;
+
+            std::map<int, int> peer_per_node;
+            for (int node = 0; node < node_count; ++node)
+            {
+                peer_per_node[node] = regular_network_k_override;
+            }
+
+            auto connection_result = generate_network_topology(peer_per_node);
+            if (connection_result.has_value()) //success
+            {
+                connections = *connection_result;
+
+                //check whether we get a network with islands
+                std::map<int, std::set<int>> peer_map;
+                for (int node = 0; node < node_count; ++node)
+                {
+                    peer_map[node] = {};//there is a node but no peer
+                }
+                for (auto &[node, peer]: connections)
+                {
+                    peer_map[node].emplace(peer);
+                    peer_map[peer].emplace(node);//add peers
+                }
+                if (flop_connection)
+                {
+                    std::set<int> whole_set;//should contain node 0...node_count-1
+                    for (int node = 0; node < node_count; ++node)
+                    {
+                        whole_set.emplace(node);
+                    }
+                    for (auto& [node, all_peers]: peer_map)
+                    {
+                        std::set<int> flopped_connections;
+                        std::set_difference(whole_set.begin(), whole_set.end(), all_peers.begin(), all_peers.end(), std::insert_iterator<std::set<int>>(flopped_connections, flopped_connections.begin()));
+                        peer_map[node] = flopped_connections;
+                        peer_map[node].erase(node);//remove self
+                    }
+                }
+
+                //check islands
+                std::set<int> mainland;
+                add_to_mainland(peer_map.begin()->first, peer_map, mainland);
+                if (mainland.size() == peer_map.size())
+                {
+                    whole_success = true;
+                    break;
+                }
+            }
+        }
+
+        if (!whole_success)
+        {
+            LOG(FATAL) << "cannot generate network after " << try_count << " tries" << std::endl;
+        }
+
+        //erase all connections
+        for (auto& node_iter : *this->node_container)
+        {
+            node_iter.second->peers.clear();
+        }
+
+        if (flop_connection)
+        {
+            std::map<int, std::set<int>> real_connections;
+            std::set<int> all_nodes;
+            for (int node = 0; node < node_count; ++node)
+            {
+                all_nodes.emplace(node);
+            }
+            for (int node = 0; node <node_count; ++node)
+            {
+                real_connections[node] = all_nodes;
+                real_connections[node].erase(node);
+            }
+            for (auto &[node0, node1]: connections)
+            {
+                real_connections[node0].erase(node1);
+            }
+
+            for (auto& [node, peers]: real_connections)
+            {
+                for (auto& single_peer: peers)
+                {
+                    if (node >= single_peer) continue;
+//                    std::cout << std::to_string(node) << node_peer_connection_type << std::to_string(single_peer) << std::endl;
+//                    node_topology_json.push_back(std::to_string(node) + node_peer_connection_type + std::to_string(single_peer));
+                    auto node_iter = this->node_container->find(std::to_string(node));
+                    auto peer_iter = this->node_container->find(std::to_string(single_peer));
+                    node_iter->second->peers[peer_iter->second->name] = peer_iter->second;
+                    peer_iter->second->peers[node_iter->second->name] = node_iter->second;
+
+                    //record
+                    output_file << "\"tick-" << std::to_string(tick) << "\":" << "\"" <<
+                                "{" << peer_iter->second->name << "--" << node_iter->second->name << "}" <<
+                                "\"," << std::endl;
+                }
+            }
+        }
+        else
+        {
+            for (auto &[node0, node1]: connections)
+            {
+//                std::cout << std::to_string(node0) << node_peer_connection_type << std::to_string(node1) << std::endl;
+//                node_topology_json.push_back(std::to_string(node0) + node_peer_connection_type + std::to_string(node1));
+                auto node_iter = this->node_container->find(std::to_string(node0));
+                auto peer_iter = this->node_container->find(std::to_string(node1));
+                node_iter->second->peers[peer_iter->second->name] = peer_iter->second;
+                peer_iter->second->peers[node_iter->second->name] = node_iter->second;
+
+                //record
+                output_file << "\"tick-" << std::to_string(tick) << "\":" << "\"" <<
+                            "{" << peer_iter->second->name << "--" << node_iter->second->name << "}" <<
+                            "\"," << std::endl;
+            }
+        }
+        
     }
 
     void connection_pair_swap(int tick)
