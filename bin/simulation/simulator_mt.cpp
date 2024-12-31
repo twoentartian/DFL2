@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
             "/services"_json_pointer, "/services/accuracy"_json_pointer, "/services/apply_delta_weight"_json_pointer,
             "/services/apply_received_model"_json_pointer,"/services/compiled_services"_json_pointer,
             "/services/delta_weight_after_training_averaging_record"_json_pointer,
-            "/services/force_broadcast_average"_json_pointer,"/services/model_abs_change_during_averaging"_json_pointer,
+            "/services/force_broadcast_average"_json_pointer,
             "/services/model_record"_json_pointer,
             "/services/model_weights_difference_record"_json_pointer,"/services/model_weights_variance_record"_json_pointer,
             "/services/network_topology_manager"_json_pointer,
@@ -630,7 +630,7 @@ int main(int argc, char *argv[])
     }
     //prepare "process_on_event" services
     const auto& received_model_record_service = services["received_model_record"];
-    const auto& model_abs_change_during_averaging_service = services["model_abs_change_during_averaging"];
+    // const auto& model_abs_change_during_averaging_service = services["model_abs_change_during_averaging"];
     const auto& variance_control_service = services["variance_control"];
     
     ////////////  BEGIN SIMULATION  ////////////
@@ -673,7 +673,7 @@ int main(int argc, char *argv[])
             trigger_service(tick, service_trigger_type::start_of_training);
 
             ////train the model
-			tmt::ParallelExecution_StepIncremental([&tick, &train_dataset, &ml_train_batch_size, &ml_dataset_all_possible_labels, random_training_sequence, &model_abs_change_during_averaging_service, &received_model_record_service, &variance_control_service](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
+			tmt::ParallelExecution_StepIncremental([&tick, &train_dataset, &ml_train_batch_size, &ml_dataset_all_possible_labels, random_training_sequence, &received_model_record_service, &variance_control_service](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
 				if (tick >= single_node->next_train_tick)
 				{
                     single_node->model_trained = true;
@@ -691,7 +691,7 @@ int main(int argc, char *argv[])
                         single_node->simulation_service_data.model_before_training_ptr = &parameter_before;
                         
                         //model_abs_change_during_averaging service
-                        model_abs_change_during_averaging_service->process_on_event(tick, service_trigger_type::model_before_training, single_node->name);
+                        // model_abs_change_during_averaging_service->process_on_event(tick, service_trigger_type::model_before_training, single_node->name);
                         //variance control
                         variance_control_service->process_on_event(tick, service_trigger_type::model_before_training, single_node->name);
                     }
@@ -708,7 +708,7 @@ int main(int argc, char *argv[])
                         single_node->simulation_service_data.model_after_training_ptr = &parameter_after;
                         
                         //model_abs_change_during_averaging service
-                        model_abs_change_during_averaging_service->process_on_event(tick, service_trigger_type::model_after_training, single_node->name);
+                        // model_abs_change_during_averaging_service->process_on_event(tick, service_trigger_type::model_after_training, single_node->name);
                         //variance_control
                         single_node->simulation_service_data.recent_training_data = train_data;
                         single_node->simulation_service_data.recent_training_label = train_label;
@@ -758,7 +758,7 @@ int main(int argc, char *argv[])
                                 updating_node->simulation_service_data.just_received_model_ptr = &model_after_pre_processing;
                                 updating_node->simulation_service_data.just_received_model_source_node_name = single_node->name;
                                 received_model_record_service->process_on_event(tick, service_trigger_type::model_added_to_average_buffer, updating_node_name);
-                                model_abs_change_during_averaging_service->process_on_event(tick, service_trigger_type::model_added_to_average_buffer, updating_node_name);
+                                // model_abs_change_during_averaging_service->process_on_event(tick, service_trigger_type::model_added_to_average_buffer, updating_node_name);
                             }
                         }
                     }
@@ -780,7 +780,7 @@ int main(int argc, char *argv[])
             trigger_service(tick, service_trigger_type::start_of_averaging);
 
             ////check fedavg buffer full
-			tmt::ParallelExecution_StepIncremental([&tick,&test_dataset,&ml_test_batch_size,&ml_dataset_all_possible_labels,&solver_for_testing, &accuracy_container_lock, &accuracy_container, &model_abs_change_during_averaging_service](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
+			tmt::ParallelExecution_StepIncremental([&tick,&test_dataset,&ml_test_batch_size,&ml_dataset_all_possible_labels,&solver_for_testing, &accuracy_container_lock, &accuracy_container](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
 				if (single_node->parameter_buffer.size() >= single_node->buffer_size) {
                     single_node->model_averaged = true;
                     
@@ -845,7 +845,7 @@ int main(int argc, char *argv[])
                     //trigger service
                     {
                         single_node->simulation_service_data.model_after_averaging_ptr = &parameter;
-                        model_abs_change_during_averaging_service->process_on_event(tick, service_trigger_type::model_after_averaging, single_node->name);
+                        // model_abs_change_during_averaging_service->process_on_event(tick, service_trigger_type::model_after_averaging, single_node->name);
                     }
 					
 					//clear buffer and start new loop
