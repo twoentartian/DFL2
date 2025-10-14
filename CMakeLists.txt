@@ -7,8 +7,8 @@ option(HUNTER_BUILD_SHARED_LIBS "Value for BUILD_SHARED_LIBS for 3rd party packa
 
 include("cmake/HunterGate.cmake")
 HunterGate(
-        URL "https://github.com/cpp-pm/hunter/archive/v0.24.8.tar.gz"
-        SHA1 "ca7838dded9a1811b04ffd56175f629e0af82d3d"
+        URL "https://github.com/cpp-pm/hunter/archive/v0.26.6.tar.gz"
+        SHA1 "e70c29f878f5d5f5cdf1b9ccd628fb872e8624a8"
         LOCAL
 )
 
