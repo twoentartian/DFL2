@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
-option(HUNTER_BUILD_SHARED_LIBS "Value for BUILD_SHARED_LIBS for 3rd party packages" OFF)
+option(HUNTER_BUILD_SHARED_LIBS "Value for BUILD_SHARED_LIBS for 3rd party packages" ON)
 
 include("cmake/HunterGate.cmake")
 HunterGate(
@@ -26,7 +26,7 @@ endif()
 
 # options
 option(USE_HUNTER_BOOST "USE the Boost library in Hunter" ON)
-option(USE_ROCKSDB "USE RocksDB to store block/transactions" ON)
+option(USE_ROCKSDB "USE RocksDB to store block/transactions" OFF)
 option(USE_BACKTRACE "USE backtrace library to provide stack trace information" OFF)
 option(ENABLE_BLOCK_GENERATION "Enable generating block, can be disabled to save CPU & disk & memory resources" ON)
 
