@@ -143,7 +143,7 @@ if (LZ4_FOUND)
 else()
     hunter_add_package(lz4)
     find_package(LZ4 CONFIG REQUIRED)
-    list(APPEND DFL_LINKER_LIBS LZ4::lz4_static)
+    list(APPEND DFL_LINKER_LIBS lz4::lz4)
 endif ()
 
 # BLAS
