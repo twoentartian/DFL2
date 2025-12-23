@@ -622,6 +622,14 @@ int main(int argc, char *argv[])
                 service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
             }
 
+        	//variance control
+	        {
+            	auto service_iter = services.find("variance_control");
+
+            	service_iter->second->apply_config(check_and_get_config("variance_control"));
+            	service_iter->second->init_service(output_path, node_container, node_pointer_vector_container);
+	        }
+
             //final service check
             {
                 LOG_IF(FATAL, services["network_topology_manager"]->enable && services["time_based_hierarchy_service"]->enable) << "you cannot enable time_based_hierarchy_service and network_topology_manager at same time";
@@ -780,7 +788,7 @@ int main(int argc, char *argv[])
             trigger_service(tick, service_trigger_type::start_of_averaging);
 
             ////check fedavg buffer full
-			tmt::ParallelExecution_StepIncremental([&tick,&test_dataset,&ml_test_batch_size,&ml_dataset_all_possible_labels,&solver_for_testing, &accuracy_container_lock, &accuracy_container](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
+			tmt::ParallelExecution_StepIncremental([&tick,&test_dataset,&ml_test_batch_size,&ml_dataset_all_possible_labels,&solver_for_testing, &accuracy_container_lock, &accuracy_container, &variance_control_service](uint32_t index, uint32_t thread_index, node<model_datatype>* single_node){
 				if (single_node->parameter_buffer.size() >= single_node->buffer_size) {
                     single_node->model_averaged = true;
                     
@@ -794,6 +802,12 @@ int main(int argc, char *argv[])
 						received_models[i].type = type;
 						received_models[i].generator_address = node_name;
 						received_models[i].accuracy = 0;
+					}
+
+					//trigger service
+					{
+						single_node->simulation_service_data.model_before_averaging_ptr = &parameter;
+						variance_control_service->process_on_event(tick, service_trigger_type::model_before_averaging, single_node->name);
 					}
 
                     //measure self accuracy
@@ -846,6 +860,7 @@ int main(int argc, char *argv[])
                     {
                         single_node->simulation_service_data.model_after_averaging_ptr = &parameter;
                         // model_abs_change_during_averaging_service->process_on_event(tick, service_trigger_type::model_after_averaging, single_node->name);
+                    	variance_control_service->process_on_event(tick, service_trigger_type::model_after_averaging, single_node->name);
                     }
 					
 					//clear buffer and start new loop
